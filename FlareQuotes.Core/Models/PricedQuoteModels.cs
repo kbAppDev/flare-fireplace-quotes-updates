@@ -14,6 +14,8 @@ public sealed class PricedFireplaceQuote
 {
     public string FireplaceLabel { get; set; } = string.Empty;
     public string FireplaceLocation { get; set; } = string.Empty;
+    public string ProjectName { get; set; } = string.Empty;
+    public string ProjectAddress { get; set; } = string.Empty;
     public FireplaceType Type { get; set; } = FireplaceType.Unknown;
     public string Model { get; set; } = string.Empty;
     public string Size { get; set; } = string.Empty;
@@ -38,4 +40,5 @@ public sealed class PriceLine
     public string Url { get; set; } = string.Empty;
     public string PriceText => Price.HasValue ? Price.Value.ToString("C0") : string.Empty;
 }
+
 

@@ -1534,6 +1534,7 @@ private async Task<List<string>> ResolveGalleryPhotoAttachmentsAsync()
             Email = Email,
             Phone = Phone,
             Postal = Postal,
+            ProjectAddress = Postal,
             InstallDate = InstallDate,
             Model = ModelForQuotePreservingOdIo(Model, ForceOutdoorVentFreeType(Model, DetectType(Model, Size)), Size, EffectiveGlassHeight(GlassHeight, Model)),
             Size = Size,
@@ -1630,12 +1631,14 @@ if (HasOutdoorKitSelection(features) &&
         return new FireplaceQuote
         {
             FireplaceLocation = fireplace.Location,
+            ProjectName = fireplace.ProjectName,
+            ProjectAddress = fireplace.ProjectAddress,
             Type = ResolveTypeForQuote(fireplace.Model, fireplace.Size, fireplace.Features),
             Model = ModelForQuotePreservingOdIo(fireplace.Model, ForceOutdoorVentFreeType(fireplace.Model, DetectType(fireplace.Model, fireplace.Size)), fireplace.Size, EffectiveGlassHeight(fireplace.GlassHeight, fireplace.Model)),
             Size = fireplace.Size,
             GlassHeight = EffectiveGlassHeight(fireplace.GlassHeight, fireplace.Model),
             LeadTime = string.IsNullOrWhiteSpace(fireplace.LeadTime) ? "TBD" : fireplace.LeadTime,
-            ClassicMediaDisplay = fireplace.ClassicMediaSummary,
+            ClassicMediaDisplay = IsNoneSelectedText(fireplace.ClassicMediaSummary) ? string.Empty : fireplace.ClassicMediaSummary,
             Features = fireplace.Features.Select(Clone).ToList(),
             PremiumMedia = fireplace.PremiumMedia.Select(Clone).ToList()
         };
@@ -2193,6 +2196,8 @@ if (HasOutdoorKitSelection(features) &&
             Size = Size,
             GlassHeight = EffectiveGlassHeight(GlassHeight, Model),
             Location = FireplaceLocation,
+            ProjectName = ProjectName,
+            ProjectAddress = Postal,
             LeadTime = value,
             FeaturesSummary = SelectedFeatureSummary,
             ClassicMediaSummary = ClassicMediaSummary,
@@ -2485,6 +2490,12 @@ if (HasOutdoorKitSelection(features) &&
         // EH is listed before H so the 30" suffix wins correctly.
         var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|H|R)(?:[-\s]*(OD|IO))?\b");
         return match.Success ? NormalizeGlassHeightAlias(match.Groups[1].Value) : string.Empty;
+    }
+
+    private static bool IsNoneSelectedText(string? value)
+    {
+        var normalized = Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]+", " ").Trim().ToLowerInvariant();
+        return normalized is "none" or "none selected" or "no classic media selected";
     }
 
     private static string FirstNonBlank(params string?[] values)
@@ -2880,6 +2891,7 @@ if (IsPassageModel(model))
             Email = Email,
             Phone = Phone,
             Postal = Postal,
+            ProjectAddress = Postal,
             InstallDate = InstallDate,
             Model = Model,
             Size = Size,
@@ -2938,7 +2950,7 @@ if (IsPassageModel(model))
         ClientName = snapshot.ClientName;
         Email = snapshot.Email;
         Phone = snapshot.Phone;
-        Postal = snapshot.Postal;
+        Postal = FirstNonBlank(snapshot.ProjectAddress, snapshot.Postal);
         InstallDate = snapshot.InstallDate;
         Model = snapshot.Model;
         Size = snapshot.Size;
@@ -2992,6 +3004,8 @@ if (IsPassageModel(model))
             Size = fireplace.Size,
             GlassHeight = fireplace.GlassHeight,
             Location = fireplace.Location,
+            ProjectName = fireplace.ProjectName,
+            ProjectAddress = fireplace.ProjectAddress,
             LeadTime = fireplace.LeadTime,
             FeaturesSummary = fireplace.FeaturesSummary,
             ClassicMediaSummary = fireplace.ClassicMediaSummary,
@@ -3014,6 +3028,7 @@ if (IsPassageModel(model))
         public string Email { get; init; } = string.Empty;
         public string Phone { get; init; } = string.Empty;
         public string Postal { get; init; } = string.Empty;
+        public string ProjectAddress { get; init; } = string.Empty;
         public string InstallDate { get; init; } = string.Empty;
         public string Model { get; init; } = string.Empty;
         public string Size { get; init; } = string.Empty;
@@ -3063,12 +3078,14 @@ public sealed class UrlVerificationRowVm
     public bool IsValid { get; init; }
     public IReadOnlyList<object> Rows { get; init; } = Array.Empty<object>();
 }
-public sealed class FireplaceQuoteDraft : ObservableObject { public string FireplaceLabel { get; set; } = string.Empty; public string Model { get; set; } = string.Empty; public string Size { get; set; } = string.Empty; public string GlassHeight { get; set; } = string.Empty; public string Location { get; set; } = string.Empty; public string LeadTime { get; set; } = string.Empty; public string FeaturesSummary { get; set; } = string.Empty; public string ClassicMediaSummary { get; set; } = string.Empty; public string PremiumMediaSummary { get; set; } = string.Empty; public string ClassicMediaKey { get; set; } = string.Empty; public string AdditionalClassicMediaKey { get; set; } = string.Empty; public List<FeatureSelection> Features { get; set; } = []; public List<MediaSelection> PremiumMedia { get; set; } = []; public string LeadTimeLine => $"Lead Time: {LeadTime}"; public string FeaturesLine => $"Features: {FeaturesSummary}"; public string ClassicMediaLine => $"Classic Media: {ClassicMediaSummary}"; public string PremiumMediaLine => $"Premium Media: {PremiumMediaSummary}"; }
+public sealed class FireplaceQuoteDraft : ObservableObject { public string FireplaceLabel { get; set; } = string.Empty; public string ProjectName { get; set; } = string.Empty; public string ProjectAddress { get; set; } = string.Empty; public string Model { get; set; } = string.Empty; public string Size { get; set; } = string.Empty; public string GlassHeight { get; set; } = string.Empty; public string Location { get; set; } = string.Empty; public string LeadTime { get; set; } = string.Empty; public string FeaturesSummary { get; set; } = string.Empty; public string ClassicMediaSummary { get; set; } = string.Empty; public string PremiumMediaSummary { get; set; } = string.Empty; public string ClassicMediaKey { get; set; } = string.Empty; public string AdditionalClassicMediaKey { get; set; } = string.Empty; public List<FeatureSelection> Features { get; set; } = []; public List<MediaSelection> PremiumMedia { get; set; } = []; public string LeadTimeLine => $"Lead Time: {LeadTime}"; public string FeaturesLine => $"Features: {FeaturesSummary}"; public string ClassicMediaLine => $"Classic Media: {ClassicMediaSummary}"; public string PremiumMediaLine => $"Premium Media: {PremiumMediaSummary}"; }
 public sealed class QuotePreviewRow : ObservableObject { public string FireplaceLabel { get; set; } = string.Empty; public string LeadTime { get; set; } = string.Empty; public string Features { get; set; } = string.Empty; public string ClassicMedia { get; set; } = string.Empty; public string PremiumMedia { get; set; } = string.Empty; public string BasePrice { get; set; } = string.Empty; public string TotalPrice { get; set; } = string.Empty; }
 public sealed class SpecLinkDraft : ObservableObject { private string _url = string.Empty; public string FireplaceCode { get; set; } = string.Empty; public string Label { get; set; } = string.Empty; public string Url { get => _url; set => SetProperty(ref _url, value); } public string Status { get; set; } = string.Empty; }
 public enum QuoteWorkflowStage { Review, PdfPreview, SpecLinks }
 public sealed class QuoteStatusCard : ObservableObject { private string _name = string.Empty; private string _detail = string.Empty; private QuoteFlowStepState _state = QuoteFlowStepState.Pending; public string Name { get => _name; set => SetProperty(ref _name, value); } public string Detail { get => _detail; set => SetProperty(ref _detail, value); } public QuoteFlowStepState State { get => _state; set { if (SetProperty(ref _state, value)) { OnPropertyChanged(nameof(IndicatorFill)); OnPropertyChanged(nameof(StatusText)); } } } public string IndicatorFill => State == QuoteFlowStepState.Complete ? "#99CC00" : "#E74B4B"; public string StatusText => State == QuoteFlowStepState.Complete ? "Complete" : "Needs attention";
 }
+
+
 
 
 

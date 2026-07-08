@@ -25,7 +25,7 @@
                         <Image x:Name="HeaderLogoImage" Source="/Assets/header_logo-dark.png" Width="210" Stretch="Uniform" Margin="0,0,18,0" RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="False" UseLayoutRounding="False" />
                         <StackPanel>
                             <TextBlock Text="Flare Fireplaces - Quotes" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource FlareTextBrush}" Visibility="Collapsed" />
-                            <TextBlock x:Name="AppVersionText" Text="v1.3.9" Style="{StaticResource MutedText}" />
+                            <TextBlock x:Name="AppVersionText" Text="v1.4.6" Style="{StaticResource MutedText}" />
                         </StackPanel>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="14,0,0,0">
@@ -1011,6 +1011,7 @@
         </Grid>
     </Border>
 </Window>
+
 
 
 

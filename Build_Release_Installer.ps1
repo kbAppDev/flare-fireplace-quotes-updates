@@ -162,7 +162,7 @@ Write-Host ""
 Write-Host "Building installer..." -ForegroundColor Cyan
 
 & $Iscc `
-    "/DMyAppVersion=1.4.5
+    "/DMyAppVersion=$Version
     "/DSourceDir=$PublishDir" `
     $IssFile
 
@@ -225,6 +225,7 @@ elseif ((-not (Test-Path $GitHubInstallerAsset)) -and (Test-Path $ExtraSpaceName
     Copy-Item $ExtraSpaceNamedInstaller $GitHubInstallerAsset -Force
     Write-Host "Copied installer to GitHub updater asset name: $GitHubInstallerAsset"
 }
+
 
 
 

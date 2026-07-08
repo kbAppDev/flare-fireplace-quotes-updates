@@ -120,6 +120,8 @@ var modelNumber = ResolveModelNumber(workbook, type, input.Model, input.Size, in
             {
                 FireplaceLabel = BuildLabel(input),
                 FireplaceLocation = input.FireplaceLocation,
+                ProjectName = input.ProjectName,
+                ProjectAddress = input.ProjectAddress,
                 Type = type,
                 Model = input.Model,
                 Size = input.Size,
@@ -3224,6 +3226,7 @@ if (compactModel.Equals("TR", StringComparison.OrdinalIgnoreCase) ||
         return candidates.FirstOrDefault(File.Exists) ?? candidates[0];
     }
 }
+
 
 
 

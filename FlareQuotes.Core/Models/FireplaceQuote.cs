@@ -3,6 +3,8 @@ namespace FlareQuotes.Core.Models;
 public sealed class FireplaceQuote
 {
     public string FireplaceLocation { get; set; } = string.Empty;
+    public string ProjectName { get; set; } = string.Empty;
+    public string ProjectAddress { get; set; } = string.Empty;
     public FireplaceType Type { get; set; } = FireplaceType.Unknown;
     public string Model { get; set; } = string.Empty;
     public string Size { get; set; } = string.Empty;
@@ -15,3 +17,4 @@ public sealed class FireplaceQuote
     public List<FeatureSelection> Features { get; set; } = [];
     public List<MediaSelection> PremiumMedia { get; set; } = [];
 }
+

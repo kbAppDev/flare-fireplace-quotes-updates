@@ -130,8 +130,8 @@ page.Size(PageSizes.Letter);
 
     private static void CustomerProjectDetails(IContainer container, QuoteRequest request, string quoteDate, string quoteNumber, PricedFireplaceQuote? fireplace = null)
     {
-        var projectTitle = FirstNonBlank(request.ProjectName, request.FireplaceLocation, fireplace?.FireplaceLabel, " ");
-        var projectAddress = FirstNonBlank(request.ProjectAddress, request.Postal, " ");
+        var projectTitle = FirstNonBlank(fireplace?.ProjectName, request.ProjectName, request.FireplaceLocation, fireplace?.FireplaceLabel, " ");
+        var projectAddress = FirstNonBlank(fireplace?.ProjectAddress, request.ProjectAddress, request.Postal, " ");
 
         container.Table(table =>
         {
@@ -214,7 +214,7 @@ page.Size(PageSizes.Letter);
     {
         var first = fireplaces.FirstOrDefault();
         var included = first is null
-            ? new IncludedCopy("Included With Every Fireplace Purchase: ", "Power Supply, Wall Switch, Remote Control, Selection of Classic Media, and *Free Shipping (*Free shipping within the continental United States only)")
+            ? new IncludedCopy("Included With Every Fireplace Purchase: ", "Power Supply, Wall Switch, Remote Control, Classic Media, and *Free Shipping (*Free shipping within the continental United States only)")
             : IncludedText(first, request);
 
         container.Text(text =>
@@ -237,9 +237,27 @@ page.Size(PageSizes.Letter);
     }
 
 
+    private static string IncludedClassicMediaText(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            var text = (value ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(text))
+                continue;
+
+            var normalized = NormalizePdfText(text);
+            if (normalized is "none" or "none selected" or "no classic media selected")
+                continue;
+
+            return text;
+        }
+
+        return "Classic Media";
+    }
+
     private static IncludedCopy IncludedText(PricedFireplaceQuote fp, QuoteRequest request)
     {
-        var media = FirstNonBlank(fp.ClassicMediaDisplay, request.ClassicMedia.FirstOrDefault()?.DisplayName, "Selection of Classic Media");
+        var media = IncludedClassicMediaText(fp.ClassicMediaDisplay, request.ClassicMedia.FirstOrDefault()?.DisplayName);
 
         
         // v1.4.2 OD/IO included copy guard
@@ -680,6 +698,7 @@ FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough =>
         return text;
     }
 }
+
 
 
 
