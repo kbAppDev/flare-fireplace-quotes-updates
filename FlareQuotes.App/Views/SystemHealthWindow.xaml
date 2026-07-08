@@ -1,0 +1,130 @@
+<Window x:Class="FlareQuotes.App.Views.SystemHealthWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="System Health"
+        Width="760"
+        Height="620"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Border CornerRadius="28"
+            BorderBrush="#6685AE"
+            BorderThickness="1"
+            Background="#E60B1422"
+            Padding="24">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="32" ShadowDepth="10" Opacity="0.32" />
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <DockPanel Grid.Row="0" Margin="0,0,0,18">
+                <Button Content="×"
+                        DockPanel.Dock="Right"
+                        Width="34"
+                        Height="34"
+                        FontSize="18"
+                        FontWeight="Bold"
+                        Foreground="#F7FAFC"
+                        Background="#24364D"
+                        BorderBrush="#4F6C8E"
+                        Click="CloseButton_Click" />
+
+                <StackPanel>
+                    <TextBlock Text="System Health Check"
+                               Foreground="#F7FAFC"
+                               FontSize="26"
+                               FontWeight="Bold" />
+                    <TextBlock Text="A quick setup check so the app behaves like a grown-up desktop app, not a haunted toaster."
+                               Foreground="#CBD6E6"
+                               FontSize="13"
+                               Margin="0,6,0,0" />
+                </StackPanel>
+            </DockPanel>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border CornerRadius="18"
+                                    BorderBrush="#365071"
+                                    BorderThickness="1"
+                                    Background="#B9233A52"
+                                    Padding="16"
+                                    Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="28" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="130" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="{Binding Icon}"
+                                               Foreground="#99CC00"
+                                               FontSize="18"
+                                               FontWeight="Bold"
+                                               VerticalAlignment="Center" />
+
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding Name}"
+                                                   Foreground="#F7FAFC"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="14" />
+                                        <TextBlock Text="{Binding Detail}"
+                                                   Foreground="#CBD6E6"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+
+                                    <Border Grid.Column="2"
+                                            CornerRadius="14"
+                                            Background="#1A2A3B"
+                                            BorderBrush="#4F6C8E"
+                                            BorderThickness="1"
+                                            Padding="10,6"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding StateText}"
+                                                   Foreground="#F7FAFC"
+                                                   FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,18,0,0">
+                <Button Content="Open Logs"
+                        Width="120"
+                        Height="42"
+                        Margin="0,0,10,0"
+                        Background="#24364D"
+                        Foreground="#F7FAFC"
+                        BorderBrush="#4F6C8E"
+                        Click="OpenLogsButton_Click" />
+                <Button Content="Done"
+                        Width="120"
+                        Height="42"
+                        Background="#99CC00"
+                        Foreground="#0B1422"
+                        FontWeight="Bold"
+                        BorderBrush="#99CC00"
+                        Click="CloseButton_Click" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\app_icon.ico</ApplicationIcon>
+    <AssemblyName>Flare Fireplace Quotes</AssemblyName>
+    <RootNamespace>FlareQuotes.App</RootNamespace>
+    <Version>1.4.5</Version>
+    <AssemblyVersion>1.4.5.0</AssemblyVersion>
+    <FileVersion>1.4.5.0</FileVersion>
+    <Product>Flare Fireplace Quotes</Product>
+    <InformationalVersion>1.3.9</InformationalVersion>
+    <ProductVersion>1.3.4.0</ProductVersion>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FlareQuotes.Core\FlareQuotes.Core.csproj" />
+    <ProjectReference Include="..\FlareQuotes.Infrastructure\FlareQuotes.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Web.WebView2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\header_logo.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\header_logo-light.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\header_logo-dark.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\app_icon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\LocalData\pricing.xlsx" Link="LocalData\pricing.xlsx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\LocalData\resource_links.xlsx" Link="LocalData\resource_links.xlsx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\LocalData\outdoor_spec_center_extracted_links.xlsx" Link="LocalData\outdoor_spec_center_extracted_links.xlsx" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\UrlStyleCards\**\*" />
+  </ItemGroup>
+</Project>
+
+
+
+
+
+
+
+
+
+
+

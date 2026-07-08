@@ -1,0 +1,121 @@
+bin/
+obj/
+.vs/
+*.user
+LocalData/*.xlsx
+LocalData/*.json
+!LocalData/README.md
+*.log
+
+*.backup-*
+*.disabled
+*_audit_*.zip
+v3_*debug*.txt
+v3_*debug*.log
+FlareQuotes_v3_current_source_audit_*.zip
+FlareQuotes.App/**/MainWindow.DropdownFix.xaml.cs*
+
+# === Flare Fireplace Quotes local/build ignores ===
+# Build output
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.cache
+*.pdb
+
+# Logs/temp/backup artifacts
+*.log
+v1_build_run_*.log
+*.tmp
+*.bak
+*.old
+*.backup-*
+*backup-before*
+*_Debug_*.txt
+PdfPreviewNameFix_Debug_*.txt
+PropertyElementAttributeFix_Debug_*.txt
+
+# Local secrets/runtime data
+**/gmail_credentials.json
+**/token.json
+**/token*.json
+**/settings.json
+**/*secret*.json
+**/*credentials*.json
+
+# WebView2 runtime cache
+**/*.WebView2/
+**/EBWebView/
+
+# Generated release assets
+installer/github-release/
+installer/*.exe
+installer/*.json
+installer/*.zip
+installer/*.7z
+installer/*.msi
+
+# One-off repair scripts
+Patch_*.ps1
+Restore_*.ps1
+Rollback_*.ps1
+Clean_Flare_Quotes_*.ps1
+
+# Quarantine folders
+*_cleanup_quarantine*/
+*Quarantine*/
+# === End Flare Fireplace Quotes local/build ignores ===
+
+
+# Local cleanup/archive material
+_Archive_Not_For_Source_Control/
+
+
+# One-off release helper scripts
+Publish_*.ps1
+
+*.orig
+*.backup-before-*
+installer/*.log
+LocalData/gmail_credentials.json
+**/*token*.json
+**/*cache*.json
+**/*settings.json
+*.p12
+*.pem
+*.key
+.env
+*.zip
+
+# Build outputs
+publish/
+artifacts/
+
+# Local patch/build noise
+PatchBackups/
+*.rej
+
+# IDE/local machine
+.vscode/
+
+# Build outputs
+bin/
+obj/
+.vs/
+
+# Local patch/diagnostic files
+PatchBackups/
+_Diagnostics/
+v1_build_run_*.log
+*.user
+*.suo
+
+# Generated release output
+installer/*.exe
+installer/*.msi
+
+# Local archives
+*.zip
+*.7z
