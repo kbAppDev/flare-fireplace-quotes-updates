@@ -119,3 +119,12 @@ installer/*.msi
 # Local archives
 *.zip
 *.7z
+# Local backup/trash files
+*.bak-*
+*.broken-*
+*.backup.*
+# Local diagnostic folders
+*_Diagnostics_*/
+*_Audit_*/
+# Local/generated release output
+# IDE/build output
