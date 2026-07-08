@@ -6,7 +6,7 @@
 #define SourceDir "..\bin\Release\net10.0-windows\win-x64\publish"
 
 [Setup]
-AppId={E7F0E7EC-30C9-4E16-82E1-3BD0D8F0F10A}
+AppId={{E7F0E7EC-30C9-4E16-82E1-3BD0D8F0F10A}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
@@ -43,4 +43,5 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+
 
