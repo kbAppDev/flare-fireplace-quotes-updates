@@ -19,6 +19,7 @@ public static class AppPaths
     public static string WebView2 => Ensure(Path.Combine(Root, "WebView2"));
     public static string Updates => Ensure(Path.Combine(Root, "Updates"));
     public static string RecentQuotesFile => Path.Combine(Root, "recent_quotes.json");
+    public static string RecentQuotesProtectedFile => Path.Combine(Root, "recent_quotes.json.dpapi");
     public static string UiSettingsFile => Path.Combine(Root, "ui-settings.json");
 
     public static IReadOnlyList<string>

@@ -7,6 +7,7 @@ public sealed class UpdateManifest
     public string Url { get; set; } = string.Empty;
     public string Sha256 { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
 
     // Optional professional-hardening fields.
     // Existing unsigned manifests still work unless StrictManifestSignatureValidation is enabled.

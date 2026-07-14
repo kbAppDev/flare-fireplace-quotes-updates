@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Services;
 using FlareQuotes.Core.Paths;
+using FlareQuotes.Core.Security;
 using FlareQuotes.App.Services;
 
 namespace FlareQuotes.App.ViewModels;
@@ -877,6 +878,7 @@ public sealed class MainViewModel : ObservableObject
                     $"Gmail draft created successfully. DraftIdPresent={!string.IsNullOrWhiteSpace(result.DraftId)}; BrowserOpened={result.OpenedGmail}; Models={modelSummary}.");
 
                 CaptureLastQuoteForRecall();
+                DeleteGeneratedPdfAfterSuccessfulDraft();
                 ClearQuoteAfterSuccessfulEmail();
 
                 GmailStatusText = "Gmail: Connected";
@@ -2825,7 +2827,7 @@ public sealed class MainViewModel : ObservableObject
             if (!Directory.Exists(tempDir))
                 return;
 
-            var cutoff = DateTime.UtcNow.AddHours(-24);
+            var cutoff = DateTime.UtcNow.AddHours(-2);
             foreach (var file in Directory.EnumerateFiles(tempDir, "*.pdf", SearchOption.AllDirectories))
             {
                 try
@@ -3104,10 +3106,13 @@ public sealed class MainViewModel : ObservableObject
 
         return detectedType;
     }
-    private static string RecallHistoryPath => AppPaths.RecentQuotesFile;
+    private static string RecallHistoryPath => AppPaths.RecentQuotesProtectedFile;
+    private static string LegacyRecallHistoryPath => AppPaths.RecentQuotesFile;
+    private static readonly ProtectedJsonFileStore RecallHistoryStore =
+        new("Recall Quote History");
 
     private static readonly JsonSerializerOptions RecallHistoryJsonOptions =
-        new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
+        new() { PropertyNameCaseInsensitive = true, WriteIndented = false };
 
     private void LoadRecallHistory()
     {
@@ -3115,14 +3120,14 @@ public sealed class MainViewModel : ObservableObject
         {
             RecentQuoteHistory.Clear();
 
-            if (!File.Exists(RecallHistoryPath))
+            if (!File.Exists(RecallHistoryPath) && !File.Exists(LegacyRecallHistoryPath))
             {
                 CanRecallLastQuote = false;
                 return;
             }
 
-            var json = File.ReadAllText(RecallHistoryPath);
-            var items = JsonSerializer.Deserialize<List<LastQuoteSnapshot>>(json, RecallHistoryJsonOptions) ?? [];
+            var items = RecallHistoryStore.LoadOrMigrate<List<LastQuoteSnapshot>>(
+                            RecallHistoryPath, LegacyRecallHistoryPath, RecallHistoryJsonOptions) ?? [];
 
             foreach (var item in items.Where(item => item is not null)
                          .OrderByDescending(item => item.CreatedAt)
@@ -3147,8 +3152,10 @@ public sealed class MainViewModel : ObservableObject
         {
             Directory.CreateDirectory(Path.GetDirectoryName(RecallHistoryPath)!);
             var items = RecentQuoteHistory.Take(RecallQuoteHistoryLimit).ToList();
-            var json = JsonSerializer.Serialize(items, RecallHistoryJsonOptions);
-            File.WriteAllText(RecallHistoryPath, json);
+            RecallHistoryStore.Save(RecallHistoryPath, items, RecallHistoryJsonOptions);
+
+            if (File.Exists(LegacyRecallHistoryPath))
+                File.Delete(LegacyRecallHistoryPath);
         }
         catch
         {
@@ -3195,10 +3202,43 @@ public sealed class MainViewModel : ObservableObject
                                                                       .Distinct(StringComparer.OrdinalIgnoreCase)
                                                                       .ToList(),
                                                Fireplaces = Fireplaces.Select(CloneFireplaceDraftForRecall).ToList(),
-                                               GeneratedPdfPath = GeneratedPdfPath };
+                                               GeneratedPdfPath = string.Empty };
 
         AddSnapshotToRecallHistory(snapshot);
     }
+    private void DeleteGeneratedPdfAfterSuccessfulDraft()
+    {
+        var pdfPath = GeneratedPdfPath;
+        if (string.IsNullOrWhiteSpace(pdfPath))
+            return;
+
+        try
+        {
+            var fullPdfPath = Path.GetFullPath(pdfPath);
+            var fullTempRoot = Path.GetFullPath(AppPaths.Temp).TrimEnd(Path.DirectorySeparatorChar) +
+                               Path.DirectorySeparatorChar;
+
+            // Only delete app-owned temporary PDFs. Never delete a user-saved copy.
+            if (!fullPdfPath.StartsWith(fullTempRoot, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            if (File.Exists(fullPdfPath))
+                File.Delete(fullPdfPath);
+
+            var parent = Path.GetDirectoryName(fullPdfPath);
+            if (!string.IsNullOrWhiteSpace(parent) && Directory.Exists(parent) &&
+                !Directory.EnumerateFileSystemEntries(parent).Any())
+            {
+                Directory.Delete(parent, recursive: false);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning("Temporary quote PDF cleanup failed after Gmail draft creation: " +
+                            SafeForUser(ex.Message));
+        }
+    }
+
     private void ClearQuoteAfterSuccessfulEmail()
     {
         RawRequest = ProjectName = ClientName = Email = Phone = Postal = InstallDate = Model = Size = GlassHeight =

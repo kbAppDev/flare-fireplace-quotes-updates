@@ -1,4 +1,4 @@
-# Company Testing Checklist
+# Company Testing Checklist — v1.4.8
 
 Use this checklist for each tester.
 
@@ -71,3 +71,14 @@ Use this checklist for each tester.
 - Quote request text.
 - Model, size, glass height, selected features/media, lead time.
 - Build log if the issue is build/startup related.
+
+
+## 9. Security and update hardening
+
+- Existing `recent_quotes.json` migrates to `recent_quotes.json.dpapi` and the plaintext file is removed.
+- Recall Last Quote continues to work after restarting the app.
+- The encrypted history file does not contain visible customer names, email addresses, or project text.
+- A successful Gmail draft removes its app-owned temporary PDF.
+- A failed Gmail draft leaves the PDF available for retry.
+- Update checks reject a non-Flare host, mismatched release version, invalid SHA-256, or incorrect installer size.
+- The normal GitHub v1.4.8 release manifest downloads and launches only after verification.

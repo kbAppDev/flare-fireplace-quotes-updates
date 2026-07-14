@@ -1,24 +1,27 @@
 # Source Package Manifest
 
-This is the Flare Fireplace Quotes v1.4.7 release-candidate source package.
+This archive is the clean v1.4.8 deployment-hardening release source.
 
 ## Included
 
 - App, Core, Infrastructure, and Tests projects
-- WPF themes and runtime assets
+- WPF themes and required runtime assets
 - pricing and resource-link workbooks
 - canonical 302-model release-test inventory
-- release-gate and build scripts
+- four maintained PowerShell workflows
 - CodeQL workflow
-- architecture, security, and testing notes
+- architecture, security, and company-testing notes
 
 ## Excluded
 
-- Gmail credentials
-- OAuth token files
-- personal settings
-- generated PDFs
-- build output (`bin`, `obj`)
-- executables, DLLs, PDBs, and installer output
-- logs, temporary files, backups, and repository history
-- stale release manifests from earlier versions
+- stale v1.4.7 installer and updater manifest
+- Gmail credentials and OAuth tokens
+- personal settings and plaintext quote history
+- generated customer PDFs
+- build output (`bin`, `obj`, `publish`)
+- logs, test results, temporary files, nested backups, and repository history
+- obsolete patch scripts and release-candidate debris
+
+## Required validation
+
+The Windows release gate must build the installer, run all automated checks, execute the 302-model Gmail create-confirm-delete test, and pass CodeQL before publication.

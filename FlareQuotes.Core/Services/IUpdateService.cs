@@ -11,6 +11,7 @@ public sealed class UpdateCheckResult
     public string LatestVersion { get; set; } = string.Empty;
     public string InstallerUrl { get; set; } = string.Empty;
     public string Sha256 { get; set; } = string.Empty;
+    public long ExpectedSizeBytes { get; set; }
     public string Message { get; set; } = string.Empty;
 
     public string Notes { get; set; } = string.Empty;

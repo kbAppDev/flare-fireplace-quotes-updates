@@ -1,3 +1,5 @@
+using FlareQuotes.Core.Updates;
+
 namespace FlareQuotes.Core.Models;
 
 public sealed class AppSettings
@@ -12,8 +14,7 @@ public sealed class AppSettings
     public bool UseGmailSignature { get; set; } = true;
     public string EmailSendMode { get; set; } = "draft";
     public bool CheckUpdatesOnStartup { get; set; } = true;
-    public string UpdateManifestUrl { get; set; } = "https://github.com/kbAppDev/flare-fireplace-quotes-updates/" +
-                                                    "releases/latest/download/flare-quotes-v1-latest.json";
+    public string UpdateManifestUrl { get; set; } = UpdateTrustPolicy.ManifestUrl;
     public string GmailCredentialsPath { get; set; } = string.Empty;
     public int RecallQuoteHistoryLimit { get; set; } = 5;
     public bool FirstRunHealthCheckCompleted { get; set; }

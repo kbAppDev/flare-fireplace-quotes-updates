@@ -1,9 +1,13 @@
 #define MyAppName "Flare Fireplace Quotes"
-#define MyAppVersion "1.4.7"
+#ifndef MyAppVersion
+#define MyAppVersion "1.4.8"
+#endif
 #define MyAppPublisher "Flare Fireplaces"
 #define MyAppURL "https://flarefireplaces.com/"
 #define MyAppExeName "Flare Fireplace Quotes.exe"
+#ifndef SourceDir
 #define SourceDir "..\bin\Release\net10.0-windows\win-x64\publish"
+#endif
 
 [Setup]
 AppId={{E7F0E7EC-30C9-4E16-82E1-3BD0D8F0F10A}
@@ -23,8 +27,8 @@ SetupIconFile=..\Assets\app_icon.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 UninstallDisplayIcon={app}\{#MyAppExeName}
 

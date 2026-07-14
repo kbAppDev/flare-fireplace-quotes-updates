@@ -19,8 +19,6 @@ $ManifestAssetName = "flare-quotes-v1-latest.json"
 $InstallerAssetName = "Flare.Fireplace.Quotes.exe"
 $LocalInstallerName = "Flare Fireplace Quotes.exe"
 
-$InstallerUrl = "https://github.com/$Repo/releases/latest/download/$InstallerAssetName"
-
 if ([string]::IsNullOrWhiteSpace($Version)) {
     [xml]$props = Get-Content ".\Directory.Build.props" -Raw
     $Version = ($props.Project.PropertyGroup | Select-Object -First 1).Version
@@ -29,6 +27,9 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 if ([string]::IsNullOrWhiteSpace($Version)) {
     throw "Could not determine Version. Pass -Version or set Directory.Build.props."
 }
+
+$Tag = "v$Version"
+$InstallerUrl = "https://github.com/$Repo/releases/download/$Tag/$InstallerAssetName"
 
 $versionParts = $Version.Split(".")
 while ($versionParts.Count -lt 3) {
@@ -162,7 +163,7 @@ Write-Host ""
 Write-Host "Building installer..." -ForegroundColor Cyan
 
 & $Iscc `
-    "/DMyAppVersion=$Version
+    "/DMyAppVersion=$Version" `
     "/DSourceDir=$PublishDir" `
     $IssFile
 
@@ -180,12 +181,14 @@ Write-Host ""
 Write-Host "Creating GitHub update manifest..." -ForegroundColor Cyan
 
 $Sha256 = (Get-FileHash -Path $UploadInstallerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$SizeBytes = (Get-Item $UploadInstallerPath).Length
 
 $Manifest = [ordered]@{
     version = $Version
     installer = $InstallerUrl
     url = $InstallerUrl
     sha256 = $Sha256
+    sizeBytes = $SizeBytes
     notes = $Notes
 }
 

@@ -103,6 +103,32 @@ try {
         throw "A possible embedded client secret was found."
     }
 
+    $requiredHardeningFiles = @(
+        ".\FlareQuotes.Core\Security\ProtectedJsonFileStore.cs",
+        ".\FlareQuotes.Core\Updates\UpdateTrustPolicy.cs",
+        ".\FlareQuotes.Tests\SecurityTests\ProtectedJsonFileStoreTests.cs",
+        ".\FlareQuotes.Tests\UpdateTests\UpdateTrustPolicyTests.cs"
+    )
+    foreach ($requiredFile in $requiredHardeningFiles) {
+        if (-not (Test-Path $requiredFile)) {
+            throw "Required deployment-hardening file is missing: $requiredFile"
+        }
+    }
+
+    $mainViewModelSource = Get-Content ".\FlareQuotes.App\ViewModels\MainViewModel.cs" -Raw
+    if ($mainViewModelSource -match 'File\.WriteAllText\s*\(\s*RecallHistoryPath') {
+        throw "Recall quote history still contains a plaintext write path."
+    }
+    if ($mainViewModelSource -notmatch 'DeleteGeneratedPdfAfterSuccessfulDraft') {
+        throw "Post-draft temporary PDF cleanup is missing."
+    }
+
+    $releaseScriptSource = Get-Content ".\Build_Release_Installer.ps1" -Raw
+    if ($releaseScriptSource -notmatch 'sizeBytes' -or
+        $releaseScriptSource -notmatch 'releases/download/\$Tag/\$InstallerAssetName') {
+        throw "Release manifest generation is missing version-specific URL or size verification data."
+    }
+
     $gmailStatus = "SKIPPED"
     if (-not $SkipGmailIntegration) {
         Write-Host "6/8 Live Gmail create-confirm-delete test for every fireplace model..."

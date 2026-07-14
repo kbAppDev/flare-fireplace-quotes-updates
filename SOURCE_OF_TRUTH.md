@@ -1,10 +1,21 @@
 # Flare Fireplace Quotes Source of Truth
 
-Version: **1.4.7**
+Release version: **1.4.8**
 
-Repository: `kbAppDev/flare-fireplace-quotes-updates`
+Validated production baseline:
 
-Update manifest:
+```text
+v1.4.7
+commit 673e7f419b337e29d3cf7bdb6a2fc3c8f1375761
+```
+
+Repository:
+
+```text
+kbAppDev/flare-fireplace-quotes-updates
+```
+
+Update manifest lane:
 
 ```text
 https://github.com/kbAppDev/flare-fireplace-quotes-updates/releases/latest/download/flare-quotes-v1-latest.json
@@ -17,11 +28,11 @@ Flare.Fireplace.Quotes.exe
 flare-quotes-v1-latest.json
 ```
 
-Local release validation passed on July 14, 2026:
+v1.4.8 publication is permitted only after all of the following pass:
 
 - clean Release build with warnings treated as errors
-- unit and payload regression tests
-- dependency and source security scans
+- unit, regression, DPAPI-history, and updater-policy tests
+- dependency vulnerability and source security scans
 - live Gmail create-confirm-delete validation for all 302 canonical fireplace models
-
-A production release remains blocked until the committed CodeQL workflow passes.
+- GitHub CodeQL analysis
+- published manifest verification at version 1.4.8

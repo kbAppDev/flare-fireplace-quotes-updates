@@ -33,6 +33,8 @@ _Diagnostics/
 **/settings.json
 **/*secret*.json
 **/*cache*.json
+**/recent_quotes.json
+**/recent_quotes.json.dpapi
 .env
 *.p12
 *.pfx

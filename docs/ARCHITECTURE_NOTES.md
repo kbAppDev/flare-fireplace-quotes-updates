@@ -1,13 +1,13 @@
 # Architecture Notes
 
-Flare Fireplace Quotes v1.4.7 is a C# / WPF / MVVM rebuild of the original Python quote application.
+Flare Fireplace Quotes v1.4.8 is a C# / WPF / MVVM rebuild of the original Python quote application.
 
 ## Project layout
 
 - `FlareQuotes.App`: WPF views, view models, app startup, theme assets, and UI behavior.
-- `FlareQuotes.Core`: business models, parsing, feature/media catalogs, email templates, interfaces, and settings contracts.
+- `FlareQuotes.Core`: business models, parsing, feature/media catalogs, email templates, interfaces, settings contracts, DPAPI JSON protection, and the fixed update trust policy.
 - `FlareQuotes.Infrastructure`: Excel pricing/resource lookup, QuestPDF generation, Gmail draft creation, update checks, and DPAPI token storage.
-- `FlareQuotes.Tests`: xUnit tests for parser and feature-selection logic.
+- `FlareQuotes.Tests`: xUnit tests for parser, feature selection, all-model email payloads, Gmail integration, encrypted history, and update trust policy.
 - `LocalData`: company pricing workbook and resource links workbook. Gmail credentials are supplied locally and are not included in source packages.
 
 ## Key service boundaries

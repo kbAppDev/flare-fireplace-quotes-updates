@@ -174,7 +174,7 @@ if (-not $iscc) { throw "ISCC.exe not found. Install Inno Setup 6." }
 $iss = Get-ChildItem $Root -Recurse -File -Filter "*.iss" | Sort-Object FullName | Select-Object -First 1
 if (-not $iss) { throw "No Inno Setup .iss file found." }
 
-& $iscc $iss.FullName
+& $iscc "/DMyAppVersion=$Version" "/DSourceDir=$($publishExe.DirectoryName)" $iss.FullName
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup build failed." }
 
 $installer = Get-ChildItem $InstallerDir -Recurse -File -Filter "*.exe" |
@@ -216,13 +216,15 @@ $manifest = [ordered]@{
     fileSize = $size
     sizeBytes = $size
     notes = $ReleaseNotes.Trim()
-    signatureAlgorithm = "RS256"
-    signature = ""
     publishedAt = (Get-Date).ToUniversalTime().ToString("o")
     mandatory = $false
 }
 
-$manifest.signature = New-ManifestSignature $manifest
+$manifestSignature = New-ManifestSignature $manifest
+if (-not [string]::IsNullOrWhiteSpace($manifestSignature)) {
+    $manifest.signatureAlgorithm = "RS256"
+    $manifest.signature = $manifestSignature
+}
 Write-Utf8NoBom $ManifestPath ($manifest | ConvertTo-Json -Depth 20)
 
 gh release create $Tag "$AssetPath" "$ManifestPath" --repo $Repo --title $Tag --notes $ReleaseNotes

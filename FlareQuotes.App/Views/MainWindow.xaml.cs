@@ -2,6 +2,7 @@ using System;
 using FlareQuotes.Core.Services;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Paths;
+using FlareQuotes.Core.Updates;
 using System.Windows.Threading;
 using System.Security.Cryptography;
 using System.Reflection;
@@ -1425,7 +1426,8 @@ public partial class MainWindow : Window
             if (updateWindow.ShowDialog() != true)
                 return;
 
-            await DownloadVerifyAndLaunchInstallerAsync(result.InstallerUrl, result.Sha256, result.LatestVersion);
+            await DownloadVerifyAndLaunchInstallerAsync(result.InstallerUrl, result.Sha256,
+                                                         result.ExpectedSizeBytes, result.LatestVersion);
         }
         catch
         {
@@ -1440,53 +1442,94 @@ public partial class MainWindow : Window
     }
 
     private static async Task DownloadVerifyAndLaunchInstallerAsync(string installerUrl, string? expectedSha256,
+                                                                    long expectedSizeBytes,
                                                                     string latestVersion)
     {
-        if (!Uri.TryCreate(installerUrl, UriKind.Absolute, out var uri) || uri.Scheme is not("http" or "https"))
+        if (!UpdateTrustPolicy.TryGetTrustedInstallerUri(installerUrl, latestVersion, out var uri))
         {
-            MessageBox.Show("The update link is not valid.", "Update Error", MessageBoxButton.OK,
-                            MessageBoxImage.Error);
+            MessageBox.Show("The update link is outside the trusted Flare GitHub release lane.", "Update Error",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(expectedSha256))
+        if (!UpdateTrustPolicy.IsValidSha256(expectedSha256) ||
+            !UpdateTrustPolicy.IsValidInstallerSize(expectedSizeBytes))
         {
-            MessageBox.Show("The update manifest is missing SHA-256 verification. The update was not installed.",
+            MessageBox.Show("The update manifest is missing valid installer verification data.",
                             "Update Verification Required", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
+        var normalizedSha256 = expectedSha256!.Trim().ToLowerInvariant();
         var updatesDir = AppPaths.Updates;
-
         var fileName = Path.GetFileName(uri.LocalPath);
-        if (string.IsNullOrWhiteSpace(fileName) || !fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-            fileName = $"FlareFireplacesQuotesSetup-{latestVersion}.exe";
-
         var installerPath = Path.Combine(updatesDir, SafeUpdateFileName(fileName));
+        var downloadPath = installerPath + ".download";
 
-        using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        await using (var remote = await http.GetStreamAsync(uri)) await using (var local = File.Create(installerPath))
+        try
         {
-            await remote.CopyToAsync(local);
-        }
+            if (File.Exists(downloadPath))
+                File.Delete(downloadPath);
 
-        var actualSha256 = ComputeSha256(installerPath);
-        if (!string.Equals(actualSha256, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase))
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            using var response = await http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+
+            if (!UpdateTrustPolicy.IsTrustedDownloadResponseUri(response.RequestMessage?.RequestUri))
+                throw new InvalidDataException("The installer download redirected to an untrusted host.");
+
+            if (response.Content.Headers.ContentLength is long contentLength && contentLength != expectedSizeBytes)
+                throw new InvalidDataException("The installer size does not match the update manifest.");
+
+            var buffer = new byte[81920];
+            long totalBytes = 0;
+
+            await using (var remote = await response.Content.ReadAsStreamAsync())
+            await using (var local = new FileStream(downloadPath, FileMode.CreateNew, FileAccess.Write,
+                                                    FileShare.None, bufferSize: 81920,
+                                                    FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                while (true)
+                {
+                    var count = await remote.ReadAsync(buffer.AsMemory());
+                    if (count == 0)
+                        break;
+
+                    totalBytes += count;
+                    if (totalBytes > expectedSizeBytes || totalBytes > UpdateTrustPolicy.MaxInstallerBytes)
+                        throw new InvalidDataException("The installer download exceeded the expected size.");
+
+                    await local.WriteAsync(buffer.AsMemory(0, count));
+                }
+
+                await local.FlushAsync();
+            }
+
+            if (totalBytes != expectedSizeBytes)
+                throw new InvalidDataException("The installer download was incomplete.");
+
+            var actualSha256 = ComputeSha256(downloadPath);
+            if (!string.Equals(actualSha256, normalizedSha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("The installer failed SHA-256 verification.");
+
+            File.Move(downloadPath, installerPath, overwrite: true);
+            Process.Start(new ProcessStartInfo(installerPath) { UseShellExecute = true });
+            Application.Current.Shutdown();
+        }
+        catch (Exception ex)
         {
             try
             {
-                File.Delete(installerPath);
+                if (File.Exists(downloadPath))
+                    File.Delete(downloadPath);
             }
             catch
             {
             }
-            MessageBox.Show("The update failed SHA-256 verification and was not installed.",
-                            "Update Verification Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
 
-        Process.Start(new ProcessStartInfo(installerPath) { UseShellExecute = true });
-        Application.Current.Shutdown();
+            MessageBox.Show("The update could not be verified and was not installed. " + SafeForUser(ex.Message),
+                            "Update Verification Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private static string ComputeSha256(string path)

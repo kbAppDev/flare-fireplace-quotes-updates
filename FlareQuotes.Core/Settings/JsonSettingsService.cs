@@ -2,14 +2,12 @@ using System.Text.Json;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Paths;
 using FlareQuotes.Core.Services;
+using FlareQuotes.Core.Updates;
 
 namespace FlareQuotes.Core.Settings;
 
 public sealed class JsonSettingsService : ISettingsService
 {
-    private const string CorrectManifestUrl = "https://github.com/kbAppDev/flare-fireplace-quotes-updates/releases/" +
-                                              "latest/download/flare-quotes-v1-latest.json";
-
     private static readonly JsonSerializerOptions JsonOptions =
         new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
 
@@ -114,9 +112,9 @@ public sealed class JsonSettingsService : ISettingsService
         if (string.IsNullOrWhiteSpace(settings.UpdateManifestUrl) ||
             settings.UpdateManifestUrl.Contains("flare-quotes-v1-flare-quotes-v1",
                                                 StringComparison.OrdinalIgnoreCase) ||
-            !settings.UpdateManifestUrl.Equals(CorrectManifestUrl, StringComparison.OrdinalIgnoreCase))
+            !settings.UpdateManifestUrl.Equals(UpdateTrustPolicy.ManifestUrl, StringComparison.OrdinalIgnoreCase))
         {
-            settings.UpdateManifestUrl = CorrectManifestUrl;
+            settings.UpdateManifestUrl = UpdateTrustPolicy.ManifestUrl;
         }
 
         return settings;
