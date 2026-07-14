@@ -1,13 +1,7 @@
 namespace FlareQuotes.Core.Models;
 
-public sealed record FeatureOption(
-    string Key,
-    string DisplayName,
-    string PdfDescription,
-    FireplaceType[] AppliesTo,
-    bool RequiresSize,
-    string PreferredSheet,
-    string[] Aliases);
+public sealed record FeatureOption(string Key, string DisplayName, string PdfDescription, FireplaceType[] AppliesTo,
+                                   bool RequiresSize, string PreferredSheet, string[] Aliases);
 
 public sealed class FeatureSelection
 {

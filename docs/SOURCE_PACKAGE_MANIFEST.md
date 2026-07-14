@@ -1,22 +1,24 @@
 # Source Package Manifest
 
-This package is intended for company testing of Flare Fireplaces - Quotes v1.0.
+This is the Flare Fireplace Quotes v1.4.7 release-candidate source package.
 
-Included:
+## Included
 
-- App, Core, Infrastructure, and Tests source projects
-- WPF themes and assets
-- `LocalData/pricing.xlsx`
-- `LocalData/resource_links.xlsx`
-- Build/run helper scripts
-- Testing and security notes
+- App, Core, Infrastructure, and Tests projects
+- WPF themes and runtime assets
+- pricing and resource-link workbooks
+- canonical 302-model release-test inventory
+- release-gate and build scripts
+- CodeQL workflow
+- architecture, security, and testing notes
 
-Excluded:
+## Excluded
 
 - Gmail credentials
-- OAuth tokens
+- OAuth token files
+- personal settings
 - generated PDFs
-- build output folders
-- logs and debug files
-- patch-only README files
-- audit ZIPs
+- build output (`bin`, `obj`)
+- executables, DLLs, PDBs, and installer output
+- logs, temporary files, backups, and repository history
+- stale release manifests from earlier versions

@@ -8,7 +8,7 @@ Use this checklist for each tester.
 - Build shows `0 Warning(s), 0 Error(s)`.
 - Settings opens.
 - Settings saves and reloads values.
-- Gmail credentials path points to `LocalData\gmail_credentials.json` or the tester's selected credential file.
+- Gmail credentials are imported into `%LOCALAPPDATA%\Flare Fireplace Quotes\Credentials\gmail_credentials.json`.
 - Header shows Gmail status accurately after OAuth/draft creation.
 
 ## 2. Basic quote flow

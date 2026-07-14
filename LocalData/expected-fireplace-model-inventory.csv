@@ -1,0 +1,303 @@
+Model,Category
+DVDC100E,Indoor
+DVDC100H,Indoor
+DVDC100R,Indoor
+DVDC30H,Indoor
+DVDC45E,Indoor
+DVDC45H,Indoor
+DVDC45R,Indoor
+DVDC50E,Indoor
+DVDC50H,Indoor
+DVDC50R,Indoor
+DVDC60E,Indoor
+DVDC60H,Indoor
+DVDC60R,Indoor
+DVDC70E,Indoor
+DVDC70H,Indoor
+DVDC70R,Indoor
+DVDC80E,Indoor
+DVDC80H,Indoor
+DVDC80R,Indoor
+DVFF100E,Indoor
+DVFF100EC,Indoor
+DVFF100H,Indoor
+DVFF100HC,Indoor
+DVFF100R,Indoor
+DVFF100RC,Indoor
+DVFF30H,Indoor
+DVFF30R,Indoor
+DVFF425E,Indoor
+DVFF45E,Indoor
+DVFF45EC,Indoor
+DVFF45H,Indoor
+DVFF45HC,Indoor
+DVFF45R,Indoor
+DVFF45RC,Indoor
+DVFF50E,Indoor
+DVFF50EC,Indoor
+DVFF50H,Indoor
+DVFF50HC,Indoor
+DVFF50R,Indoor
+DVFF50RC,Indoor
+DVFF60E,Indoor
+DVFF60EC,Indoor
+DVFF60H,Indoor
+DVFF60HC,Indoor
+DVFF60R,Indoor
+DVFF60RC,Indoor
+DVFF70E,Indoor
+DVFF70EC,Indoor
+DVFF70H,Indoor
+DVFF70HC,Indoor
+DVFF70R,Indoor
+DVFF70RC,Indoor
+DVFF80E,Indoor
+DVFF80EC,Indoor
+DVFF80H,Indoor
+DVFF80HC,Indoor
+DVFF80R,Indoor
+DVFF80RC,Indoor
+DVLC100E,Indoor
+DVLC100H,Indoor
+DVLC100R,Indoor
+DVLC30H,Indoor
+DVLC45E,Indoor
+DVLC45H,Indoor
+DVLC45R,Indoor
+DVLC50E,Indoor
+DVLC50H,Indoor
+DVLC50R,Indoor
+DVLC60E,Indoor
+DVLC60H,Indoor
+DVLC60R,Indoor
+DVLC70E,Indoor
+DVLC70H,Indoor
+DVLC70R,Indoor
+DVLC80E,Indoor
+DVLC80H,Indoor
+DVLC80R,Indoor
+DVPAFF,Indoor
+DVRC100E,Indoor
+DVRC100H,Indoor
+DVRC100R,Indoor
+DVRC30H,Indoor
+DVRC45E,Indoor
+DVRC45H,Indoor
+DVRC45R,Indoor
+DVRC50E,Indoor
+DVRC50H,Indoor
+DVRC50R,Indoor
+DVRC60E,Indoor
+DVRC60H,Indoor
+DVRC60R,Indoor
+DVRC70E,Indoor
+DVRC70H,Indoor
+DVRC70R,Indoor
+DVRC80E,Indoor
+DVRC80H,Indoor
+DVRC80R,Indoor
+DVRD100E,Indoor
+DVRD100H,Indoor
+DVRD100R,Indoor
+DVRD45E,Indoor
+DVRD45H,Indoor
+DVRD45R,Indoor
+DVRD50E,Indoor
+DVRD50H,Indoor
+DVRD50R,Indoor
+DVRD60E,Indoor
+DVRD60H,Indoor
+DVRD60R,Indoor
+DVRD70E,Indoor
+DVRD70H,Indoor
+DVRD70R,Indoor
+DVRD80E,Indoor
+DVRD80H,Indoor
+DVRD80R,Indoor
+DVPAST,Indoor See Through
+DVST100E,Indoor See Through
+DVST100EC,Indoor See Through
+DVST100H,Indoor See Through
+DVST100HC,Indoor See Through
+DVST100R,Indoor See Through
+DVST100RC,Indoor See Through
+DVST30H,Indoor See Through
+DVST30R,Indoor See Through
+DVST45E,Indoor See Through
+DVST45EC,Indoor See Through
+DVST45H,Indoor See Through
+DVST45HC,Indoor See Through
+DVST45R,Indoor See Through
+DVST45RC,Indoor See Through
+DVST50E,Indoor See Through
+DVST50EC,Indoor See Through
+DVST50H,Indoor See Through
+DVST50HC,Indoor See Through
+DVST50R,Indoor See Through
+DVST50RC,Indoor See Through
+DVST60E,Indoor See Through
+DVST60EC,Indoor See Through
+DVST60H,Indoor See Through
+DVST60HC,Indoor See Through
+DVST60R,Indoor See Through
+DVST60RC,Indoor See Through
+DVST70E,Indoor See Through
+DVST70EC,Indoor See Through
+DVST70H,Indoor See Through
+DVST70HC,Indoor See Through
+DVST70R,Indoor See Through
+DVST70RC,Indoor See Through
+DVST80E,Indoor See Through
+DVST80EC,Indoor See Through
+DVST80H,Indoor See Through
+DVST80HC,Indoor See Through
+DVST80R,Indoor See Through
+DVST80RC,Indoor See Through
+LDVDC120,Large
+LDVDC120H,Large
+LDVDC140,Large
+LDVDC140H,Large
+LDVDC160,Large
+LDVDC160H,Large
+LDVDC180,Large
+LDVDC180H,Large
+LDVDC200,Large
+LDVDC200H,Large
+LDVDC210,Large
+LDVDC210H,Large
+LDVDC240,Large
+LDVDC240H,Large
+LDVDC280,Large
+LDVDC280H,Large
+LDVDC300,Large
+LDVDC300H,Large
+LDVDC320,Large
+LDVDC320H,Large
+LDVDC340,Large
+LDVDC340H,Large
+LDVDC400,Large
+LDVDC400H,Large
+LDVFF120,Large
+LDVFF120H,Large
+LDVFF140,Large
+LDVFF140H,Large
+LDVFF160,Large
+LDVFF160H,Large
+LDVFF180,Large
+LDVFF180H,Large
+LDVFF200,Large
+LDVFF200H,Large
+LDVFF210,Large
+LDVFF210H,Large
+LDVFF240,Large
+LDVFF240H,Large
+LDVFF280,Large
+LDVFF280H,Large
+LDVFF300,Large
+LDVFF300H,Large
+LDVFF320,Large
+LDVFF320H,Large
+LDVFF340,Large
+LDVFF340H,Large
+LDVFF400,Large
+LDVFF400H,Large
+LDVLC120,Large
+LDVLC120H,Large
+LDVLC140,Large
+LDVLC140H,Large
+LDVLC160,Large
+LDVLC160H,Large
+LDVLC180,Large
+LDVLC180H,Large
+LDVLC200,Large
+LDVLC200H,Large
+LDVLC210,Large
+LDVLC210H,Large
+LDVLC240,Large
+LDVLC240H,Large
+LDVLC280,Large
+LDVLC280H,Large
+LDVLC300,Large
+LDVLC300H,Large
+LDVLC320,Large
+LDVLC320H,Large
+LDVLC340,Large
+LDVLC340H,Large
+LDVLC400,Large
+LDVLC400H,Large
+LDVRC120,Large
+LDVRC120H,Large
+LDVRC140,Large
+LDVRC140H,Large
+LDVRC160,Large
+LDVRC160H,Large
+LDVRC180,Large
+LDVRC180H,Large
+LDVRC200,Large
+LDVRC200H,Large
+LDVRC210,Large
+LDVRC210H,Large
+LDVRC240,Large
+LDVRC240H,Large
+LDVRC280,Large
+LDVRC280H,Large
+LDVRC300,Large
+LDVRC300H,Large
+LDVRC320,Large
+LDVRC320H,Large
+LDVRC340,Large
+LDVRC340H,Large
+LDVRC400,Large
+LDVRC400H,Large
+VFDC100,Outdoor
+VFDC100H,Outdoor
+VFDC50,Outdoor
+VFDC50H,Outdoor
+VFDC60,Outdoor
+VFDC60H,Outdoor
+VFDC70,Outdoor
+VFDC70H,Outdoor
+VFDC80,Outdoor
+VFDC80H,Outdoor
+VFFF100,Outdoor
+VFFF100H,Outdoor
+VFFF50,Outdoor
+VFFF50H,Outdoor
+VFFF60,Outdoor
+VFFF60H,Outdoor
+VFFF70,Outdoor
+VFFF70H,Outdoor
+VFFF80,Outdoor
+VFFF80H,Outdoor
+VFLC100,Outdoor
+VFLC100H,Outdoor
+VFLC50,Outdoor
+VFLC50H,Outdoor
+VFLC60,Outdoor
+VFLC60H,Outdoor
+VFLC70,Outdoor
+VFLC70H,Outdoor
+VFLC80,Outdoor
+VFLC80H,Outdoor
+VFRC100,Outdoor
+VFRC100H,Outdoor
+VFRC50,Outdoor
+VFRC50H,Outdoor
+VFRC60,Outdoor
+VFRC60H,Outdoor
+VFRC70,Outdoor
+VFRC70H,Outdoor
+VFRC80,Outdoor
+VFRC80H,Outdoor
+VFST100,Outdoor See Through
+VFST100H,Outdoor See Through
+VFST50,Outdoor See Through
+VFST50H,Outdoor See Through
+VFST60,Outdoor See Through
+VFST60H,Outdoor See Through
+VFST70,Outdoor See Through
+VFST70H,Outdoor See Through
+VFST80,Outdoor See Through
+VFST80H,Outdoor See Through
+DVTRA42,Traditional
+DVTRA46,Traditional

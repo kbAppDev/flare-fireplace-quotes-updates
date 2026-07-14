@@ -1,5 +1,5 @@
 #define MyAppName "Flare Fireplace Quotes"
-#define MyAppVersion "1.4.6"
+#define MyAppVersion "1.4.7"
 #define MyAppPublisher "Flare Fireplaces"
 #define MyAppURL "https://flarefireplaces.com/"
 #define MyAppExeName "Flare Fireplace Quotes.exe"

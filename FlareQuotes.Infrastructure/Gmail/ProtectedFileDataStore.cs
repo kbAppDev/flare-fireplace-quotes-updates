@@ -7,14 +7,14 @@ namespace FlareQuotes.Infrastructure.Gmail;
 
 /// <summary>
 /// DPAPI-backed Google API token store.
-/// 
+///
 /// Google's default FileDataStore writes OAuth token JSON to disk in plain text.
 /// This store encrypts token payloads with Windows DPAPI CurrentUser scope and
 /// opportunistically migrates old plain-text token files the first time they are read.
 /// </summary>
 public sealed class ProtectedFileDataStore : IDataStore
 {
-    private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("Flare Fireplaces - Quotes v3 Gmail OAuth Token Store");
+    private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("Flare Fireplace Quotes Gmail OAuth Token Store");
     private readonly string _folderPath;
 
     public ProtectedFileDataStore(string folderPath)
@@ -82,7 +82,13 @@ public sealed class ProtectedFileDataStore : IDataStore
     {
         foreach (var file in Directory.EnumerateFiles(_folderPath, "*.dpapi", SearchOption.TopDirectoryOnly))
         {
-            try { File.Delete(file); } catch { }
+            try
+            {
+                File.Delete(file);
+            }
+            catch
+            {
+            }
         }
 
         return Task.CompletedTask;
@@ -91,9 +97,9 @@ public sealed class ProtectedFileDataStore : IDataStore
     private async Task<T> TryMigrateLegacyPlainTextTokenAsync<T>(string key)
     {
         foreach (var legacyFile in Directory.EnumerateFiles(_folderPath, "*", SearchOption.TopDirectoryOnly)
-                     .Where(x => !x.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase)
-                              && !x.EndsWith(".migrated", StringComparison.OrdinalIgnoreCase)
-                              && !x.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)))
+                     .Where(x => !x.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase) &&
+                                 !x.EndsWith(".migrated", StringComparison.OrdinalIgnoreCase) &&
+                                 !x.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)))
         {
             try
             {
@@ -135,10 +141,10 @@ public sealed class ProtectedFileDataStore : IDataStore
 
     private static bool LooksLikeGoogleToken(string value)
     {
-        return value.Contains("access_token", StringComparison.OrdinalIgnoreCase)
-            || value.Contains("refresh_token", StringComparison.OrdinalIgnoreCase)
-            || value.Contains("AccessToken", StringComparison.OrdinalIgnoreCase)
-            || value.Contains("RefreshToken", StringComparison.OrdinalIgnoreCase);
+        return value.Contains("access_token", StringComparison.OrdinalIgnoreCase) ||
+               value.Contains("refresh_token", StringComparison.OrdinalIgnoreCase) ||
+               value.Contains("AccessToken", StringComparison.OrdinalIgnoreCase) ||
+               value.Contains("RefreshToken", StringComparison.OrdinalIgnoreCase);
     }
 
     private string GetProtectedPath<T>(string key)

@@ -1,17 +1,27 @@
 # Flare Fireplace Quotes Source of Truth
 
-This repository is now synchronized with Kyle's local source folder for the published v1.4.5 release.
+Version: **1.4.7**
 
-## Current confirmed release
+Repository: `kbAppDev/flare-fireplace-quotes-updates`
 
-- Version: 1.4.5
-- Installer asset: Flare.Fireplace.Quotes.exe
-- Installer size: 85495811 bytes
-- Installer SHA256: 45a52112471e9f5a710b1b54bf70e3f6012b9c3fc59d54282ad0b612d7535db1
-- Published release: v1.4.5
+Update manifest:
 
-## v1.4.5 changes
+```text
+https://github.com/kbAppDev/flare-fireplace-quotes-updates/releases/latest/download/flare-quotes-v1-latest.json
+```
 
-- Feature/media dropdowns reset to the top between fireplace quotes.
-- Gmail draft first sentence changes based on single vs multiple fireplaces.
-- Built on the verified v1.4.4 baseline.
+Required release assets:
+
+```text
+Flare.Fireplace.Quotes.exe
+flare-quotes-v1-latest.json
+```
+
+Local release validation passed on July 14, 2026:
+
+- clean Release build with warnings treated as errors
+- unit and payload regression tests
+- dependency and source security scans
+- live Gmail create-confirm-delete validation for all 302 canonical fireplace models
+
+A production release remains blocked until the committed CodeQL workflow passes.

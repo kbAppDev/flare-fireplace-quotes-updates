@@ -3,6 +3,7 @@ using System.Net.Mail;
 using System.Text;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Services;
+using FlareQuotes.Core.Paths;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Gmail.v1;
 using Google.Apis.Gmail.v1.Data;
@@ -13,32 +14,38 @@ namespace FlareQuotes.Infrastructure.Gmail;
 public sealed class GmailDraftService : IGmailDraftService
 {
     private const int MaxAttachmentBytes = 20 * 1024 * 1024;
+    // Keep the binary payload comfortably below Gmail's encoded message limit.
+    // Base64 expands attachments by roughly one third, and MIME headers add more.
+    private const long MaxTotalAttachmentBytes = 18L * 1024 * 1024;
+    private static readonly TimeSpan ApiTimeout = TimeSpan.FromSeconds(45);
 
-    private static readonly string[] Scopes =
-    [
-        GmailService.Scope.GmailCompose,
-        GmailService.Scope.GmailSettingsBasic
-    ];
+    private static readonly string[] Scopes = [GmailService.Scope.GmailCompose, GmailService.Scope.GmailSettingsBasic];
 
     private readonly ISettingsService _settingsService;
+    private readonly IAppLogger _logger;
     private GmailService? _service;
 
-    public GmailDraftService(ISettingsService settingsService)
+    public GmailDraftService(ISettingsService settingsService, IAppLogger logger)
     {
         _settingsService = settingsService;
+        _logger = logger;
     }
 
     public async Task<string> ConnectAsync(CancellationToken cancellationToken = default)
     {
-        var service = await GetServiceAsync(cancellationToken).ConfigureAwait(false);
-        var profile = await service.Users.GetProfile("me").ExecuteAsync(cancellationToken).ConfigureAwait(false);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(ApiTimeout);
+        var service = await GetServiceAsync(timeout.Token).ConfigureAwait(false);
+        var profile = await service.Users.GetProfile("me").ExecuteAsync(timeout.Token).ConfigureAwait(false);
         return profile.EmailAddress ?? "Connected";
     }
 
     public async Task<string> GetSenderDisplayAsync(CancellationToken cancellationToken = default)
     {
-        var service = await GetServiceAsync(cancellationToken).ConfigureAwait(false);
-        var profile = await service.Users.GetProfile("me").ExecuteAsync(cancellationToken).ConfigureAwait(false);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(ApiTimeout);
+        var service = await GetServiceAsync(timeout.Token).ConfigureAwait(false);
+        var profile = await service.Users.GetProfile("me").ExecuteAsync(timeout.Token).ConfigureAwait(false);
         return profile.EmailAddress ?? "Connected";
     }
 
@@ -46,43 +53,86 @@ public sealed class GmailDraftService : IGmailDraftService
     {
         try
         {
-            var service = await GetServiceAsync(cancellationToken).ConfigureAwait(false);
-            var list = await service.Users.Settings.SendAs.List("me").ExecuteAsync(cancellationToken).ConfigureAwait(false);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(ApiTimeout);
+            var service = await GetServiceAsync(timeout.Token).ConfigureAwait(false);
+            var list = await service.Users.Settings.SendAs.List("me").ExecuteAsync(timeout.Token).ConfigureAwait(false);
             var sender = list.SendAs?.FirstOrDefault(x => x.IsDefault == true) ?? list.SendAs?.FirstOrDefault();
             return sender?.Signature ?? string.Empty;
         }
-        catch
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning($"Gmail signature lookup was skipped. Reason={SafeForUser(ex.Message)}");
             return string.Empty;
         }
     }
 
-    public async Task<EmailDraftResult> CreateDraftAsync(EmailDraftRequest request, CancellationToken cancellationToken = default)
+    public async Task<EmailDraftResult> CreateDraftAsync(EmailDraftRequest request,
+                                                         CancellationToken cancellationToken = default)
     {
         try
         {
-            var service = await GetServiceAsync(cancellationToken).ConfigureAwait(false);
-            var raw = BuildRawMessage(request);
-            var draft = new Draft { Message = new Message { Raw = raw } };
-            var created = await service.Users.Drafts.Create(draft, "me").ExecuteAsync(cancellationToken).ConfigureAwait(false);
-            OpenGmailDrafts();
+            var pdfBytes = File.Exists(request.PdfAttachmentPath) ? new FileInfo(request.PdfAttachmentPath).Length : 0;
+            var manualBytes =
+                (request.AdditionalAttachmentPaths ?? []).Where(File.Exists).Sum(path => new FileInfo(path).Length);
 
-            return new EmailDraftResult
+            _logger.Info(
+                $"Gmail service preparing request. SubjectLength={request.Subject?.Length ?? 0}; HtmlLength={request.HtmlBody?.Length ?? 0}; PdfBytes={pdfBytes}; ManualAttachmentCount={request.AdditionalAttachmentPaths?.Count ?? 0}; ManualBytes={manualBytes}.");
+
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(ApiTimeout);
+            var service = await GetServiceAsync(timeout.Token).ConfigureAwait(false);
+            _logger.Info("Gmail service authenticated. Building MIME message.");
+
+            var raw = BuildRawMessage(request);
+            _logger.Info($"Gmail MIME message built. EncodedCharacters={raw.Length}.");
+
+            var draft = new Draft { Message = new Message { Raw = raw } };
+            var created =
+                await service.Users.Drafts.Create(draft, "me").ExecuteAsync(timeout.Token).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(created.Id))
             {
-                Success = true,
-                DraftId = created.Id ?? string.Empty,
-                OpenedGmail = true,
-                Message = "Gmail draft created."
+                _logger.Warning("Gmail API returned without a draft ID.");
+                return new EmailDraftResult { Success = false, OpenedGmail = false,
+                                              Message = "Gmail did not confirm the draft was created." };
+            }
+
+            var opened = request.OpenBrowserAfterCreate && OpenGmailDrafts();
+            _logger.Info("Gmail API created draft. DraftIdPresent=True; " + $"BrowserOpened={opened}.");
+
+            return new EmailDraftResult {
+                Success = true, DraftId = created.Id, OpenedGmail = opened,
+                Message = request.OpenBrowserAfterCreate
+                              ? (opened ? "Gmail draft created."
+                                        : "Gmail draft created, but the browser could not be opened automatically.")
+                              : "Gmail draft created."
+            };
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.Warning("Gmail draft creation timed out.");
+            return new EmailDraftResult { Success = false,
+                                          Message =
+                                              "Gmail draft creation timed out. Check the connection and try again." };
+        }
+        catch (Google.GoogleApiException ex)
+        {
+            _logger.Error(ex,
+                          $"Gmail API rejected draft. HttpStatus={(int)ex.HttpStatusCode}; Service={ex.ServiceName}.");
+            return new EmailDraftResult {
+                Success = false, OpenedGmail = false,
+                Message = $"Gmail rejected the draft (HTTP {(int)ex.HttpStatusCode}). {SafeForUser(ex.Message)}"
             };
         }
         catch (Exception ex)
         {
-            return new EmailDraftResult
-            {
-                Success = false,
-                OpenedGmail = false,
-                Message = $"Gmail draft could not be created. {SafeForUser(ex.Message)}"
-            };
+            _logger.Error(ex, "Gmail draft service failed before confirmation.");
+            return new EmailDraftResult { Success = false, OpenedGmail = false,
+                                          Message = $"Gmail draft could not be created. {SafeForUser(ex.Message)}" };
         }
     }
 
@@ -97,26 +147,16 @@ public sealed class GmailDraftService : IGmailDraftService
 
         await using var stream = File.OpenRead(credentialPath);
 
-        var tokenDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Flare Fireplaces - Quotes",
-            "v3",
-            "gmail-token");
+        AppPaths.MigrateLegacyData();
+        var tokenDir = AppPaths.GmailTokenStore;
 
-        Directory.CreateDirectory(tokenDir);
+        var credential = await GoogleWebAuthorizationBroker
+                             .AuthorizeAsync(GoogleClientSecrets.FromStream(stream).Secrets, Scopes, "user",
+                                             cancellationToken, new ProtectedFileDataStore(tokenDir))
+                             .ConfigureAwait(false);
 
-        var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
-            GoogleClientSecrets.FromStream(stream).Secrets,
-            Scopes,
-            "user",
-            cancellationToken,
-            new ProtectedFileDataStore(tokenDir)).ConfigureAwait(false);
-
-        _service = new GmailService(new BaseClientService.Initializer
-        {
-            HttpClientInitializer = credential,
-            ApplicationName = "Flare Fireplaces - Quotes"
-        });
+        _service = new GmailService(new BaseClientService.Initializer { HttpClientInitializer = credential,
+                                                                        ApplicationName = AppPaths.ProductFolderName });
 
         return _service;
     }
@@ -142,12 +182,19 @@ public sealed class GmailDraftService : IGmailDraftService
         sb.AppendLine("Content-Type: text/html; charset=UTF-8");
         sb.AppendLine("Content-Transfer-Encoding: base64");
         sb.AppendLine();
-        sb.AppendLine(Convert.ToBase64String(Encoding.UTF8.GetBytes(request.HtmlBody ?? string.Empty), Base64FormattingOptions.InsertLineBreaks));
-        AppendQuoteAttachment(sb, boundary, request.PdfAttachmentPath, requirePdf: true);
+        sb.AppendLine(Convert.ToBase64String(Encoding.UTF8.GetBytes(request.HtmlBody ?? string.Empty),
+                                             Base64FormattingOptions.InsertLineBreaks));
+        long attachedBytes = 0;
+        attachedBytes +=
+            AppendQuoteAttachment(sb, boundary, request.PdfAttachmentPath, requirePdf: true, MaxTotalAttachmentBytes);
 
         foreach (var attachmentPath in request.AdditionalAttachmentPaths ?? [])
         {
-            AppendQuoteAttachment(sb, boundary, attachmentPath, requirePdf: false);
+            var remainingBytes = MaxTotalAttachmentBytes - attachedBytes;
+            if (remainingBytes <= 0)
+                break;
+
+            attachedBytes += AppendQuoteAttachment(sb, boundary, attachmentPath, requirePdf: false, remainingBytes);
         }
 
         sb.AppendLine($"--{boundary}--");
@@ -164,11 +211,10 @@ public sealed class GmailDraftService : IGmailDraftService
             return string.Empty;
         }
 
-        var addresses = value
-            .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(SanitizeHeaderValue)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToList();
+        var addresses = value.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                            .Select(SanitizeHeaderValue)
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .ToList();
 
         if (addresses.Count == 0)
         {
@@ -201,16 +247,14 @@ public sealed class GmailDraftService : IGmailDraftService
 
     private static string SanitizeHeaderValue(string? value)
     {
-        return (value ?? string.Empty)
-            .Replace('\r', ' ')
-            .Replace('\n', ' ')
-            .Trim();
+        return (value ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ').Trim();
     }
 
-    private static void AppendQuoteAttachment(StringBuilder sb, string boundary, string attachmentPath, bool requirePdf)
+    private static long AppendQuoteAttachment(StringBuilder sb, string boundary, string attachmentPath, bool requirePdf,
+                                              long remainingBytes)
     {
         if (string.IsNullOrWhiteSpace(attachmentPath) || !File.Exists(attachmentPath))
-            return;
+            return 0;
 
         var fileInfo = new FileInfo(attachmentPath);
         var extension = fileInfo.Extension.ToLowerInvariant();
@@ -219,10 +263,23 @@ public sealed class GmailDraftService : IGmailDraftService
             throw new InvalidOperationException("Only PDF quote attachments are supported for the quote file.");
 
         if (!requirePdf && !IsSupportedImageAttachment(extension))
-            return;
+            return 0;
 
         if (fileInfo.Length > MaxAttachmentBytes)
-            throw new InvalidOperationException($"{fileInfo.Name} is too large to attach.");
+        {
+            if (requirePdf)
+                throw new InvalidOperationException($"{fileInfo.Name} is too large to attach.");
+
+            return 0;
+        }
+
+        if (fileInfo.Length > remainingBytes)
+        {
+            if (requirePdf)
+                throw new InvalidOperationException("The quote PDF is too large to create a Gmail draft.");
+
+            return 0;
+        }
 
         var filename = SanitizeAttachmentFileName(fileInfo.Name);
         var contentType = requirePdf ? "application/pdf" : GetImageContentType(extension);
@@ -235,6 +292,7 @@ public sealed class GmailDraftService : IGmailDraftService
         sb.AppendLine();
         AppendFlareBase64AttachmentLines(sb, bytes);
         sb.AppendLine();
+        return fileInfo.Length;
     }
 
     private static void AppendFlareBase64AttachmentLines(StringBuilder sb, byte[] bytes)
@@ -254,13 +312,8 @@ public sealed class GmailDraftService : IGmailDraftService
 
     private static string GetImageContentType(string extension)
     {
-        return extension switch
-        {
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".png" => "image/png",
-            ".webp" => "image/webp",
-            _ => "application/octet-stream"
-        };
+        return extension switch { ".jpg" or ".jpeg" => "image/jpeg", ".png" => "image/png", ".webp" => "image/webp",
+                                  _ => "application/octet-stream" };
     }
 
     private static string SanitizeAttachmentFileName(string value)
@@ -284,54 +337,39 @@ public sealed class GmailDraftService : IGmailDraftService
 
     private static string Base64UrlEncode(byte[] bytes)
     {
-        return Convert.ToBase64String(bytes)
-            .Replace('+', '-')
-            .Replace('/', '_')
-            .TrimEnd('=');
+        return Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
     }
 
-    private static void OpenGmailDrafts()
+    private static bool OpenGmailDrafts()
     {
         try
         {
-            Process.Start(new ProcessStartInfo("https://mail.google.com/mail/u/0/#drafts")
-            {
-                UseShellExecute = true
-            });
+            Process.Start(new ProcessStartInfo("https://mail.google.com/mail/u/0/#drafts") { UseShellExecute = true });
+            return true;
         }
         catch
         {
             // Browser launch failure should not prevent draft creation.
+            return false;
         }
     }
 
     private async Task<string> FindCredentialsPathAsync(CancellationToken cancellationToken)
     {
         var settings = await _settingsService.LoadAsync(cancellationToken).ConfigureAwait(false);
+        AppPaths.ImportGmailCredentials(settings.GmailCredentialsPath);
+        return AppPaths.GmailCredentialsFile;
+    }
 
-        var candidates = new List<string>();
-        if (!string.IsNullOrWhiteSpace(settings.GmailCredentialsPath))
-            candidates.Add(settings.GmailCredentialsPath);
+    public async Task DeleteDraftAsync(string draftId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(draftId))
+            throw new ArgumentException("Draft ID is required.", nameof(draftId));
 
-        candidates.AddRange([
-            Path.Combine(Environment.CurrentDirectory, "LocalData", "gmail_credentials.json"),
-            Path.Combine(AppContext.BaseDirectory, "LocalData", "gmail_credentials.json"),
-            Path.Combine(Environment.CurrentDirectory, "gmail_credentials.json"),
-            Path.Combine(AppContext.BaseDirectory, "gmail_credentials.json")
-        ]);
-
-        var baseDir = new DirectoryInfo(AppContext.BaseDirectory);
-        for (var dir = baseDir; dir is not null; dir = dir.Parent)
-        {
-            candidates.Add(Path.Combine(dir.FullName, "LocalData", "gmail_credentials.json"));
-            candidates.Add(Path.Combine(dir.FullName, "gmail_credentials.json"));
-
-            if (File.Exists(Path.Combine(dir.FullName, "FlareQuotes.App", "FlareQuotes.App.csproj")))
-                break;
-        }
-
-        return candidates.FirstOrDefault(File.Exists) ?? candidates[0];
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(ApiTimeout);
+        var service = await GetServiceAsync(timeout.Token).ConfigureAwait(false);
+        await service.Users.Drafts.Delete("me", draftId).ExecuteAsync(timeout.Token).ConfigureAwait(false);
+        _logger.Info("Gmail integration-test draft deleted successfully.");
     }
 }
-
-

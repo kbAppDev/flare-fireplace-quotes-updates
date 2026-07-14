@@ -1,9 +1,11 @@
 using System.Windows;
 using System.Windows.Threading;
 using FlareQuotes.App.ViewModels;
+using FlareQuotes.App.Services;
 using FlareQuotes.Core.Email;
 using FlareQuotes.Core.Features;
 using FlareQuotes.Core.Media;
+using FlareQuotes.Core.Paths;
 using FlareQuotes.Core.Parsing;
 using FlareQuotes.Core.Security;
 using FlareQuotes.Core.Services;
@@ -25,6 +27,7 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        AppPaths.MigrateLegacyData();
         var collection = new ServiceCollection();
         collection.AddSingleton<IAppLogger, RedactingFileLogger>();
         collection.AddSingleton<ISecurityAuditService, SecurityAuditService>();
@@ -38,6 +41,7 @@ public partial class App : Application
         collection.AddSingleton<ISettingsService, JsonSettingsService>();
         collection.AddSingleton<IUpdateService, HttpUpdateService>();
         collection.AddSingleton<EmailTemplateService>();
+        collection.AddSingleton<DraftWorkflowService>();
         collection.AddTransient<MainViewModel>();
 
         Services = collection.BuildServiceProvider();
@@ -55,10 +59,10 @@ public partial class App : Application
             logger?.Error(args.Exception, "Unhandled UI exception.");
 
             MessageBox.Show(
-                FriendlyErrorMessage.FromException(args.Exception, "Something unexpected happened. The app logged the issue and will keep running if possible."),
-                "Flare Fireplace Quotes",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+                FriendlyErrorMessage.FromException(
+                    args.Exception,
+                    "Something unexpected happened. The app logged the issue and will keep running if possible."),
+                "Flare Fireplace Quotes", MessageBoxButton.OK, MessageBoxImage.Warning);
 
             args.Handled = true;
         };

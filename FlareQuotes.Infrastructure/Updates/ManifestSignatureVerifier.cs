@@ -10,18 +10,16 @@ public static class ManifestSignatureVerifier
     {
         if (string.IsNullOrWhiteSpace(manifest.Signature))
         {
-            status = strict
-                ? "Manifest signature is required but missing."
-                : "Manifest is unsigned. SHA-256 installer validation will still run.";
+            status = strict ? "Manifest signature is required but missing."
+                            : "Manifest is unsigned. SHA-256 installer validation will still run.";
 
             return !strict;
         }
 
         if (string.IsNullOrWhiteSpace(publicKeyPem))
         {
-            status = strict
-                ? "Manifest public key is required but missing."
-                : "Manifest signature present, but no public key is configured.";
+            status = strict ? "Manifest public key is required but missing."
+                            : "Manifest signature present, but no public key is configured.";
 
             return !strict;
         }
@@ -34,11 +32,8 @@ public static class ManifestSignatureVerifier
             var payload = BuildSignedPayload(manifest);
             var signature = Convert.FromBase64String(manifest.Signature);
 
-            var valid = rsa.VerifyData(
-                Encoding.UTF8.GetBytes(payload),
-                signature,
-                HashAlgorithmName.SHA256,
-                RSASignaturePadding.Pkcs1);
+            var valid = rsa.VerifyData(Encoding.UTF8.GetBytes(payload), signature, HashAlgorithmName.SHA256,
+                                       RSASignaturePadding.Pkcs1);
 
             status = valid ? "Manifest signature verified." : "Manifest signature verification failed.";
             return valid;
@@ -54,12 +49,8 @@ public static class ManifestSignatureVerifier
     {
         var installerUrl = string.IsNullOrWhiteSpace(manifest.Url) ? manifest.Installer : manifest.Url;
 
-        return string.Join("\n", new[]
-        {
-            manifest.Version?.Trim() ?? string.Empty,
-            installerUrl?.Trim() ?? string.Empty,
-            manifest.Sha256?.Trim().ToLowerInvariant() ?? string.Empty,
-            manifest.Notes?.Trim() ?? string.Empty
-        });
+        return string.Join("\n", new[] { manifest.Version?.Trim() ?? string.Empty, installerUrl?.Trim() ?? string.Empty,
+                                         manifest.Sha256?.Trim().ToLowerInvariant() ?? string.Empty,
+                                         manifest.Notes?.Trim() ?? string.Empty });
     }
 }

@@ -8,4 +8,5 @@ public interface IGmailDraftService
     Task<string> GetSenderDisplayAsync(CancellationToken cancellationToken = default);
     Task<string> GetSignatureHtmlAsync(CancellationToken cancellationToken = default);
     Task<EmailDraftResult> CreateDraftAsync(EmailDraftRequest request, CancellationToken cancellationToken = default);
+    Task DeleteDraftAsync(string draftId, CancellationToken cancellationToken = default);
 }

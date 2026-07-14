@@ -1,77 +1,42 @@
-# Flare Fireplace Quotes
+# Flare Fireplace Quotes v1.4.7
 
-C# / WPF desktop application for creating Flare Fireplace quote PDFs, verifying product/spec URLs, and creating Gmail drafts.
+Clean canonical source for the Windows WPF quote application.
 
-## Current app lane
+## Included
 
-- Framework: .NET 10 Windows / WPF
-- App source folder: C:\Users\kyle\OneDrive\Desktop\Flare Quotes
-- Installed app path: C:\Users\kyle\AppData\Local\Programs\Flare Fireplace Quotes\Flare Fireplace Quotes.exe
-- Settings path: C:\Users\kyle\AppData\Local\Flare Fireplace Quotes\settings.json
-- Update manifest: https://github.com/kbAppDev/flare-fireplace-quotes-updates/releases/latest/download/flare-quotes-v1-latest.json
-- GitHub repo: kbAppDev/flare-fireplace-quotes-updates
+- Application, core, infrastructure, and test projects
+- Required price and resource workbooks
+- Installer definition and supported build/release scripts
+- Every-model Gmail integration test covering 302 fireplace models
+- CodeQL workflow
 
-## Maintained structure
+## Runtime data
 
-`	ext
-FlareQuotes.App
-FlareQuotes.Core
-FlareQuotes.Infrastructure
-FlareQuotes.Tests
-LocalData
-docs
-installer
-`
+Runtime data is stored under:
 
-## Required local data
+```text
+%LOCALAPPDATA%\Flare Fireplace Quotes
+```
 
-`	ext
-LocalData\pricing.xlsx
-LocalData\resource_links.xlsx
-LocalData\outdoor_spec_center_extracted_links.xlsx
-`
+Gmail credentials are restricted to:
 
-gmail_credentials.json may be used locally for Gmail OAuth testing, but it must never be committed, uploaded, or shared.
+```text
+%LOCALAPPDATA%\Flare Fireplace Quotes\Credentials\gmail_credentials.json
+```
 
-## Build and run
+Credentials, tokens, settings, logs, generated PDFs, build output, and installer output are not included in source control.
 
-`powershell
-cd "C:\Users\kyle\OneDrive\Desktop\Flare Quotes"
+## Attachment behavior
 
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-Unblock-File ".\Build_And_Run_Safe.ps1"
+The application never searches the website or WordPress for fireplace images. Drafts contain the generated PDF and only local images explicitly selected by the user.
+
+## Build and test
+
+```powershell
 .\Build_And_Run_Safe.ps1
-`
+.\Run-Final-Release-Gate.ps1
+```
 
-## Release assets
+## Publish v1.4.7
 
-GitHub release assets must remain exactly:
-
-`	ext
-Flare.Fireplace.Quotes.exe
-flare-quotes-v1-latest.json
-`
-
-Always publish a new higher version. Do not edit an old release to simulate an update.
-
-## Security rules
-
-Do not commit or share:
-
-`	ext
-gmail_credentials.json
-token files
-settings.json
-generated PDFs
-logs
-bin/
-obj/
-WebView2 runtime cache
-installer output artifacts
-`
-
-Gmail tokens are protected using Windows DPAPI in the local user profile.
-
-## Notes
-
-The app should keep heavy work lazy-loaded so the main window opens quickly. Build output and WebView2 cache are reproducible runtime artifacts and should stay out of source backups.
+Run `PUBLISH_v1.4.7.ps1` from this folder. It pushes the clean source to `kbAppDev/flare-fireplace-quotes-updates`, waits for CodeQL, builds the Windows installer, creates the GitHub release assets, verifies the live update manifest, and creates a full backup ZIP on the Desktop.

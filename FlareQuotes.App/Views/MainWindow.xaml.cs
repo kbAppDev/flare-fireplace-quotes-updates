@@ -1,6 +1,7 @@
 using System;
 using FlareQuotes.Core.Services;
 using FlareQuotes.Core.Models;
+using FlareQuotes.Core.Paths;
 using System.Windows.Threading;
 using System.Security.Cryptography;
 using System.Reflection;
@@ -49,7 +50,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         AttachV145DropdownScrollResetHooks();
-        Loaded += MainWindow_ShowSystemHealthForV134Once;
+        Loaded += ShowSystemHealthOnce;
         SetAppVersionText();
 
         var viewModel = App.Services.GetRequiredService<MainViewModel>();
@@ -65,7 +66,8 @@ public partial class MainWindow : Window
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         await TryLoadPdfPreviewAsync();
-        _ = Dispatcher.InvokeAsync(async () => await CheckForUpdatesOnStartupAsync(), DispatcherPriority.ApplicationIdle);
+        _ = Dispatcher.InvokeAsync(async () => await CheckForUpdatesOnStartupAsync(),
+                                   DispatcherPriority.ApplicationIdle);
     }
 
     private void MainWindow_Closed(object? sender, EventArgs e)
@@ -85,7 +87,8 @@ public partial class MainWindow : Window
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(MainViewModel.WorkflowStage) or nameof(MainViewModel.GeneratedPdfPath) or nameof(MainViewModel.GeneratedPdfUri))
+        if (e.PropertyName is nameof(MainViewModel.WorkflowStage) or nameof(MainViewModel.GeneratedPdfPath)
+                or nameof(MainViewModel.GeneratedPdfUri))
         {
             _ = Dispatcher.InvokeAsync(async () => await TryLoadPdfPreviewAsync());
         }
@@ -97,7 +100,7 @@ public partial class MainWindow : Window
         var useDark = !string.Equals(theme, LightThemeName, StringComparison.OrdinalIgnoreCase);
         ApplyTheme(useDark);
         UpdateHeaderLogo(useDark);
-        
+
         if (ThemeToggleButton != null)
         {
             ThemeToggleButton.IsChecked = useDark;
@@ -115,11 +118,12 @@ public partial class MainWindow : Window
             this.DragMove();
     }
 
-    private void MinimizeButton_Click(object sender, RoutedEventArgs e) 
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
     {
         var anim = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(150));
-        anim.Completed += (s, ev) => { 
-            this.WindowState = WindowState.Minimized; 
+        anim.Completed += (s, ev) =>
+        {
+            this.WindowState = WindowState.Minimized;
             this.BeginAnimation(Window.OpacityProperty, null);
             this.Opacity = 1;
         };
@@ -131,29 +135,32 @@ public partial class MainWindow : Window
         this.WindowState = this.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }
 
-    private void CloseButton_Click(object sender, RoutedEventArgs e) 
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         var anim = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
         anim.Completed += (s, ev) => this.Close();
         this.BeginAnimation(Window.OpacityProperty, anim);
     }
-    
+
     private void DropdownPopup_Opened(object sender, EventArgs e)
     {
-        // v1.4.5: Whenever a feature/media popup opens, force its internal
+        // : Whenever a feature/media popup opens, force its internal
         // scroll viewer back to the top so the next fireplace starts clean.
         if (sender is not System.Windows.Controls.Primitives.Popup popup)
             return;
 
-        Dispatcher.BeginInvoke(new Action(() =>
-        {
-            var scrollViewer = FindFirstVisualChild<System.Windows.Controls.ScrollViewer>(popup.Child);
-            scrollViewer?.ScrollToHome();
-            scrollViewer?.ScrollToVerticalOffset(0);
-        }), System.Windows.Threading.DispatcherPriority.ContextIdle);
+        Dispatcher.BeginInvoke(
+            new Action(() =>
+                       {
+                           var scrollViewer = FindFirstVisualChild<System.Windows.Controls.ScrollViewer>(popup.Child);
+                           scrollViewer?.ScrollToHome();
+                           scrollViewer?.ScrollToVerticalOffset(0);
+                       }),
+            System.Windows.Threading.DispatcherPriority.ContextIdle);
     }
 
-    private static T? FindFirstVisualChild<T>(DependencyObject? parent) where T : DependencyObject
+    private static T? FindFirstVisualChild<T>(DependencyObject? parent)
+        where T : DependencyObject
     {
         if (parent is null)
             return null;
@@ -196,10 +203,8 @@ public partial class MainWindow : Window
 
     private IEnumerable<System.Windows.Controls.Primitives.Popup> GetV145NamedPopups()
     {
-        var flags =
-            System.Reflection.BindingFlags.Instance |
-            System.Reflection.BindingFlags.Public |
-            System.Reflection.BindingFlags.NonPublic;
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.NonPublic;
 
         foreach (var field in GetType().GetFields(flags))
         {
@@ -229,18 +234,26 @@ public partial class MainWindow : Window
 
     private void QueueV145DropdownScrollReset()
     {
-        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions), System.Windows.Threading.DispatcherPriority.Loaded);
-        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions), System.Windows.Threading.DispatcherPriority.Render);
-        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions), System.Windows.Threading.DispatcherPriority.ContextIdle);
-        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions),
+                               System.Windows.Threading.DispatcherPriority.Loaded);
+        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions),
+                               System.Windows.Threading.DispatcherPriority.Render);
+        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions),
+                               System.Windows.Threading.DispatcherPriority.ContextIdle);
+        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions),
+                               System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     }
 
     private void QueueV145PopupScrollReset(System.Windows.Controls.Primitives.Popup popup)
     {
-        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)), System.Windows.Threading.DispatcherPriority.Loaded);
-        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)), System.Windows.Threading.DispatcherPriority.Render);
-        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)), System.Windows.Threading.DispatcherPriority.ContextIdle);
-        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)),
+                               System.Windows.Threading.DispatcherPriority.Loaded);
+        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)),
+                               System.Windows.Threading.DispatcherPriority.Render);
+        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)),
+                               System.Windows.Threading.DispatcherPriority.ContextIdle);
+        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)),
+                               System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     }
 
     private void ResetV145DropdownScrollPositions()
@@ -289,13 +302,13 @@ public partial class MainWindow : Window
         for (var i = 0; i < childCount; i++)
             ResetV145ItemsControlsIn(System.Windows.Media.VisualTreeHelper.GetChild(parent, i));
     }
-private void DropdownToggle_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void DropdownToggle_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-                // v1.4.5 force dropdown scroll reset before opening
+        // force dropdown scroll reset before opening
         AttachV145DropdownScrollResetHooks();
         ResetV145DropdownScrollPositions();
         QueueV145DropdownScrollReset();
-TryAnimateButtonPress(e.OriginalSource as DependencyObject);
+        TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
         if (DataContext is not MainViewModel viewModel)
             return;
@@ -360,8 +373,7 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
     }
     private void SelectedChip_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-        if (_selectedChipDragElement is null ||
-            _selectedChipDragItem is null ||
+        if (_selectedChipDragElement is null || _selectedChipDragItem is null ||
             string.IsNullOrWhiteSpace(_selectedChipDragKind))
         {
             return;
@@ -401,7 +413,7 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
             return;
         }
 
-        if (targetElement.DataContext is not { } target || ReferenceEquals(target, _selectedChipDragItem))
+        if (targetElement.DataContext is not {} target || ReferenceEquals(target, _selectedChipDragItem))
         {
             SetSelectedChipDropTarget(null);
             e.Handled = true;
@@ -410,8 +422,7 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
         SetSelectedChipDropTarget(targetElement);
 
-        if (ShouldReorderSelectedChip(current, targetElement) &&
-            ShouldLiveReorderSelectedChip(target) &&
+        if (ShouldReorderSelectedChip(current, targetElement) && ShouldLiveReorderSelectedChip(target) &&
             MoveSelectedChipToTarget(target))
         {
             _selectedChipLastLiveReorderTarget = target;
@@ -458,7 +469,7 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
     }
     private void CommitSelectedChipDrop()
     {
-        if (_selectedChipDropTargetElement?.DataContext is not { } target ||
+        if (_selectedChipDropTargetElement?.DataContext is not {} target ||
             ReferenceEquals(target, _selectedChipDragItem) ||
             ReferenceEquals(target, _selectedChipLastLiveReorderTarget))
         {
@@ -488,8 +499,7 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
         bool moved;
 
-        if (_selectedChipDragKind == "SelectedFeatureChip" &&
-            _selectedChipDragItem is FeatureSelection sourceFeature &&
+        if (_selectedChipDragKind == "SelectedFeatureChip" && _selectedChipDragItem is FeatureSelection sourceFeature &&
             target is FeatureSelection targetFeature)
         {
             moved = viewModel.MoveSelectedFeature(sourceFeature, targetFeature);
@@ -537,51 +547,47 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
     private void AnimateSelectedChipReflow(string kind, Dictionary<object, Rect> before)
     {
-        Dispatcher.BeginInvoke(new Action(() =>
-        {
-            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        Dispatcher.BeginInvoke(
+            new Action(() =>
+                       {
+                           var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
 
-            foreach (var element in FindSelectedChipElements(kind))
-            {
-                if (element.DataContext is null)
-                    continue;
+                           foreach (var element in FindSelectedChipElements(kind))
+                           {
+                               if (element.DataContext is null)
+                                   continue;
 
-                if (!before.TryGetValue(element.DataContext, out var oldBounds))
-                    continue;
+                               if (!before.TryGetValue(element.DataContext, out var oldBounds))
+                                   continue;
 
-                var newBounds = GetBoundsRelativeToWindow(element);
+                               var newBounds = GetBoundsRelativeToWindow(element);
 
-                if (newBounds.IsEmpty)
-                    continue;
+                               if (newBounds.IsEmpty)
+                                   continue;
 
-                var dx = oldBounds.Left - newBounds.Left;
-                var dy = oldBounds.Top - newBounds.Top;
+                               var dx = oldBounds.Left - newBounds.Left;
+                               var dy = oldBounds.Top - newBounds.Top;
 
-                if (Math.Abs(dx) < 0.5 && Math.Abs(dy) < 0.5)
-                    continue;
+                               if (Math.Abs(dx) < 0.5 && Math.Abs(dy) < 0.5)
+                                   continue;
 
-                var translate = EnsureSelectedChipTranslateTransform(element);
-                translate.BeginAnimation(TranslateTransform.XProperty, null);
-                translate.BeginAnimation(TranslateTransform.YProperty, null);
+                               var translate = EnsureSelectedChipTranslateTransform(element);
+                               translate.BeginAnimation(TranslateTransform.XProperty, null);
+                               translate.BeginAnimation(TranslateTransform.YProperty, null);
 
-                translate.X += dx;
-                translate.Y += dy;
+                               translate.X += dx;
+                               translate.Y += dy;
 
-                translate.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation
-                {
-                    To = 0,
-                    Duration = TimeSpan.FromMilliseconds(210),
-                    EasingFunction = ease
-                });
+                               translate.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation {
+                                   To = 0, Duration = TimeSpan.FromMilliseconds(210), EasingFunction = ease
+                               });
 
-                translate.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation
-                {
-                    To = 0,
-                    Duration = TimeSpan.FromMilliseconds(210),
-                    EasingFunction = ease
-                });
-            }
-        }), System.Windows.Threading.DispatcherPriority.Loaded);
+                               translate.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation {
+                                   To = 0, Duration = TimeSpan.FromMilliseconds(210), EasingFunction = ease
+                               });
+                           }
+                       }),
+            System.Windows.Threading.DispatcherPriority.Loaded);
     }
 
     private static double VerticalDistanceToRect(Point point, Rect rect)
@@ -594,8 +600,6 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
         return 0;
     }
-
-
 
     private void SetSelectedChipDropTarget(FrameworkElement? target)
     {
@@ -625,13 +629,8 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         {
             Panel.SetZIndex(element, 500);
             element.Opacity = 0.92;
-            element.Effect = new DropShadowEffect
-            {
-                Color = Color.FromRgb(153, 204, 0),
-                BlurRadius = 16,
-                ShadowDepth = 0,
-                Opacity = 0.42
-            };
+            element.Effect = new DropShadowEffect { Color = Color.FromRgb(153, 204, 0), BlurRadius = 16,
+                                                    ShadowDepth = 0, Opacity = 0.42 };
         }
         else
         {
@@ -653,8 +652,7 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
         while (current is not null)
         {
-            if (current is FrameworkElement element &&
-                element.Tag is string tag &&
+            if (current is FrameworkElement element && element.Tag is string tag &&
                 string.Equals(tag, kind, StringComparison.OrdinalIgnoreCase))
             {
                 if (kind == "SelectedFeatureChip" && element.DataContext is FeatureSelection feature)
@@ -663,7 +661,8 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
                 if (kind == "SelectedPremiumMediaChip" && element.DataContext is MediaSelection premiumMedia)
                     return premiumMedia;
 
-                if (kind == "SelectedAdditionalClassicMediaChip" && element.DataContext is MediaSelection additionalClassicMedia)
+                if (kind == "SelectedAdditionalClassicMediaChip" &&
+                    element.DataContext is MediaSelection additionalClassicMedia)
                     return additionalClassicMedia;
             }
 
@@ -684,19 +683,13 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
             // This is the live placeholder. The floating ghost is the chip being moved.
             element.Opacity = 0.18;
 
-            translate.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation
-            {
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(90),
-                EasingFunction = ease
-            });
+            translate.BeginAnimation(
+                TranslateTransform.XProperty,
+                new DoubleAnimation { To = 0, Duration = TimeSpan.FromMilliseconds(90), EasingFunction = ease });
 
-            translate.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation
-            {
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(90),
-                EasingFunction = ease
-            });
+            translate.BeginAnimation(
+                TranslateTransform.YProperty,
+                new DoubleAnimation { To = 0, Duration = TimeSpan.FromMilliseconds(90), EasingFunction = ease });
 
             element.Effect = null;
         }
@@ -704,19 +697,13 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         {
             element.Opacity = 1.0;
 
-            translate.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation
-            {
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(140),
-                EasingFunction = ease
-            });
+            translate.BeginAnimation(
+                TranslateTransform.XProperty,
+                new DoubleAnimation { To = 0, Duration = TimeSpan.FromMilliseconds(140), EasingFunction = ease });
 
-            translate.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation
-            {
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(140),
-                EasingFunction = ease
-            });
+            translate.BeginAnimation(
+                TranslateTransform.YProperty,
+                new DoubleAnimation { To = 0, Duration = TimeSpan.FromMilliseconds(140), EasingFunction = ease });
 
             element.Effect = null;
         }
@@ -744,64 +731,37 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         var width = Math.Max(110, Math.Min(260, sourceElement.ActualWidth > 0 ? sourceElement.ActualWidth : 150));
         var height = Math.Max(32, sourceElement.ActualHeight > 0 ? sourceElement.ActualHeight : 34);
 
-        var root = new Border
-        {
-            Width = width,
-            Height = height,
-            CornerRadius = new CornerRadius(14),
-            Padding = new Thickness(10, 5, 10, 5),
-            Background = new SolidColorBrush(Color.FromRgb(41, 54, 69)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(153, 204, 0)),
-            BorderThickness = new Thickness(1.25),
-            Opacity = 0.98,
-            IsHitTestVisible = false,
-            Effect = new DropShadowEffect
-            {
-                Color = Colors.Black,
-                BlurRadius = 26,
-                ShadowDepth = 8,
-                Direction = 270,
-                Opacity = 0.36
-            }
-        };
+        var root = new Border { Width = width,
+                                Height = height,
+                                CornerRadius = new CornerRadius(14),
+                                Padding = new Thickness(10, 5, 10, 5),
+                                Background = new SolidColorBrush(Color.FromRgb(41, 54, 69)),
+                                BorderBrush = new SolidColorBrush(Color.FromRgb(153, 204, 0)),
+                                BorderThickness = new Thickness(1.25),
+                                Opacity = 0.98,
+                                IsHitTestVisible = false,
+                                Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 26, ShadowDepth = 8,
+                                                                Direction = 270, Opacity = 0.36 } };
 
-        var stack = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center
-        };
+        var stack =
+            new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
-        stack.Children.Add(new System.Windows.Shapes.Ellipse
-        {
-            Width = 8,
-            Height = 8,
-            Fill = new SolidColorBrush(Color.FromRgb(153, 204, 0)),
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 8, 0)
-        });
+        stack.Children.Add(new System.Windows.Shapes.Ellipse { Width = 8, Height = 8,
+                                                               Fill = new SolidColorBrush(Color.FromRgb(153, 204, 0)),
+                                                               VerticalAlignment = VerticalAlignment.Center,
+                                                               Margin = new Thickness(0, 0, 8, 0) });
 
-        stack.Children.Add(new TextBlock
-        {
-            Text = label,
-            Foreground = new SolidColorBrush(Color.FromRgb(244, 247, 250)),
-            FontWeight = FontWeights.SemiBold,
-            FontSize = 12,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            VerticalAlignment = VerticalAlignment.Center
-        });
+        stack.Children.Add(new TextBlock { Text = label, Foreground = new SolidColorBrush(Color.FromRgb(244, 247, 250)),
+                                           FontWeight = FontWeights.SemiBold, FontSize = 12,
+                                           TextTrimming = TextTrimming.CharacterEllipsis,
+                                           VerticalAlignment = VerticalAlignment.Center });
 
         root.Child = stack;
 
         _selectedChipDragGhostRoot = root;
-        _selectedChipDragGhostPopup = new Popup
-        {
-            PlacementTarget = this,
-            Placement = PlacementMode.Relative,
-            AllowsTransparency = true,
-            IsHitTestVisible = false,
-            StaysOpen = true,
-            Child = root
-        };
+        _selectedChipDragGhostPopup = new Popup { PlacementTarget = this,    Placement = PlacementMode.Relative,
+                                                  AllowsTransparency = true, IsHitTestVisible = false,
+                                                  StaysOpen = true,          Child = root };
 
         UpdateSelectedChipDragGhost(current);
         _selectedChipDragGhostPopup.IsOpen = true;
@@ -858,63 +818,49 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
         return item.ToString() ?? "Selected item";
     }
-    private FrameworkElement? FindSelectedChipElementNearPoint(Point point, string kind, FrameworkElement draggedElement)
+    private FrameworkElement? FindSelectedChipElementNearPoint(Point point, string kind,
+                                                               FrameworkElement draggedElement)
     {
         var candidates = FindSelectedChipElements(kind)
-            .Where(element => !ReferenceEquals(element, draggedElement))
-            .Select(element => new
-            {
-                Element = element,
-                Bounds = GetBoundsRelativeToWindow(element)
-            })
-            .Where(x => x.Bounds.Width > 0 && x.Bounds.Height > 0)
-            .ToList();
+                             .Where(element => !ReferenceEquals(element, draggedElement))
+                             .Select(element => new { Element = element, Bounds = GetBoundsRelativeToWindow(element) })
+                             .Where(x => x.Bounds.Width > 0 && x.Bounds.Height > 0)
+                             .ToList();
 
         if (candidates.Count == 0)
             return null;
 
         var rowBand = candidates
-            .Select(x => new
-            {
-                x.Element,
-                x.Bounds,
-                Center = GetRectCenter(x.Bounds),
-                VerticalDistance = VerticalDistanceToRect(point, x.Bounds)
-            })
-            .OrderBy(x => x.VerticalDistance)
-            .ThenBy(x => Math.Abs(point.X - x.Center.X))
-            .ToList();
+                          .Select(x => new { x.Element, x.Bounds, Center = GetRectCenter(x.Bounds),
+                                             VerticalDistance = VerticalDistanceToRect(point, x.Bounds) })
+                          .OrderBy(x => x.VerticalDistance)
+                          .ThenBy(x => Math.Abs(point.X - x.Center.X))
+                          .ToList();
 
         var bestVerticalDistance = rowBand.First().VerticalDistance;
         var sameRow = rowBand
-            .Where(x => x.VerticalDistance <= Math.Max(bestVerticalDistance + 4, Math.Max(18, x.Bounds.Height * 0.55)))
-            .OrderBy(x => x.Bounds.Left)
-            .ToList();
+                          .Where(x => x.VerticalDistance <=
+                                      Math.Max(bestVerticalDistance + 4, Math.Max(18, x.Bounds.Height * 0.55)))
+                          .OrderBy(x => x.Bounds.Left)
+                          .ToList();
 
         if (sameRow.Count == 0)
             return rowBand.First().Element;
 
-        var before = sameRow
-            .Where(x => point.X <= x.Center.X)
-            .OrderBy(x => Math.Abs(point.X - x.Center.X))
-            .FirstOrDefault();
+        var before =
+            sameRow.Where(x => point.X <= x.Center.X).OrderBy(x => Math.Abs(point.X - x.Center.X)).FirstOrDefault();
 
         if (before is not null)
             return before.Element;
 
-        return sameRow
-            .OrderBy(x => Math.Abs(point.X - x.Center.X))
-            .First()
-            .Element;
+        return sameRow.OrderBy(x => Math.Abs(point.X - x.Center.X)).First().Element;
     }
 
     private IEnumerable<FrameworkElement> FindSelectedChipElements(string kind)
     {
-        return FindVisualDescendants<FrameworkElement>(this)
-            .Where(element =>
-                element.Tag is string tag &&
-                string.Equals(tag, kind, StringComparison.OrdinalIgnoreCase) &&
-                IsReorderableChip(kind, element.DataContext));
+        return FindVisualDescendants<FrameworkElement>(this).Where(
+            element => element.Tag is string tag && string.Equals(tag, kind, StringComparison.OrdinalIgnoreCase) &&
+                       IsReorderableChip(kind, element.DataContext));
     }
 
     private Rect GetBoundsRelativeToWindow(FrameworkElement element)
@@ -971,8 +917,7 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         }
     }
 
-    private static Point GetRectCenter(Rect rect) =>
-        new(rect.Left + rect.Width / 2, rect.Top + rect.Height / 2);
+    private static Point GetRectCenter(Rect rect) => new(rect.Left + rect.Width / 2, rect.Top + rect.Height / 2);
 
     private static double DistanceToRectCenter(Point point, Rect rect)
     {
@@ -988,9 +933,8 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         return rect;
     }
 
-    private static double Clamp(double value, double minimum, double maximum) =>
-        Math.Min(maximum, Math.Max(minimum, value));
-
+    private static double Clamp(double value, double minimum, double maximum) => Math.Min(maximum,
+                                                                                          Math.Max(minimum, value));
 
     private static TranslateTransform EnsureSelectedChipTranslateTransform(FrameworkElement element)
     {
@@ -1015,8 +959,6 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         return translate;
     }
 
-
-
     private void Root_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.OriginalSource is not DependencyObject source)
@@ -1031,17 +973,12 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
     }
     private bool IsInsideAnyDropdown(DependencyObject source)
     {
-        return
-            IsInside(source, FeatureDropdownButton) ||
-            IsInside(source, FeatureDropdownPopup?.Child) ||
-            IsInside(source, ClassicMediaDropdownButton) ||
-            IsInside(source, ClassicMediaDropdownPopup?.Child) ||
-            IsInside(source, AdditionalClassicMediaDropdownButton) ||
-            IsInside(source, AdditionalClassicMediaDropdownPopup?.Child) ||
-            IsInside(source, PremiumMediaDropdownButton) ||
-            IsInside(source, PremiumMediaDropdownPopup?.Child) ||
-            IsInside(source, LeadTimeDropdownButton) ||
-            IsInside(source, LeadTimeDropdownPopup?.Child);
+        return IsInside(source, FeatureDropdownButton) || IsInside(source, FeatureDropdownPopup?.Child) ||
+               IsInside(source, ClassicMediaDropdownButton) || IsInside(source, ClassicMediaDropdownPopup?.Child) ||
+               IsInside(source, AdditionalClassicMediaDropdownButton) ||
+               IsInside(source, AdditionalClassicMediaDropdownPopup?.Child) ||
+               IsInside(source, PremiumMediaDropdownButton) || IsInside(source, PremiumMediaDropdownPopup?.Child) ||
+               IsInside(source, LeadTimeDropdownButton) || IsInside(source, LeadTimeDropdownPopup?.Child);
     }
     private void CloseAllDropdowns()
     {
@@ -1096,7 +1033,8 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         }
     }
 
-    private static T? FindAncestor<T>(DependencyObject? source) where T : DependencyObject
+    private static T? FindAncestor<T>(DependencyObject? source)
+        where T : DependencyObject
     {
         DependencyObject? current = source;
 
@@ -1128,21 +1066,11 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
             var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
 
-            var shrinkX = new DoubleAnimation
-            {
-                To = 0.975,
-                Duration = TimeSpan.FromMilliseconds(55),
-                AutoReverse = true,
-                EasingFunction = ease
-            };
+            var shrinkX = new DoubleAnimation { To = 0.975, Duration = TimeSpan.FromMilliseconds(55),
+                                                AutoReverse = true, EasingFunction = ease };
 
-            var shrinkY = new DoubleAnimation
-            {
-                To = 0.975,
-                Duration = TimeSpan.FromMilliseconds(55),
-                AutoReverse = true,
-                EasingFunction = ease
-            };
+            var shrinkY = new DoubleAnimation { To = 0.975, Duration = TimeSpan.FromMilliseconds(55),
+                                                AutoReverse = true, EasingFunction = ease };
 
             scale.BeginAnimation(ScaleTransform.ScaleXProperty, shrinkX);
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, shrinkY);
@@ -1188,7 +1116,6 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         }
     }
 
-
     private static Uri BuildPdfPreviewUri(Uri pdfUri)
     {
         // Hide the built-in Edge PDF toolbar so users cannot click the PDF full-screen button
@@ -1205,19 +1132,11 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
         try
         {
-            var webView = new WebView2
-            {
-                HorizontalAlignment = HorizontalAlignment.Stretch,
-                VerticalAlignment = VerticalAlignment.Stretch
-            };
+            var webView = new WebView2 { HorizontalAlignment = HorizontalAlignment.Stretch,
+                                         VerticalAlignment = VerticalAlignment.Stretch };
 
             PdfPreviewHost.Content = webView;
-            var webViewUserDataFolder = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Flare Fireplace Quotes",
-                "WebView2");
-
-            Directory.CreateDirectory(webViewUserDataFolder);
+            var webViewUserDataFolder = AppPaths.WebView2;
 
             var webViewEnvironment = await CoreWebView2Environment.CreateAsync(userDataFolder: webViewUserDataFolder);
             await webView.EnsureCoreWebView2Async(webViewEnvironment);
@@ -1256,64 +1175,52 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
     {
         try
         {
-            var settingsWindow = new SettingsWindow
-            {
-                Owner = this,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner
-            };
+            var settingsWindow =
+                new SettingsWindow { Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
 
             settingsWindow.ShowDialog();
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
-                "Settings could not be opened." + Environment.NewLine + Environment.NewLine + ex.Message,
-                "Settings Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            MessageBox.Show("Settings could not be opened." + Environment.NewLine + Environment.NewLine + ex.Message,
+                            "Settings Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
     private void ThemeToggleButton_Checked(object sender, RoutedEventArgs e)
     {
-        if (_isApplyingTheme) return;
+        if (_isApplyingTheme)
+            return;
         ApplyTheme(true);
         UpdateHeaderLogo(true);
         SaveThemePreference(DarkThemeName);
-        if (ThemeLabelText != null) ThemeLabelText.Text = "Dark Mode";
-    
+        if (ThemeLabelText != null)
+            ThemeLabelText.Text = "Dark Mode";
+
         ApplyDropdownThemeResources(true);
-}
+    }
 
     private void ThemeToggleButton_Unchecked(object sender, RoutedEventArgs e)
     {
-        if (_isApplyingTheme) return;
+        if (_isApplyingTheme)
+            return;
         ApplyTheme(false);
         UpdateHeaderLogo(false);
         SaveThemePreference(LightThemeName);
-        if (ThemeLabelText != null) ThemeLabelText.Text = "Light Mode";
-    
-        ApplyDropdownThemeResources(false);
-}
+        if (ThemeLabelText != null)
+            ThemeLabelText.Text = "Light Mode";
 
-    private static string SettingsPath
-    {
-        get
-        {
-            var root = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Flare Fireplaces - Quotes",
-                "v3");
-            Directory.CreateDirectory(root);
-            return Path.Combine(root, "ui-settings.json");
-        }
+        ApplyDropdownThemeResources(false);
     }
+
+    private static string SettingsPath => AppPaths.UiSettingsFile;
 
     private static string LoadThemePreference()
     {
         try
         {
-            if (!File.Exists(SettingsPath)) return DarkThemeName;
+            if (!File.Exists(SettingsPath))
+                return DarkThemeName;
             using var stream = File.OpenRead(SettingsPath);
             var settings = JsonSerializer.Deserialize<UiSettings>(stream);
             return string.IsNullOrWhiteSpace(settings?.Theme) ? DarkThemeName : settings.Theme;
@@ -1422,7 +1329,8 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         }
     }
 
-    private static void SetGradientBrush(ResourceDictionary resources, string key, string startHexColor, string endHexColor)
+    private static void SetGradientBrush(ResourceDictionary resources, string key, string startHexColor,
+                                         string endHexColor)
     {
         var start = (Color)ColorConverter.ConvertFromString(startHexColor);
         var end = (Color)ColorConverter.ConvertFromString(endHexColor);
@@ -1465,10 +1373,7 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
             var items = await healthService.CheckAsync();
 
-            var window = new SystemHealthWindow(items)
-            {
-                Owner = this
-            };
+            var window = new SystemHealthWindow(items) { Owner = this };
 
             window.ShowDialog();
 
@@ -1513,14 +1418,9 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
             {
 
                 return;
-
             }
 
-
-            var updateWindow = new UpdateAvailableWindow(result.LatestVersion, result.Notes)
-            {
-                Owner = this
-            };
+            var updateWindow = new UpdateAvailableWindow(result.LatestVersion, result.Notes) { Owner = this };
 
             if (updateWindow.ShowDialog() != true)
                 return;
@@ -1536,29 +1436,27 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
     private static string GetCurrentAppVersion()
     {
         var version = Assembly.GetExecutingAssembly().GetName().Version;
-        return version is null ? "1.1.7" : $"{version.Major}.{version.Minor}.{version.Build}";
+        return version is null ? "0.0.0" : $"{version.Major}.{version.Minor}.{version.Build}";
     }
 
-    private static async Task DownloadVerifyAndLaunchInstallerAsync(string installerUrl, string? expectedSha256, string latestVersion)
+    private static async Task DownloadVerifyAndLaunchInstallerAsync(string installerUrl, string? expectedSha256,
+                                                                    string latestVersion)
     {
-        if (!Uri.TryCreate(installerUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+        if (!Uri.TryCreate(installerUrl, UriKind.Absolute, out var uri) || uri.Scheme is not("http" or "https"))
         {
-            MessageBox.Show("The update link is not valid.", "Update Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("The update link is not valid.", "Update Error", MessageBoxButton.OK,
+                            MessageBoxImage.Error);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(expectedSha256))
         {
-            MessageBox.Show("The update manifest is missing SHA-256 verification. The update was not installed.", "Update Verification Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("The update manifest is missing SHA-256 verification. The update was not installed.",
+                            "Update Verification Required", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        var updatesDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Flare Fireplaces - Quotes",
-            "Updates");
-
-        Directory.CreateDirectory(updatesDir);
+        var updatesDir = AppPaths.Updates;
 
         var fileName = Path.GetFileName(uri.LocalPath);
         if (string.IsNullOrWhiteSpace(fileName) || !fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
@@ -1567,8 +1465,7 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         var installerPath = Path.Combine(updatesDir, SafeUpdateFileName(fileName));
 
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        await using (var remote = await http.GetStreamAsync(uri))
-        await using (var local = File.Create(installerPath))
+        await using (var remote = await http.GetStreamAsync(uri)) await using (var local = File.Create(installerPath))
         {
             await remote.CopyToAsync(local);
         }
@@ -1576,8 +1473,15 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         var actualSha256 = ComputeSha256(installerPath);
         if (!string.Equals(actualSha256, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase))
         {
-            try { File.Delete(installerPath); } catch { }
-            MessageBox.Show("The update failed SHA-256 verification and was not installed.", "Update Verification Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            try
+            {
+                File.Delete(installerPath);
+            }
+            catch
+            {
+            }
+            MessageBox.Show("The update failed SHA-256 verification and was not installed.",
+                            "Update Verification Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
@@ -1600,49 +1504,46 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         return string.IsNullOrWhiteSpace(value) ? "FlareFireplacesQuotesSetup.exe" : value.Trim();
     }
 
-        private static bool IsRemoteVersionNewerThanCurrent(string? latestVersion)
-        {
-            var current = GetCurrentAppVersionForUpdateCheck();
-            var latest = ParseAppVersionForUpdateCheck(latestVersion);
+    private static bool IsRemoteVersionNewerThanCurrent(string? latestVersion)
+    {
+        var current = GetCurrentAppVersionForUpdateCheck();
+        var latest = ParseAppVersionForUpdateCheck(latestVersion);
 
-            if (latest is null || current is null)
-                return false;
+        if (latest is null || current is null)
+            return false;
 
-            return latest.CompareTo(current) > 0;
-        }
+        return latest.CompareTo(current) > 0;
+    }
 
-        private static Version? GetCurrentAppVersionForUpdateCheck()
-        {
-            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+    private static Version? GetCurrentAppVersionForUpdateCheck()
+    {
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
 
-            var info = assembly
-                .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
-                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
-                .FirstOrDefault()
-                ?.InformationalVersion;
+        var info = assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                       .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+                       .FirstOrDefault()
+                       ?.InformationalVersion;
 
-            return ParseAppVersionForUpdateCheck(info) ??
-                   ParseAppVersionForUpdateCheck(assembly.GetName().Version?.ToString());
-        }
+        return ParseAppVersionForUpdateCheck(info) ??
+               ParseAppVersionForUpdateCheck(assembly.GetName().Version?.ToString());
+    }
 
-        private static Version? ParseAppVersionForUpdateCheck(string? value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return null;
+    private static Version? ParseAppVersionForUpdateCheck(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
 
-            var match = System.Text.RegularExpressions.Regex.Match(value, @"\d+(?:\.\d+){0,3}");
-            if (!match.Success)
-                return null;
+        var match = System.Text.RegularExpressions.Regex.Match(value, @"\d+(?:\.\d+){0,3}");
+        if (!match.Success)
+            return null;
 
-            var parts = match.Value.Split('.')
-                .Select(p => int.TryParse(p, out var n) ? n : 0)
-                .ToList();
+        var parts = match.Value.Split('.').Select(p => int.TryParse(p, out var n) ? n : 0).ToList();
 
-            while (parts.Count < 4)
-                parts.Add(0);
+        while (parts.Count < 4)
+            parts.Add(0);
 
-            return new Version(parts[0], parts[1], parts[2], parts[3]);
-        }
+        return new Version(parts[0], parts[1], parts[2], parts[3]);
+    }
 
     private void ApplyDropdownThemeResources(bool isDarkMode)
     {
@@ -1708,11 +1609,13 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         }
     }
 
-    private async System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<FlareQuotes.Core.Models.SystemHealthItem>> MainWindow_GetSystemHealthItemsForV134Async()
+    private async System.Threading.Tasks.Task<
+        System.Collections.Generic.IReadOnlyList<FlareQuotes.Core.Models.SystemHealthItem>> GetSystemHealthItemsAsync()
     {
         try
         {
-            var service = App.Services?.GetService(typeof(FlareQuotes.Core.Services.ISystemHealthService)) as FlareQuotes.Core.Services.ISystemHealthService;
+            var service = App.Services?.GetService(typeof(FlareQuotes.Core.Services.ISystemHealthService))
+                              as FlareQuotes.Core.Services.ISystemHealthService;
 
             if (service is not null)
                 return await service.CheckAsync();
@@ -1722,16 +1625,12 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
             System.Diagnostics.Debug.WriteLine(ex);
         }
 
-        return new System.Collections.Generic.List<FlareQuotes.Core.Models.SystemHealthItem>
-        {
-            new FlareQuotes.Core.Models.SystemHealthItem
-            {
-                Name = "App version",
-                Detail = "v1.3.4 professional hardening is installed in this build.",
-                State = FlareQuotes.Core.Models.SystemHealthState.Ok
-            },
-            new FlareQuotes.Core.Models.SystemHealthItem
-            {
+        return new System.Collections.Generic.List<FlareQuotes.Core.Models.SystemHealthItem> {
+            new FlareQuotes.Core.Models.SystemHealthItem { Name = "App version",
+                                                           Detail =
+                                                               $"v{GetCurrentAppVersion()} is installed in this build.",
+                                                           State = FlareQuotes.Core.Models.SystemHealthState.Ok },
+            new FlareQuotes.Core.Models.SystemHealthItem {
                 Name = "System health",
                 Detail = "The health service could not be loaded, but the app opened successfully.",
                 State = FlareQuotes.Core.Models.SystemHealthState.Warning
@@ -1739,7 +1638,8 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         };
     }
 
-    private static bool MainWindow_ShouldShowSystemHealthWindowForV134(System.Collections.Generic.IReadOnlyList<FlareQuotes.Core.Models.SystemHealthItem> healthItems)
+    private static bool ShouldShowSystemHealthWindow(
+        System.Collections.Generic.IReadOnlyList<FlareQuotes.Core.Models.SystemHealthItem> healthItems)
     {
         if (healthItems is null || healthItems.Count == 0)
             return false;
@@ -1761,24 +1661,21 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
         return false;
     }
-    private async void MainWindow_ShowSystemHealthForV134Once(object sender, System.Windows.RoutedEventArgs e)
+    private async void ShowSystemHealthOnce(object sender, System.Windows.RoutedEventArgs e)
     {
-        Loaded -= MainWindow_ShowSystemHealthForV134Once;
+        Loaded -= ShowSystemHealthOnce;
 
         try
         {
             await System.Threading.Tasks.Task.Delay(350);
 
-            var healthItems = await MainWindow_GetSystemHealthItemsForV134Async();
+            var healthItems = await GetSystemHealthItemsAsync();
 
-            if (!MainWindow_ShouldShowSystemHealthWindowForV134(healthItems))
+            if (!ShouldShowSystemHealthWindow(healthItems))
                 return;
 
-            var healthWindow = new SystemHealthWindow(healthItems)
-            {
-                Owner = this,
-                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner,
-                Topmost = true
+            var healthWindow = new SystemHealthWindow(healthItems) {
+                Owner = this, WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner, Topmost = true
             };
 
             healthWindow.ShowDialog();
@@ -1789,14 +1686,3 @@ TryAnimateButtonPress(e.OriginalSource as DependencyObject);
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-

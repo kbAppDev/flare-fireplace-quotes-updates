@@ -40,5 +40,3 @@ public sealed class PriceLine
     public string Url { get; set; } = string.Empty;
     public string PriceText => Price.HasValue ? Price.Value.ToString("C0") : string.Empty;
 }
-
-

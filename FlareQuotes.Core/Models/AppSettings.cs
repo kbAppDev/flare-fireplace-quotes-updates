@@ -12,25 +12,14 @@ public sealed class AppSettings
     public bool UseGmailSignature { get; set; } = true;
     public string EmailSendMode { get; set; } = "draft";
     public bool CheckUpdatesOnStartup { get; set; } = true;
-    public string UpdateManifestUrl { get; set; } = "https://github.com/kbAppDev/flare-fireplace-quotes-updates/releases/latest/download/flare-quotes-v1-latest.json";
+    public string UpdateManifestUrl { get; set; } = "https://github.com/kbAppDev/flare-fireplace-quotes-updates/" +
+                                                    "releases/latest/download/flare-quotes-v1-latest.json";
     public string GmailCredentialsPath { get; set; } = string.Empty;
     public int RecallQuoteHistoryLimit { get; set; } = 5;
     public bool FirstRunHealthCheckCompleted { get; set; }
     public bool StrictManifestSignatureValidation { get; set; }
     public string UpdateManifestPublicKeyPem { get; set; } = string.Empty;
     public bool EnableRedactedLogs { get; set; } = true;
-    public List<string> LeadTimePresets { get; set; } = ["3-5 Business Days", "1-2 Weeks", "2-4 Weeks", "4-6 Weeks", "6-8 Weeks", "8-10 Weeks", "10-12 Weeks", "TBD"];
+    public List<string> LeadTimePresets { get; set; } =
+        ["3-5 Business Days", "1-2 Weeks", "2-4 Weeks", "4-6 Weeks", "6-8 Weeks", "8-10 Weeks", "10-12 Weeks", "TBD"];
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

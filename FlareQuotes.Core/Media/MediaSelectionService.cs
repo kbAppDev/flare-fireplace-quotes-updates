@@ -11,8 +11,7 @@ public sealed class MediaSelectionService : IMediaSelectionService
         // Outdoor quotes use glass-style classic media only in the Python app.
         if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough)
         {
-            return MediaCatalog.Classic
-                .Where(x => x.Key.StartsWith("fg_", StringComparison.OrdinalIgnoreCase))
+            return MediaCatalog.Classic.Where(x => x.Key.StartsWith("fg_", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(x => x.Label)
                 .ToList();
         }
@@ -26,7 +25,8 @@ public sealed class MediaSelectionService : IMediaSelectionService
         if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough)
         {
             return MediaCatalog.Premium
-                .Where(x => x.CalculationGroup.Equals("fireglass", StringComparison.OrdinalIgnoreCase) || x.Key.Contains("glass", StringComparison.OrdinalIgnoreCase))
+                .Where(x => x.CalculationGroup.Equals("fireglass", StringComparison.OrdinalIgnoreCase) ||
+                            x.Key.Contains("glass", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(x => x.Label)
                 .ToList();
         }
@@ -41,14 +41,18 @@ public sealed class MediaSelectionService : IMediaSelectionService
     public IReadOnlyList<MediaOption> DetectFromText(string rawText, FireplaceType type)
     {
         var haystack = Normalize(rawText);
-        if (string.IsNullOrWhiteSpace(haystack)) return [];
+        if (string.IsNullOrWhiteSpace(haystack))
+            return [];
 
         return GetClassicMedia(type)
             .Concat(GetPremiumMedia(type))
-            .Where(option => option.Aliases.Any(alias => Regex.IsMatch(haystack, $@"\b{Regex.Escape(Normalize(alias))}\b", RegexOptions.IgnoreCase)))
+            .Where(option =>
+                       option.Aliases.Any(alias => Regex.IsMatch(haystack, $@"\b{Regex.Escape(Normalize(alias))}\b",
+                                                                 RegexOptions.IgnoreCase)))
             .DistinctBy(x => x.Key)
             .ToList();
     }
 
-    private static string Normalize(string value) => Regex.Replace(value ?? string.Empty, @"[^a-zA-Z0-9]+", " ").Trim().ToLowerInvariant();
+    private static string Normalize(string value) =>
+        Regex.Replace(value ?? string.Empty, @"[^a-zA-Z0-9]+", " ").Trim().ToLowerInvariant();
 }

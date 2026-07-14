@@ -15,4 +15,3 @@ public sealed class UpdateCheckResult
 
     public string Notes { get; set; } = string.Empty;
 }
-

@@ -17,4 +17,3 @@ public sealed class FireplaceQuote
     public List<FeatureSelection> Features { get; set; } = [];
     public List<MediaSelection> PremiumMedia { get; set; } = [];
 }
-

@@ -1,25 +1,24 @@
 using System.Text.RegularExpressions;
 using FlareQuotes.Core.Services;
+using FlareQuotes.Core.Paths;
 
 namespace FlareQuotes.Infrastructure.Logging;
 
 public sealed class RedactingFileLogger : IAppLogger
 {
-    private static readonly Regex EmailRegex = new(@"[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex TokenRegex = new(@"(?i)(access_token|refresh_token|client_secret|authorization|bearer)\s*[:=]\s*[""']?[^""'\s,}]+", RegexOptions.Compiled);
-    private static readonly Regex LocalUserPathRegex = new(@"C:\\Users\\[^\\\r\n]+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex EmailRegex =
+        new(@"[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex TokenRegex =
+        new(@"(?i)(access_token|refresh_token|client_secret|authorization|bearer)\s*[:=]\s*[""']?[^""'\s,}]+",
+            RegexOptions.Compiled);
+    private static readonly Regex LocalUserPathRegex =
+        new(@"C:\\Users\\[^\\\r\n]+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private readonly object _sync = new();
 
     public RedactingFileLogger()
     {
-        var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Flare Fireplace Quotes",
-            "Logs");
-
-        Directory.CreateDirectory(dir);
-        LogFilePath = Path.Combine(dir, "app.log");
+        LogFilePath = AppPaths.LogFile;
     }
 
     public string LogFilePath { get; }

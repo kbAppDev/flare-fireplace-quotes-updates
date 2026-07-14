@@ -13,7 +13,7 @@
 
 - Gmail draft flow uses reduced Gmail scopes.
 - Gmail OAuth token storage uses Windows DPAPI-protected file storage.
-- Gmail credentials are read from Settings or local fallback paths, not embedded into source.
+- Gmail credentials are consumed only from `%LOCALAPPDATA%\Flare Fireplace Quotes\Credentials\gmail_credentials.json` after a one-time import from an explicitly configured file or the installed LocalData file.
 - Email headers are sanitized.
 - Recipient and BCC values are validated.
 - User-facing error messages are redacted where practical.

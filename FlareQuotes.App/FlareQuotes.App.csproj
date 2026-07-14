@@ -6,14 +6,7 @@
     <ApplicationIcon>Assets\app_icon.ico</ApplicationIcon>
     <AssemblyName>Flare Fireplace Quotes</AssemblyName>
     <RootNamespace>FlareQuotes.App</RootNamespace>
-    <Version>1.4.6</Version>
-    <AssemblyVersion>1.4.6.0</AssemblyVersion>
-    <FileVersion>1.4.6.0</FileVersion>
     <Product>Flare Fireplace Quotes</Product>
-    <InformationalVersion>1.4.6</InformationalVersion>
-    <ProductVersion>1.4.6.0</ProductVersion>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\FlareQuotes.Core\FlareQuotes.Core.csproj" />

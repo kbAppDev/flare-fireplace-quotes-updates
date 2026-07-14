@@ -1,12 +1,7 @@
 namespace FlareQuotes.Core.Models;
 
-public sealed record MediaOption(
-    string Key,
-    string Label,
-    string DisplayName,
-    string CalculationGroup,
-    bool IsPremium,
-    string[] Aliases);
+public sealed record MediaOption(string Key, string Label, string DisplayName, string CalculationGroup, bool IsPremium,
+                                 string[] Aliases);
 
 public sealed class MediaSelection
 {

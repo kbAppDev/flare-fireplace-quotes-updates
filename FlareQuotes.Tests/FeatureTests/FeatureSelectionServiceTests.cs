@@ -10,7 +10,9 @@ public sealed class FeatureSelectionServiceTests
     public void DetectsRequiredPastedFeatureAliases()
     {
         var service = new FeatureSelectionService();
-        var result = service.DetectFromText("Please include Double Glass, RGB LEDs, Power Vent, Summer Kit, Summit Burner, and Reflective Sides.", FireplaceType.Indoor);
+        var result = service.DetectFromText(
+            "Please include Double Glass, RGB LEDs, Power Vent, Summer Kit, Summit Burner, and Reflective Sides.",
+            FireplaceType.Indoor);
         var keys = result.Select(x => x.Key).ToHashSet();
 
         Assert.Contains("double_glass", keys);
@@ -26,9 +28,12 @@ public sealed class FeatureSelectionServiceTests
     {
         var service = new FeatureSelectionService();
 
-        var indoorSeeThroughKeys = service.GetAvailableOptions(FireplaceType.IndoorSeeThrough).Select(x => x.Key).ToHashSet();
-        var indoorOutdoorSeeThroughKeys = service.GetAvailableOptions(FireplaceType.IndoorOutdoorSeeThrough).Select(x => x.Key).ToHashSet();
-        var outdoorSeeThroughKeys = service.GetAvailableOptions(FireplaceType.OutdoorSeeThrough).Select(x => x.Key).ToHashSet();
+        var indoorSeeThroughKeys =
+            service.GetAvailableOptions(FireplaceType.IndoorSeeThrough).Select(x => x.Key).ToHashSet();
+        var indoorOutdoorSeeThroughKeys =
+            service.GetAvailableOptions(FireplaceType.IndoorOutdoorSeeThrough).Select(x => x.Key).ToHashSet();
+        var outdoorSeeThroughKeys =
+            service.GetAvailableOptions(FireplaceType.OutdoorSeeThrough).Select(x => x.Key).ToHashSet();
 
         Assert.DoesNotContain("reflective_black_back", indoorSeeThroughKeys);
         Assert.DoesNotContain("reflective_black_back", indoorOutdoorSeeThroughKeys);
@@ -39,4 +44,3 @@ public sealed class FeatureSelectionServiceTests
         Assert.Contains("reflective_black_sides", outdoorSeeThroughKeys);
     }
 }
-

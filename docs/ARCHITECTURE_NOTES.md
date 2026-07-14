@@ -1,6 +1,6 @@
 # Architecture Notes
 
-Flare Fireplaces - Quotes v1.0 is a C# / WPF / MVVM rebuild of the original Python quote application.
+Flare Fireplace Quotes v1.4.7 is a C# / WPF / MVVM rebuild of the original Python quote application.
 
 ## Project layout
 
@@ -17,7 +17,8 @@ Flare Fireplaces - Quotes v1.0 is a C# / WPF / MVVM rebuild of the original Pyth
 - Feature selection: `IFeatureSelectionService`
 - Media selection: `IMediaSelectionService`
 - PDF generation: `IQuotePdfService`
-- Gmail drafts: `IGmailDraftService`
+- Gmail draft transport: `IGmailDraftService`
+- Gmail draft orchestration: `DraftWorkflowService`
 - Settings: `ISettingsService`
 - Updates: `IUpdateService`
 
