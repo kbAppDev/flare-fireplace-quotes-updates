@@ -51,7 +51,6 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         AttachDropdownScrollResetHooks();
-        Loaded += ShowSystemHealthOnce;
         SetAppVersionText();
 
         var viewModel = App.Services.GetRequiredService<MainViewModel>();
@@ -66,6 +65,10 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+#if FLARE_UI_SNAPSHOTS
+        if (await UiSnapshotCapture.TryCaptureAsync(this))
+            return;
+#endif
         await TryLoadPdfPreviewAsync();
         _ = Dispatcher.InvokeAsync(async () => await CheckForUpdatesOnStartupAsync(),
                                    DispatcherPriority.ApplicationIdle);
@@ -1399,38 +1402,6 @@ public partial class MainWindow : Window
         return string.IsNullOrWhiteSpace(value) ? "Unexpected error." : value;
     }
 
-    private async Task ShowFirstRunSystemHealthCheckAsync()
-    {
-        try
-        {
-            var settingsService = App.Services.GetService<ISettingsService>();
-            var healthService = App.Services.GetService<ISystemHealthService>();
-            var logger = App.Services.GetService<IAppLogger>();
-
-            if (settingsService is null || healthService is null)
-                return;
-
-            var settings = await settingsService.LoadAsync();
-            if (settings.FirstRunHealthCheckCompleted)
-                return;
-
-            var items = await healthService.CheckAsync();
-
-            var window = new SystemHealthWindow(items) { Owner = this };
-
-            window.ShowDialog();
-
-            settings.FirstRunHealthCheckCompleted = true;
-            await settingsService.SaveAsync(settings);
-
-            logger?.Info("First-run system health check completed.");
-        }
-        catch (Exception ex)
-        {
-            var logger = App.Services.GetService<IAppLogger>();
-            logger?.Error(ex, "First-run system health check failed.");
-        }
-    }
     private async Task CheckForUpdatesOnStartupAsync()
     {
         if (_hasCheckedForStartupUpdates)
@@ -1694,80 +1665,4 @@ public partial class MainWindow : Window
         }
     }
 
-    private async System.Threading.Tasks.Task<
-        System.Collections.Generic.IReadOnlyList<FlareQuotes.Core.Models.SystemHealthItem>> GetSystemHealthItemsAsync()
-    {
-        try
-        {
-            var service = App.Services?.GetService(typeof(FlareQuotes.Core.Services.ISystemHealthService))
-                              as FlareQuotes.Core.Services.ISystemHealthService;
-
-            if (service is not null)
-                return await service.CheckAsync();
-        }
-        catch (System.Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine(ex);
-        }
-
-        return new System.Collections.Generic.List<FlareQuotes.Core.Models.SystemHealthItem> {
-            new FlareQuotes.Core.Models.SystemHealthItem { Name = "App version",
-                                                           Detail =
-                                                               $"v{GetCurrentAppVersion()} is installed in this build.",
-                                                           State = FlareQuotes.Core.Models.SystemHealthState.Ok },
-            new FlareQuotes.Core.Models.SystemHealthItem {
-                Name = "System health",
-                Detail = "The health service could not be loaded, but the app opened successfully.",
-                State = FlareQuotes.Core.Models.SystemHealthState.Warning
-            }
-        };
-    }
-
-    private static bool ShouldShowSystemHealthWindow(
-        System.Collections.Generic.IReadOnlyList<FlareQuotes.Core.Models.SystemHealthItem> healthItems)
-    {
-        if (healthItems is null || healthItems.Count == 0)
-            return false;
-
-        foreach (var item in healthItems)
-        {
-            var state = item?.State.ToString() ?? string.Empty;
-
-            if (state.Equals("Ok", StringComparison.OrdinalIgnoreCase) ||
-                state.Equals("Healthy", StringComparison.OrdinalIgnoreCase) ||
-                state.Equals("Success", StringComparison.OrdinalIgnoreCase) ||
-                state.Equals("Valid", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-    private async void ShowSystemHealthOnce(object sender, System.Windows.RoutedEventArgs e)
-    {
-        Loaded -= ShowSystemHealthOnce;
-
-        try
-        {
-            await System.Threading.Tasks.Task.Delay(350);
-
-            var healthItems = await GetSystemHealthItemsAsync();
-
-            if (!ShouldShowSystemHealthWindow(healthItems))
-                return;
-
-            var healthWindow = new SystemHealthWindow(healthItems) {
-                Owner = this, WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner, Topmost = true
-            };
-
-            healthWindow.ShowDialog();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine(ex);
-        }
-    }
 }

@@ -29,12 +29,23 @@ function Assert-ContainsAll([string]$Content, [string]$RelativePath, [string[]]$
     }
 }
 
+function Assert-ContainsNone([string]$Content, [string]$RelativePath, [string[]]$ForbiddenTokens) {
+    foreach ($token in $ForbiddenTokens) {
+        if ($Content.Contains($token, [StringComparison]::Ordinal)) {
+            throw "Forbidden UI contract token '$token' is present in $RelativePath."
+        }
+    }
+}
+
 $mainPath = "FlareQuotes.App\Views\MainWindow.xaml"
 $main = Read-ValidatedXaml $mainPath
 Assert-ContainsAll $main $mainPath @(
     'x:Name="HeaderLogoImage"',
     'x:Name="AppVersionText"',
     'x:Name="ThemeToggleButton"',
+    'x:Name="RequestPane"',
+    'x:Name="QuoteWorkspacePane"',
+    'x:Name="GeneratePreviewButton"',
     'x:Name="RecallLastQuoteButton"',
     'x:Name="PdfPreviewHost"',
     'x:Name="PdfPreviewFallback"',
@@ -66,6 +77,14 @@ Assert-ContainsAll $main $mainPath @(
     'ThemeToggleButton_Unchecked'
 )
 
+$mainCodeBehindPath = "FlareQuotes.App\Views\MainWindow.xaml.cs"
+$mainCodeBehind = Get-Content -LiteralPath (Join-Path $Root $mainCodeBehindPath) -Raw
+Assert-ContainsNone $mainCodeBehind $mainCodeBehindPath @(
+    'Loaded += ShowSystemHealthOnce',
+    'ShowFirstRunSystemHealthCheckAsync',
+    'new SystemHealthWindow'
+)
+
 $settingsPath = "FlareQuotes.App\Views\SettingsWindow.xaml"
 $settings = Read-ValidatedXaml $settingsPath
 Assert-ContainsAll $settings $settingsPath @(
@@ -82,6 +101,8 @@ Assert-ContainsAll $settings $settingsPath @(
     'x:Name="RecallQuoteHistoryLimitBox"',
     'x:Name="LeadTimePresetsBox"',
     'x:Name="SettingsStatusText"',
+    'x:Name="SettingsCancelButton"',
+    'x:Name="SettingsSaveButton"',
     'BrowseGmailCredentials_Click',
     'BrowsePricingFile_Click',
     'SaveButton_Click'
@@ -119,7 +140,10 @@ Assert-ContainsAll $theme $themePath @(
     'x:Key="QuietButton"',
     'x:Key="CaptionButton"',
     'x:Key="CloseCaptionButton"',
-    'x:Key="ChipRemoveButton"'
+    'x:Key="ChipRemoveButton"',
+    'x:Key="SunIconGeometry"',
+    'x:Key="MoonIconGeometry"',
+    'x:Key="SettingsIconGeometry"'
 )
 
 Write-Host "UI contract validated successfully."

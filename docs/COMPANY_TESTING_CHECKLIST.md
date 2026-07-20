@@ -1,4 +1,4 @@
-# Company Testing Checklist — v1.5.0
+# Company Testing Checklist — v1.5.1
 
 Use this checklist for each tester.
 
@@ -16,10 +16,12 @@ Use this checklist for each tester.
 - The Windows title bar, minimize, maximize/restore, and close controls behave normally.
 - The Build quote, Preview, Verify links, and Gmail draft stepper remains legible at the minimum supported window size.
 - Recent quotes opens a compact menu and recalls the chosen quote.
-- Dark and light themes update the main window, menus, Settings, System health, and Update available surfaces consistently.
+- Dark and light themes update the main window, menus, Settings, and Update available surfaces consistently.
+- Normal startup never opens a system-health popup.
 - Tab and Shift+Tab expose a visible focus indicator on interactive controls.
 - Text, status colors, and selection indicators remain readable at 100%, 125%, and 150% Windows scaling.
-- No fields, dropdowns, status cards, or action buttons are clipped at 1180 × 760.
+- No fields, dropdowns, or action buttons are clipped at 1180 × 760.
+- Main and Settings rendered snapshot artifacts match the approved two-pane layout.
 
 ## 3. Basic quote flow
 
@@ -93,4 +95,4 @@ Use this checklist for each tester.
 - A successful Gmail draft removes its app-owned temporary PDF.
 - A failed Gmail draft leaves the PDF available for retry.
 - Update checks reject a non-Flare host, mismatched release version, invalid SHA-256, or incorrect installer size.
-- The normal GitHub v1.5.0 release manifest downloads and launches only after verification.
+- The normal GitHub v1.5.1 release manifest downloads and launches only after verification.

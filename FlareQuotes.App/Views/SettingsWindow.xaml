@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Settings"
         Width="920"
-        Height="730"
+        Height="700"
         MinWidth="820"
-        MinHeight="650"
+        MinHeight="620"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -19,7 +19,7 @@
             <Setter Property="Foreground" Value="{DynamicResource FlareMutedTextBrush}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Margin" Value="0,0,0,4" />
-            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Padding" Value="12,9" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FocusVisualStyle" Value="{StaticResource FlareFocusVisual}" />
@@ -107,7 +107,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="54" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="70" />
+                <RowDefinition Height="58" />
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0"
@@ -122,7 +122,7 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource SurfaceRaisedBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Margin="0,0,11,0">
-                            <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource SettingsIconGeometry}" Stroke="{DynamicResource FlareTextBrush}" StrokeThickness="1.5" StrokeStartLineCap="Round" /></Viewbox>
                         </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Settings" FontSize="14" FontWeight="SemiBold" />
@@ -134,7 +134,7 @@
                             Click="CancelButton_Click"
                             ToolTip="Close settings"
                             AutomationProperties.Name="Close settings">
-                        <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons" FontSize="12" />
+                        <Viewbox Width="12" Height="12"><Path Data="{StaticResource CloseIconGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.35" StrokeStartLineCap="Round" /></Viewbox>
                     </Button>
                 </Grid>
             </Border>
@@ -143,7 +143,7 @@
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE80F;" FontFamily="Segoe Fluent Icons" FontSize="15" Width="26" />
+                            <Viewbox Width="16" Height="16" Margin="0,0,10,0"><Path Data="{StaticResource HomeIconGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}" StrokeThickness="1.35" StrokeLineJoin="Round" /></Viewbox>
                             <TextBlock Text="General" VerticalAlignment="Center" />
                         </StackPanel>
                     </TabItem.Header>
@@ -201,7 +201,7 @@
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE715;" FontFamily="Segoe Fluent Icons" FontSize="15" Width="26" />
+                            <Viewbox Width="16" Height="16" Margin="0,0,10,0"><Path Data="{StaticResource MailIconGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}" StrokeThickness="1.35" StrokeLineJoin="Round" /></Viewbox>
                             <TextBlock Text="Integrations" VerticalAlignment="Center" />
                         </StackPanel>
                     </TabItem.Header>
@@ -234,7 +234,7 @@
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe Fluent Icons" FontSize="15" Width="26" />
+                            <Viewbox Width="16" Height="16" Margin="0,0,10,0"><Path Data="{StaticResource FolderIconGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}" StrokeThickness="1.35" StrokeLineJoin="Round" /></Viewbox>
                             <TextBlock Text="Data &amp; updates" VerticalAlignment="Center" />
                         </StackPanel>
                     </TabItem.Header>
@@ -279,7 +279,7 @@
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE823;" FontFamily="Segoe Fluent Icons" FontSize="15" Width="26" />
+                            <Viewbox Width="16" Height="16" Margin="0,0,10,0"><Path Data="{StaticResource ClockIconGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}" StrokeThickness="1.35" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Viewbox>
                             <TextBlock Text="Lead times" VerticalAlignment="Center" />
                         </StackPanel>
                     </TabItem.Header>
@@ -320,8 +320,8 @@
                                VerticalAlignment="Center"
                                TextTrimming="CharacterEllipsis"
                                Margin="0,0,18,0" />
-                    <Button Grid.Column="1" Content="Cancel" Click="CancelButton_Click" />
-                    <Button Grid.Column="3" Content="Save settings" Click="SaveButton_Click" Style="{StaticResource PrimaryButton}" />
+                    <Button x:Name="SettingsCancelButton" Grid.Column="1" Content="Cancel" Click="CancelButton_Click" Height="34" VerticalAlignment="Center" />
+                    <Button x:Name="SettingsSaveButton" Grid.Column="3" Content="Save settings" Click="SaveButton_Click" Style="{StaticResource PrimaryButton}" Height="34" VerticalAlignment="Center" />
                 </Grid>
             </Border>
         </Grid>
