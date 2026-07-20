@@ -72,6 +72,10 @@ jobs:
             }
           }
 
+      - name: Validate UI contract
+        shell: pwsh
+        run: .\Test-UiContract.ps1
+
       - name: Build with warnings as errors
         run: dotnet build .\FlareQuotes.App\FlareQuotes.App.csproj -c Release --no-restore -p:TreatWarningsAsErrors=true
 

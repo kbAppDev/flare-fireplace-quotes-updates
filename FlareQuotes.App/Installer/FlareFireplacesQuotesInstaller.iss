@@ -1,6 +1,6 @@
 #define MyAppName "Flare Fireplace Quotes"
 #ifndef MyAppVersion
-#define MyAppVersion "1.4.12"
+#define MyAppVersion "1.5.0"
 #endif
 #define MyAppPublisher "Flare Fireplaces"
 #define MyAppURL "https://flarefireplaces.com/"
@@ -47,4 +47,3 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
-

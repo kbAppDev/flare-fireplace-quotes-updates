@@ -1,4 +1,4 @@
-# v1.4.12 Source Package Manifest
+# v1.5.0 Source Package Manifest
 
 The source backup contains:
 
