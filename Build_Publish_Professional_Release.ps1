@@ -226,7 +226,9 @@ Write-Host "Verifying live updater assets..." -ForegroundColor Cyan
 $live = $null
 for ($attempt = 1; $attempt -le 18; $attempt++) {
     try {
-        $live = Invoke-RestMethod -Uri "$LatestManifestUrl?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())" `
+        $manifestUriBuilder = [System.UriBuilder]::new($LatestManifestUrl)
+        $manifestUriBuilder.Query = "cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
+        $live = Invoke-RestMethod -Uri $manifestUriBuilder.Uri `
                                   -Headers @{ "Cache-Control" = "no-cache" }
         if ([string]$live.version -eq $Version) { break }
     }
