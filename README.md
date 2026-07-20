@@ -35,6 +35,7 @@ Required release assets:
 
 - `Flare.Fireplace.Quotes.exe`
 - `flare-quotes-v1-latest.json`
+- `Flare.Fireplace.Quotes-portable.zip`
 
 ## Runtime data
 

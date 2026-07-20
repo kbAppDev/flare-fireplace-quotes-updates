@@ -15,6 +15,7 @@ Required release assets:
 ```text
 Flare.Fireplace.Quotes.exe
 flare-quotes-v1-latest.json
+Flare.Fireplace.Quotes-portable.zip
 ```
 
 v1.5.0 modernizes the WPF presentation layer while preserving the audited v1.4.12 business behavior and security controls. Its scope is defined in `RELEASE_NOTES.md` and enforced by automated build, test, dependency-vulnerability, CodeQL, installer-integrity, and live-manifest checks.
