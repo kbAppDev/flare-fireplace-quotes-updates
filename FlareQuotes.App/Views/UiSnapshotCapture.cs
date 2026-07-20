@@ -4,7 +4,6 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Threading;
 using FlareQuotes.App.ViewModels;
 
 namespace FlareQuotes.App.Views;
@@ -14,12 +13,12 @@ internal static class UiSnapshotCapture
     private const string SnapshotModeVariable = "FLARE_UI_SNAPSHOT_MODE";
     private const string SnapshotDirectoryVariable = "FLARE_UI_SNAPSHOT_DIR";
 
-    public static async Task<bool> TryCaptureAsync(MainWindow mainWindow)
+    public static Task<bool> TryCaptureAsync(MainWindow mainWindow)
     {
         if (!string.Equals(Environment.GetEnvironmentVariable(SnapshotModeVariable), "1",
                            StringComparison.Ordinal))
         {
-            return false;
+            return Task.FromResult(false);
         }
 
         var requestedDirectory = Environment.GetEnvironmentVariable(SnapshotDirectoryVariable);
@@ -31,48 +30,41 @@ internal static class UiSnapshotCapture
 
         try
         {
-            if (mainWindow.DataContext is not MainViewModel viewModel)
+            var renderWindow = new MainWindow();
+            if (renderWindow.DataContext is not MainViewModel viewModel)
                 throw new InvalidOperationException("The main window view model was not available.");
 
             PopulateRepresentativeQuote(viewModel);
-            await RenderPendingLayoutAsync(mainWindow);
 
-            var mainFrame = mainWindow.WindowFrame;
-            mainWindow.Content = null;
+            var mainFrame = renderWindow.WindowFrame;
+            renderWindow.Content = null;
             mainFrame.DataContext = viewModel;
 
             ArrangeAtSize(mainFrame, 1480, 920);
-            var mainMetrics = ValidateMainWindow(mainWindow, mainFrame);
             SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "main-window-dark.png"));
+            var mainMetrics = ValidateMainWindow(renderWindow, mainFrame);
 
             ArrangeAtSize(mainFrame, 1180, 760);
-            var minimumMainMetrics = ValidateMinimumMainWindow(mainWindow, mainFrame);
             SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "main-window-minimum.png"));
-
-            mainWindow.Content = mainFrame;
+            var minimumMainMetrics = ValidateMinimumMainWindow(renderWindow, mainFrame);
 
             var settingsWindow = new SettingsWindow {
-                Owner = mainWindow,
                 Width = 920,
                 Height = 700,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner
+                WindowStartupLocation = WindowStartupLocation.Manual
             };
-
-            settingsWindow.Show();
-            await RenderPendingLayoutAsync(settingsWindow);
+            PopulateRepresentativeSettings(settingsWindow);
 
             var settingsFrame = settingsWindow.SettingsFrame;
             settingsWindow.Content = null;
 
             ArrangeAtSize(settingsFrame, 920, 700);
-            var settingsMetrics = ValidateSettingsWindow(settingsWindow, settingsFrame);
             SaveVisual(settingsFrame, Path.Combine(snapshotDirectory, "settings-window-dark.png"));
+            var settingsMetrics = ValidateSettingsWindow(settingsWindow, settingsFrame);
 
             ArrangeAtSize(settingsFrame, 820, 620);
-            var minimumSettingsMetrics = ValidateSettingsWindow(settingsWindow, settingsFrame);
             SaveVisual(settingsFrame, Path.Combine(snapshotDirectory, "settings-window-minimum.png"));
-            settingsWindow.Content = settingsFrame;
-            settingsWindow.Close();
+            var minimumSettingsMetrics = ValidateSettingsWindow(settingsWindow, settingsFrame);
 
             var metrics = new {
                 generatedUtc = DateTime.UtcNow,
@@ -94,7 +86,7 @@ internal static class UiSnapshotCapture
             Application.Current.Shutdown(1);
         }
 
-        return true;
+        return Task.FromResult(true);
     }
 
     private static void PopulateRepresentativeQuote(MainViewModel viewModel)
@@ -126,18 +118,22 @@ internal static class UiSnapshotCapture
             viewModel.SelectClassicMediaCommand.Execute(classicMedia);
     }
 
-    private static async Task RenderPendingLayoutAsync(Window window)
+    private static void PopulateRepresentativeSettings(SettingsWindow window)
     {
-        await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Loaded);
-        await Task.Delay(200);
-        await window.Dispatcher.InvokeAsync(window.UpdateLayout, DispatcherPriority.Render);
-        await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+        window.SalesEmailBox.Text = "quotes@flarefireplaces.com";
+        window.SalesPhoneBox.Text = "(512) 555-0187";
+        window.WebsiteBox.Text = "https://flarefireplaces.com";
+        window.ConsultationUrlBox.Text = "https://meetings.hubspot.com/flare/consultation";
+        window.RecallQuoteHistoryLimitBox.Text = "5";
+        window.SettingsStatusText.Text = "Settings are stored securely under your Windows profile.";
     }
 
     private static void ArrangeAtSize(FrameworkElement root, double width, double height)
     {
         root.Width = width;
         root.Height = height;
+        root.InvalidateMeasure();
+        root.InvalidateArrange();
         root.Measure(new Size(width, height));
         root.Arrange(new Rect(0, 0, width, height));
         root.UpdateLayout();
