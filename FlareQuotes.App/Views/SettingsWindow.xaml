@@ -1,6 +1,7 @@
 <Window x:Class="FlareQuotes.App.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Settings"
         Width="920"
         Height="700"
@@ -8,11 +9,19 @@
         MinHeight="620"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
+        ResizeMode="CanResize"
+        AllowsTransparency="False"
+        Background="{DynamicResource WindowSurfaceBrush}"
         UseLayoutRounding="True"
-        SnapsToDevicePixels="True"
-        MouseLeftButtonDown="SettingsWindow_MouseDown">
+        SnapsToDevicePixels="True">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="56"
+                            ResizeBorderThickness="7"
+                            GlassFrameThickness="0"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
 
     <Window.Resources>
         <Style x:Key="SettingsNavTab" TargetType="TabItem">
@@ -67,14 +76,14 @@
                     <ControlTemplate TargetType="TabControl">
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="198" />
+                                <ColumnDefinition Width="210" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Border Grid.Column="0"
                                     Background="{DynamicResource WindowHeaderBrush}"
                                     BorderBrush="{DynamicResource DividerBrush}"
                                     BorderThickness="0,0,1,0"
-                                    Padding="12,18">
+                                    Padding="16,22">
                                 <StackPanel>
                                     <TextBlock Text="SETTINGS" Style="{StaticResource EyebrowText}" Margin="10,0,0,12" />
                                     <ItemsPresenter />
@@ -83,7 +92,7 @@
                             <Border Grid.Column="1" Background="{DynamicResource WindowWorkspaceBrush}">
                                 <ContentPresenter x:Name="PART_SelectedContentHost"
                                                   ContentSource="SelectedContent"
-                                                  Margin="24,20" />
+                                                  Margin="30,24" />
                             </Border>
                         </Grid>
                     </ControlTemplate>
@@ -92,23 +101,23 @@
         </Style>
 
         <Style x:Key="SettingsFieldLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Margin" Value="0,0,0,5" />
         </Style>
     </Window.Resources>
 
     <Border x:Name="SettingsFrame"
-            CornerRadius="14"
+            CornerRadius="0"
             Background="{DynamicResource WindowSurfaceBrush}"
             BorderBrush="{DynamicResource GlassBorderBrush}"
-            BorderThickness="1"
-            ClipToBounds="True">
+            BorderThickness="0"
+            ClipToBounds="False">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="54" />
+                <RowDefinition Height="56" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="58" />
+                <RowDefinition Height="64" />
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0"
@@ -122,16 +131,13 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource SurfaceRaisedBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Margin="0,0,11,0">
-                            <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="{StaticResource SettingsIconGeometry}" Stroke="{DynamicResource FlareTextBrush}" StrokeThickness="1.5" StrokeStartLineCap="Round" /></Viewbox>
-                        </Border>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Settings" FontSize="14" FontWeight="SemiBold" />
                             <TextBlock Text="Application preferences and integrations" Style="{StaticResource MutedText}" FontSize="10.5" />
                         </StackPanel>
                     </StackPanel>
                     <Button Grid.Column="1"
-                            Style="{StaticResource CloseCaptionButton}"
+                            Style="{StaticResource CloseCaptionButton}" shell:WindowChrome.IsHitTestVisibleInChrome="True"
                             Click="CancelButton_Click"
                             ToolTip="Close settings"
                             AutomationProperties.Name="Close settings">
@@ -150,7 +156,7 @@
                     </TabItem.Header>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
-                            <TextBlock Text="General" FontSize="22" FontWeight="SemiBold" />
+                            <TextBlock Text="General" FontSize="24" FontWeight="SemiBold" />
                             <TextBlock Text="Contact details shown in generated PDFs and quote history preferences." Style="{StaticResource MutedText}" Margin="0,5,0,18" />
 
                             <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">

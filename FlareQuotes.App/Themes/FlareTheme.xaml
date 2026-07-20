@@ -7,30 +7,30 @@
         MainWindow can switch the existing light/dark preference without replacing
         controls or disturbing workflow state.
     -->
-    <SolidColorBrush x:Key="FlareTextBrush" Color="#F4F7FA" />
-    <SolidColorBrush x:Key="FlareMutedTextBrush" Color="#98A6B5" />
-    <SolidColorBrush x:Key="FlareAccentBrush" Color="#A6CE39" />
-    <SolidColorBrush x:Key="FlareAccentTextBrush" Color="#172000" />
-    <SolidColorBrush x:Key="FlarePrimaryGreenBrush" Color="#A6CE39" />
-    <SolidColorBrush x:Key="FlarePrimaryGreenHoverBrush" Color="#B7DD49" />
-    <SolidColorBrush x:Key="FlarePrimaryGreenPressedBrush" Color="#91B72C" />
-    <SolidColorBrush x:Key="FlarePrimaryGreenBorderBrush" Color="#A6CE39" />
+    <SolidColorBrush x:Key="FlareTextBrush" Color="#F5F3EE" />
+    <SolidColorBrush x:Key="FlareMutedTextBrush" Color="#A4A8AE" />
+    <SolidColorBrush x:Key="FlareAccentBrush" Color="#99CC00" />
+    <SolidColorBrush x:Key="FlareAccentTextBrush" Color="#141A00" />
+    <SolidColorBrush x:Key="FlarePrimaryGreenBrush" Color="#99CC00" />
+    <SolidColorBrush x:Key="FlarePrimaryGreenHoverBrush" Color="#A9DA1C" />
+    <SolidColorBrush x:Key="FlarePrimaryGreenPressedBrush" Color="#82AE00" />
+    <SolidColorBrush x:Key="FlarePrimaryGreenBorderBrush" Color="#99CC00" />
 
-    <SolidColorBrush x:Key="WindowSurfaceBrush" Color="#0D131B" />
-    <SolidColorBrush x:Key="WindowTitleBarBrush" Color="#0A1017" />
-    <SolidColorBrush x:Key="WindowHeaderBrush" Color="#0F161F" />
-    <SolidColorBrush x:Key="WindowWorkspaceBrush" Color="#0B1118" />
-    <SolidColorBrush x:Key="SurfaceBrush" Color="#121A24" />
-    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#151F2A" />
-    <SolidColorBrush x:Key="SurfaceSubtleBrush" Color="#101923" />
-    <SolidColorBrush x:Key="DividerBrush" Color="#202C38" />
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#30404F" />
-    <SolidColorBrush x:Key="ControlHoverBrush" Color="#1C2834" />
-    <SolidColorBrush x:Key="ControlPressedBrush" Color="#22303D" />
-    <SolidColorBrush x:Key="FocusRingBrush" Color="#718A32" />
-    <SolidColorBrush x:Key="SuccessMutedBrush" Color="#A9BD7E" />
-    <SolidColorBrush x:Key="WarningBrush" Color="#D7A63C" />
-    <SolidColorBrush x:Key="DangerBrush" Color="#C42B1C" />
+    <SolidColorBrush x:Key="WindowSurfaceBrush" Color="#0B0D10" />
+    <SolidColorBrush x:Key="WindowTitleBarBrush" Color="#090B0E" />
+    <SolidColorBrush x:Key="WindowHeaderBrush" Color="#0E1115" />
+    <SolidColorBrush x:Key="WindowWorkspaceBrush" Color="#090C10" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#12161B" />
+    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#171C22" />
+    <SolidColorBrush x:Key="SurfaceSubtleBrush" Color="#0F1318" />
+    <SolidColorBrush x:Key="DividerBrush" Color="#242A31" />
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#303841" />
+    <SolidColorBrush x:Key="ControlHoverBrush" Color="#20262D" />
+    <SolidColorBrush x:Key="ControlPressedBrush" Color="#262D35" />
+    <SolidColorBrush x:Key="FocusRingBrush" Color="#789B00" />
+    <SolidColorBrush x:Key="SuccessMutedBrush" Color="#B4C58C" />
+    <SolidColorBrush x:Key="WarningBrush" Color="#D4A94F" />
+    <SolidColorBrush x:Key="DangerBrush" Color="#D1493F" />
 
     <!-- Device-independent vector iconography. These paths remain crisp at every
          Windows DPI setting and avoid font-glyph fallback/pixelation. -->
@@ -50,40 +50,40 @@
 
     <!-- Compatibility keys retained for existing views and bindings. -->
     <LinearGradientBrush x:Key="FlareDarkBrush" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#0D131B" Offset="0" />
-        <GradientStop Color="#0D131B" Offset="1" />
+        <GradientStop Color="#0B0D10" Offset="0" />
+        <GradientStop Color="#0B0D10" Offset="1" />
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="FlareBorderBrush" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#273543" Offset="0" />
-        <GradientStop Color="#273543" Offset="1" />
+        <GradientStop Color="#2A3038" Offset="0" />
+        <GradientStop Color="#2A3038" Offset="1" />
     </LinearGradientBrush>
-    <SolidColorBrush x:Key="FlareHeaderBrush" Color="#0F161F" />
+    <SolidColorBrush x:Key="FlareHeaderBrush" Color="#0E1115" />
     <LinearGradientBrush x:Key="GlassBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#0D131B" Offset="0" />
-        <GradientStop Color="#0D131B" Offset="1" />
+        <GradientStop Color="#0B0D10" Offset="0" />
+        <GradientStop Color="#0B0D10" Offset="1" />
     </LinearGradientBrush>
-    <SolidColorBrush x:Key="GlassBorderBrush" Color="#273543" />
-    <SolidColorBrush x:Key="GlassHeaderBrush" Color="#0F161F" />
-    <SolidColorBrush x:Key="GlassCardBrush" Color="#121A24" />
-    <SolidColorBrush x:Key="GlassCardAltBrush" Color="#101923" />
-    <SolidColorBrush x:Key="GlassInputBrush" Color="#0E161F" />
-    <SolidColorBrush x:Key="FlareCardBrush" Color="#121A24" />
-    <SolidColorBrush x:Key="FlareCardAltBrush" Color="#101923" />
-    <SolidColorBrush x:Key="GlassPopupBrush" Color="#151F2A" />
-    <SolidColorBrush x:Key="PopupTextBrush" Color="#F4F7FA" />
-    <SolidColorBrush x:Key="DropdownPopupBrush" Color="#151F2A" />
-    <SolidColorBrush x:Key="DropdownInputBrush" Color="#0E161F" />
-    <SolidColorBrush x:Key="DropdownOptionBrush" Color="#182431" />
-    <SolidColorBrush x:Key="DropdownOptionHoverBrush" Color="#202D3A" />
-    <SolidColorBrush x:Key="DropdownOptionBorderBrush" Color="#314252" />
-    <SolidColorBrush x:Key="DropdownTextBrush" Color="#F4F7FA" />
-    <SolidColorBrush x:Key="DropdownMutedTextBrush" Color="#98A6B5" />
-    <SolidColorBrush x:Key="FlareInputBrush" Color="#0E161F" />
-    <SolidColorBrush x:Key="FlareButtonBrush" Color="#17212C" />
-    <SolidColorBrush x:Key="GlassButtonHoverBrush" Color="#1C2834" />
-    <SolidColorBrush x:Key="FlareButtonBorderBrush" Color="#344352" />
-    <SolidColorBrush x:Key="FlareChipBrush" Color="#182431" />
-    <SolidColorBrush x:Key="FlareChipBorderBrush" Color="#314252" />
+    <SolidColorBrush x:Key="GlassBorderBrush" Color="#2A3038" />
+    <SolidColorBrush x:Key="GlassHeaderBrush" Color="#0E1115" />
+    <SolidColorBrush x:Key="GlassCardBrush" Color="#12161B" />
+    <SolidColorBrush x:Key="GlassCardAltBrush" Color="#0F1318" />
+    <SolidColorBrush x:Key="GlassInputBrush" Color="#0D1014" />
+    <SolidColorBrush x:Key="FlareCardBrush" Color="#12161B" />
+    <SolidColorBrush x:Key="FlareCardAltBrush" Color="#0F1318" />
+    <SolidColorBrush x:Key="GlassPopupBrush" Color="#171C22" />
+    <SolidColorBrush x:Key="PopupTextBrush" Color="#F5F3EE" />
+    <SolidColorBrush x:Key="DropdownPopupBrush" Color="#171C22" />
+    <SolidColorBrush x:Key="DropdownInputBrush" Color="#0D1014" />
+    <SolidColorBrush x:Key="DropdownOptionBrush" Color="#181D23" />
+    <SolidColorBrush x:Key="DropdownOptionHoverBrush" Color="#232A32" />
+    <SolidColorBrush x:Key="DropdownOptionBorderBrush" Color="#323A44" />
+    <SolidColorBrush x:Key="DropdownTextBrush" Color="#F5F3EE" />
+    <SolidColorBrush x:Key="DropdownMutedTextBrush" Color="#A4A8AE" />
+    <SolidColorBrush x:Key="FlareInputBrush" Color="#0D1014" />
+    <SolidColorBrush x:Key="FlareButtonBrush" Color="#171C22" />
+    <SolidColorBrush x:Key="GlassButtonHoverBrush" Color="#20262D" />
+    <SolidColorBrush x:Key="FlareButtonBorderBrush" Color="#343C46" />
+    <SolidColorBrush x:Key="FlareChipBrush" Color="#181D23" />
+    <SolidColorBrush x:Key="FlareChipBorderBrush" Color="#323A44" />
 
     <Style x:Key="FlareFocusVisual" TargetType="Control">
         <Setter Property="Template">
@@ -102,7 +102,7 @@
     <Style TargetType="Window">
         <Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" />
         <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI" />
-        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontSize" Value="13.5" />
         <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
         <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
@@ -135,8 +135,8 @@
         <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="10" />
-        <Setter Property="Padding" Value="18" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="Padding" Value="20" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
     </Style>
 
@@ -146,17 +146,17 @@
         <Setter Property="Background" Value="{DynamicResource SurfaceSubtleBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="9" />
-        <Setter Property="Padding" Value="14" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="16" />
     </Style>
 
     <Style TargetType="TextBox">
-        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="MinHeight" Value="40" />
         <Setter Property="Background" Value="{DynamicResource FlareInputBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="Padding" Value="12,9" />
         <Setter Property="CaretBrush" Value="{DynamicResource FlareTextBrush}" />
         <Setter Property="SelectionBrush" Value="{DynamicResource FlareAccentBrush}" />
         <Setter Property="SelectionTextBrush" Value="{DynamicResource FlareAccentTextBrush}" />
@@ -168,7 +168,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="7"
+                            CornerRadius="10"
                             SnapsToDevicePixels="True">
                         <ScrollViewer x:Name="PART_ContentHost"
                                       Margin="{TemplateBinding Padding}"
@@ -193,12 +193,12 @@
     </Style>
 
     <Style TargetType="Button">
-        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="MinHeight" Value="40" />
         <Setter Property="Background" Value="{DynamicResource FlareButtonBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource FlareButtonBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Padding" Value="14,8" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="FocusVisualStyle" Value="{StaticResource FlareFocusVisual}" />
@@ -209,7 +209,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="8"
+                            CornerRadius="10"
                             Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -245,7 +245,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="8"
+                            CornerRadius="10"
                             Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -275,9 +275,9 @@
     </Style>
 
     <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource QuietButton}">
-        <Setter Property="Width" Value="38" />
-        <Setter Property="Height" Value="38" />
-        <Setter Property="MinHeight" Value="38" />
+        <Setter Property="Width" Value="40" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="MinHeight" Value="40" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -295,9 +295,9 @@
     </Style>
 
     <Style x:Key="CaptionButton" TargetType="Button" BasedOn="{StaticResource QuietButton}">
-        <Setter Property="Width" Value="46" />
-        <Setter Property="Height" Value="53" />
-        <Setter Property="MinHeight" Value="53" />
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="55" />
+        <Setter Property="MinHeight" Value="55" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -326,7 +326,7 @@
     </Style>
 
     <Style TargetType="ToggleButton">
-        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="MinHeight" Value="40" />
         <Setter Property="Background" Value="{DynamicResource FlareButtonBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource FlareButtonBorderBrush}" />
@@ -341,7 +341,7 @@
                             Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="8"
+                            CornerRadius="10"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
@@ -364,21 +364,21 @@
     </Style>
 
     <Style x:Key="ModeToggleStyle" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
-        <Setter Property="Width" Value="38" />
-        <Setter Property="Height" Value="38" />
-        <Setter Property="MinHeight" Value="38" />
+        <Setter Property="Width" Value="40" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="MinHeight" Value="40" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
     <Style TargetType="ComboBox">
-        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="MinHeight" Value="40" />
         <Setter Property="Background" Value="{DynamicResource FlareInputBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="Padding" Value="12,9" />
         <Setter Property="FocusVisualStyle" Value="{StaticResource FlareFocusVisual}" />
     </Style>
 
@@ -455,7 +455,7 @@
                             Padding="6"
                             SnapsToDevicePixels="True">
                         <Border.Effect>
-                            <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="8" Direction="270" Opacity="0.38" />
+                            <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="10" Direction="270" Opacity="0.32" />
                         </Border.Effect>
                         <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
                     </Border>
@@ -468,7 +468,7 @@
         <Setter Property="Foreground" Value="{DynamicResource DropdownTextBrush}" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Padding" Value="11,8" />
-        <Setter Property="MinHeight" Value="38" />
+        <Setter Property="MinHeight" Value="40" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="Template">
@@ -478,7 +478,7 @@
                             Margin="1"
                             Padding="{TemplateBinding Padding}"
                             Background="{TemplateBinding Background}"
-                            CornerRadius="7">
+                            CornerRadius="10">
                         <ContentPresenter ContentSource="Header"
                                           VerticalAlignment="Center"
                                           RecognizesAccessKey="True" />
@@ -508,7 +508,7 @@
                     <Border Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="7"
+                            CornerRadius="10"
                             Padding="{TemplateBinding Padding}">
                         <ContentPresenter />
                     </Border>
@@ -529,7 +529,7 @@
     </Style>
 
     <Style x:Key="IntegratedScrollThumb" TargetType="Thumb">
-        <Setter Property="MinHeight" Value="38" />
+        <Setter Property="MinHeight" Value="40" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">

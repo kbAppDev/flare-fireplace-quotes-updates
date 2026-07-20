@@ -50,6 +50,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SourceInitialized += (_, _) => WindowPresentationService.Apply(this, !string.Equals(LoadThemePreference(), LightThemeName, StringComparison.OrdinalIgnoreCase));
         AttachDropdownScrollResetHooks();
         SetAppVersionText();
 
@@ -124,16 +125,8 @@ public partial class MainWindow : Window
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
     {
-        var anim = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(150));
-        anim.Completed += (s, ev) =>
-        {
-            this.WindowState = WindowState.Minimized;
-            this.BeginAnimation(Window.OpacityProperty, null);
-            this.Opacity = 1;
-        };
-        this.BeginAnimation(Window.OpacityProperty, anim);
+        WindowState = WindowState.Minimized;
     }
-
     private void MaximizeButton_Click(object sender, RoutedEventArgs e)
     {
         this.WindowState = this.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
@@ -141,11 +134,8 @@ public partial class MainWindow : Window
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
-        var anim = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
-        anim.Completed += (s, ev) => this.Close();
-        this.BeginAnimation(Window.OpacityProperty, anim);
+        Close();
     }
-
     private void DropdownPopup_Opened(object sender, EventArgs e)
     {
         // Whenever a feature/media popup opens, force its internal
@@ -1275,6 +1265,7 @@ public partial class MainWindow : Window
     }
     private void ApplyTheme(bool dark)
     {
+        WindowPresentationService.UpdateTheme(this, dark);
         try
         {
             _isApplyingTheme = true;
@@ -1282,46 +1273,46 @@ public partial class MainWindow : Window
 
             if (dark)
             {
-                SetGradientBrush(resources, "FlareDarkBrush", "#0D131B", "#0D131B");
-                SetGradientBrush(resources, "GlassBackgroundBrush", "#0D131B", "#0D131B");
-                SetBrush(resources, "WindowSurfaceBrush", "#0D131B");
-                SetBrush(resources, "WindowTitleBarBrush", "#0A1017");
-                SetBrush(resources, "WindowHeaderBrush", "#0F161F");
-                SetBrush(resources, "WindowWorkspaceBrush", "#0B1118");
-                SetBrush(resources, "SurfaceBrush", "#121A24");
-                SetBrush(resources, "SurfaceRaisedBrush", "#151F2A");
-                SetBrush(resources, "SurfaceSubtleBrush", "#101923");
-                SetBrush(resources, "DividerBrush", "#202C38");
-                SetBrush(resources, "ControlBorderBrush", "#30404F");
-                SetBrush(resources, "ControlHoverBrush", "#1C2834");
-                SetBrush(resources, "ControlPressedBrush", "#22303D");
-                SetBrush(resources, "FocusRingBrush", "#718A32");
-                SetBrush(resources, "SuccessMutedBrush", "#A9BD7E");
+                SetGradientBrush(resources, "FlareDarkBrush", "#0B0D10", "#0B0D10");
+                SetGradientBrush(resources, "GlassBackgroundBrush", "#0B0D10", "#0B0D10");
+                SetBrush(resources, "WindowSurfaceBrush", "#0B0D10");
+                SetBrush(resources, "WindowTitleBarBrush", "#090B0E");
+                SetBrush(resources, "WindowHeaderBrush", "#0E1115");
+                SetBrush(resources, "WindowWorkspaceBrush", "#090C10");
+                SetBrush(resources, "SurfaceBrush", "#12161B");
+                SetBrush(resources, "SurfaceRaisedBrush", "#171C22");
+                SetBrush(resources, "SurfaceSubtleBrush", "#0F1318");
+                SetBrush(resources, "DividerBrush", "#242A31");
+                SetBrush(resources, "ControlBorderBrush", "#303841");
+                SetBrush(resources, "ControlHoverBrush", "#20262D");
+                SetBrush(resources, "ControlPressedBrush", "#262D35");
+                SetBrush(resources, "FocusRingBrush", "#789B00");
+                SetBrush(resources, "SuccessMutedBrush", "#B4C58C");
                 SetBrush(resources, "WarningBrush", "#E2B04A");
                 SetBrush(resources, "DangerBrush", "#FF7377");
-                SetBrush(resources, "GlassHeaderBrush", "#0F161F");
+                SetBrush(resources, "GlassHeaderBrush", "#0E1115");
 
-                SetBrush(resources, "FlareCardBrush", "#121A24");
-                SetBrush(resources, "FlareCardAltBrush", "#101923");
+                SetBrush(resources, "FlareCardBrush", "#12161B");
+                SetBrush(resources, "FlareCardAltBrush", "#0F1318");
                 resources["GlassCardBrush"] = resources["FlareCardBrush"];
                 resources["GlassCardAltBrush"] = resources["FlareCardAltBrush"];
 
-                SetBrush(resources, "FlareInputBrush", "#0E161F");
-                SetBrush(resources, "GlassInputBrush", "#0E161F");
-                SetBrush(resources, "FlareBorderBrush", "#273543");
-                SetBrush(resources, "GlassBorderBrush", "#273543");
+                SetBrush(resources, "FlareInputBrush", "#0D1014");
+                SetBrush(resources, "GlassInputBrush", "#0D1014");
+                SetBrush(resources, "FlareBorderBrush", "#2A3038");
+                SetBrush(resources, "GlassBorderBrush", "#2A3038");
 
-                SetBrush(resources, "FlareTextBrush", "#F4F7FA");
-                SetBrush(resources, "FlareMutedTextBrush", "#98A6B5");
-                SetBrush(resources, "FlareAccentBrush", "#A6CE39");
-                SetBrush(resources, "FlareAccentTextBrush", "#172000");
+                SetBrush(resources, "FlareTextBrush", "#F5F3EE");
+                SetBrush(resources, "FlareMutedTextBrush", "#A4A8AE");
+                SetBrush(resources, "FlareAccentBrush", "#99CC00");
+                SetBrush(resources, "FlareAccentTextBrush", "#141A00");
 
-                SetBrush(resources, "FlareButtonBrush", "#17212C");
-                SetBrush(resources, "FlareButtonBorderBrush", "#344352");
-                SetBrush(resources, "FlareChipBrush", "#182431");
-                SetBrush(resources, "FlareChipBorderBrush", "#314252");
-                SetBrush(resources, "GlassButtonHoverBrush", "#1C2834");
-                SetBrush(resources, "GlassPopupBrush", "#151F2A");
+                SetBrush(resources, "FlareButtonBrush", "#171C22");
+                SetBrush(resources, "FlareButtonBorderBrush", "#343C46");
+                SetBrush(resources, "FlareChipBrush", "#181D23");
+                SetBrush(resources, "FlareChipBorderBrush", "#323A44");
+                SetBrush(resources, "GlassButtonHoverBrush", "#20262D");
+                SetBrush(resources, "GlassPopupBrush", "#171C22");
             }
             else
             {
@@ -1357,7 +1348,7 @@ public partial class MainWindow : Window
                 SetBrush(resources, "FlareTextBrush", "#17212B");
                 SetBrush(resources, "FlareMutedTextBrush", "#5F6F7E");
                 SetBrush(resources, "FlareAccentBrush", "#8FB82B");
-                SetBrush(resources, "FlareAccentTextBrush", "#172000");
+                SetBrush(resources, "FlareAccentTextBrush", "#141A00");
 
                 SetBrush(resources, "FlareButtonBrush", "#F8FAFC");
                 SetBrush(resources, "FlareButtonBorderBrush", "#C3CED8");

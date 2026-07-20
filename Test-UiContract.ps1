@@ -42,6 +42,7 @@ $main = Read-ValidatedXaml $mainPath
 Assert-ContainsAll $main $mainPath @(
     'x:Name="HeaderLogoImage"',
     'x:Name="WindowFrame"',
+    'shell:WindowChrome.WindowChrome',
     'x:Name="AppVersionText"',
     'x:Name="ThemeToggleButton"',
     'x:Name="RequestPane"',
@@ -83,7 +84,8 @@ $mainCodeBehind = Get-Content -LiteralPath (Join-Path $Root $mainCodeBehindPath)
 Assert-ContainsNone $mainCodeBehind $mainCodeBehindPath @(
     'Loaded += ShowSystemHealthOnce',
     'ShowFirstRunSystemHealthCheckAsync',
-    'new SystemHealthWindow'
+    'new SystemHealthWindow',
+    'AllowsTransparency="True"'
 )
 
 $settingsPath = "FlareQuotes.App\Views\SettingsWindow.xaml"

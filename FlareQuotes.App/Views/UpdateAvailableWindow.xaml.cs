@@ -21,6 +21,7 @@ public partial class UpdateAvailableWindow : Window
     public UpdateAvailableWindow(string? latestVersion, string? releaseNotes)
     {
         InitializeComponent();
+        SourceInitialized += (_, _) => WindowPresentationService.Apply(this, useDark: true);
         ApplyContent(latestVersion, releaseNotes);
     }
 
