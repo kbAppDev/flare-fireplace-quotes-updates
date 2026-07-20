@@ -1117,14 +1117,24 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         var isOutdoor = type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough;
         var prefix = isOutdoor ? "VF-RBS" : type == FireplaceType.Large ? "FLARE-RBS" : "RBS";
         var styleForSku = type == FireplaceType.Large ? LargeReflectiveSidesStyleCode(style) : style;
+        var exactCandidates = new List<string>();
         var exact = string.IsNullOrWhiteSpace(suffix) ? $"{prefix}-{styleForSku}" : $"{prefix}-{styleForSku}-{suffix}";
-        var compact = exact.Replace("-", string.Empty);
+        exactCandidates.Add(exact);
 
+        // Regular 16-inch reflective-side SKUs omit the R suffix for all vent-free models
+        // and for indoor FF/ST models (for example VF-RBS-ST and RBS-ST).
+        if (suffix.Equals("R", StringComparison.OrdinalIgnoreCase) &&
+            (isOutdoor || styleForSku is "FF" or "ST"))
+            exactCandidates.Insert(0, $"{prefix}-{styleForSku}");
+
+        var compactCandidates = exactCandidates.Select(candidate => candidate.Replace("-", string.Empty)).ToList();
         var bySku = Best(
             rows, r => Eq(r.SheetName, sheet) && Text(r).Contains("reflective", StringComparison.OrdinalIgnoreCase) &&
                        Text(r).Contains("side", StringComparison.OrdinalIgnoreCase) &&
-                       (Text(r).Contains(exact, StringComparison.OrdinalIgnoreCase) ||
-                        Text(r).Replace("-", string.Empty).Contains(compact, StringComparison.OrdinalIgnoreCase)));
+                       (exactCandidates.Any(candidate => Text(r).Contains(candidate, StringComparison.OrdinalIgnoreCase)) ||
+                        compactCandidates.Any(candidate =>
+                                                  Text(r).Replace("-", string.Empty)
+                                                      .Contains(candidate, StringComparison.OrdinalIgnoreCase))));
         if (bySku is not null)
             return bySku;
 
@@ -1423,10 +1433,17 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 return null;
 
             var requestedSuffix = GlassSuffix(glassHeight);
-            var preferredKeys = desiredKeys
-                                    .Where(k => string.IsNullOrWhiteSpace(requestedSuffix) ||
-                                                k.EndsWith(requestedSuffix, StringComparison.OrdinalIgnoreCase))
-                                    .ToList();
+            var preferredKeys = requestedSuffix.Equals("R", StringComparison.OrdinalIgnoreCase)
+                                    // The vent-free resource workbook omits the R suffix for 16-inch regular models.
+                                    // Prefer VST70/VFST70 over synthetic VST70R/VFST70R keys.
+                                    ? desiredKeys.Where(k => !Regex.IsMatch(k, @"(?:EH|H|R)$",
+                                                                            RegexOptions.IgnoreCase))
+                                                 .ToList()
+                                    : desiredKeys
+                                      .Where(k => string.IsNullOrWhiteSpace(requestedSuffix) ||
+                                                  k.EndsWith(requestedSuffix,
+                                                             StringComparison.OrdinalIgnoreCase))
+                                      .ToList();
 
             if (preferredKeys.Count == 0)
                 preferredKeys = desiredKeys;
@@ -3168,10 +3185,18 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     private static string GlassSuffix(string glassHeight) => GlassInches(glassHeight) switch { "16" => "R", "24" => "H",
                                                                                                "30" => "EH",
                                                                                                _ => string.Empty };
-    private static bool ContainsGlass(PriceRow row, string glass) =>
-        Text(row).Contains($"x{glass}", StringComparison.OrdinalIgnoreCase) ||
-        Text(row).Contains($"x {glass}", StringComparison.OrdinalIgnoreCase) ||
-        Text(row).Contains($"{glass}\"", StringComparison.OrdinalIgnoreCase);
+    private static bool ContainsGlass(PriceRow row, string glass)
+    {
+        var text = Text(row);
+        return text.Contains($"x{glass}", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains($"x {glass}", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains($"{glass}\"", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains($"{glass}”", StringComparison.OrdinalIgnoreCase) ||
+               text.Contains($"{glass}″", StringComparison.OrdinalIgnoreCase) ||
+               (glass == "16" && text.Contains("regular", StringComparison.OrdinalIgnoreCase)) ||
+               (glass == "24" && text.Contains("high", StringComparison.OrdinalIgnoreCase)) ||
+               (glass == "30" && text.Contains("extra high", StringComparison.OrdinalIgnoreCase));
+    }
     private static bool ContainsSize(PriceRow row, string size) =>
         string.IsNullOrWhiteSpace(size) || Regex.IsMatch(Text(row), $@"(?<!\d){Regex.Escape(size)}(?!\d)");
     private static bool ContainsAll(string text, IEnumerable<string> parts) =>

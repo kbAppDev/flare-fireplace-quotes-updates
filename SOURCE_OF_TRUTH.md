@@ -1,12 +1,11 @@
 # Flare Fireplace Quotes Source of Truth
 
-Publish-ready version: **1.4.9**
+Publish-ready version: **1.4.10**
 
 Published production baseline before this release:
 
 ```text
-v1.4.8
-commit e7da99dabc9d75db9083d6fb649b61060c3483bf
+v1.4.9
 ```
 
 Repository:
@@ -28,12 +27,19 @@ Flare.Fireplace.Quotes.exe
 flare-quotes-v1-latest.json
 ```
 
-Completed local v1.4.9 validation:
+v1.4.10 correction scope:
 
-- clean Release build with warnings treated as errors
-- 20 unit, regression, email-normalization, MIME-recipient, DPAPI-history, and updater-policy tests
-- dependency vulnerability and source-security scans
-- live Gmail create-confirm-delete validation for all 302 canonical fireplace models
-- manual reproduction using a newly auto-filled FF60H quote addressed to the reported external Gmail recipient
+- retain Outdoor Vent Free identity for regular-height VFST/VST resource resolution
+- use Ventless See Through resources and the VST style card for VFST70
+- prevent ST-OD fallback URLs for the tested vent-free see-through quote
+- resolve regular-height Reflective Black Sides pricing from VF-RBS-ST / VFRBSST
+- preserve the v1.4.9 Gmail recipient-header fix and all prior deployment hardening
 
-Publication remains fail-closed until the exact v1.4.9 commit passes GitHub CodeQL and the live manifest verifies at version 1.4.9.
+Functional validation completed against a new VFST70 16-inch quote:
+
+- correct Outdoor Vent Free See Through card
+- correct Ventless/ST resource family
+- no Data/OD or ST-OD fallback links
+- Reflective Black Sides MSRP displayed as $208
+
+Publication remains fail-closed until the exact v1.4.10 commit passes GitHub CodeQL and the live manifest verifies at version 1.4.10.

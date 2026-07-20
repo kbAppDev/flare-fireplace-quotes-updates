@@ -5,12 +5,12 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <Version>1.4.9</Version>
-    <AssemblyVersion>1.4.9.0</AssemblyVersion>
-    <FileVersion>1.4.9.0</FileVersion>
-    <InformationalVersion>1.4.9</InformationalVersion>
+    <Version>1.4.10</Version>
+    <AssemblyVersion>1.4.10.0</AssemblyVersion>
+    <FileVersion>1.4.10.0</FileVersion>
+    <InformationalVersion>1.4.10</InformationalVersion>
     <Product>Flare Fireplace Quotes</Product>
-    <ProductVersion>1.4.9.0</ProductVersion>
+    <ProductVersion>1.4.10.0</ProductVersion>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>

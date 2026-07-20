@@ -1,4 +1,4 @@
-# Company Testing Checklist — v1.4.9
+# Company Testing Checklist — v1.4.10
 
 Use this checklist for each tester.
 
@@ -44,6 +44,7 @@ Use this checklist for each tester.
 - PDF feature names are clean: Summit Burner, Double Glass, Reflective Black Back, Reflective Black Sides, RGB LEDs, Summer Kit, Active Heat Flex, Passive Heat Flex, Heat Release Louver, Air Intake Louver, Power Vent.
 - Description column has the informative wording.
 - Pricing appears for selected options.
+- VFST70 with Reflective Black Sides shows SKU `VFRBSST` and MSRP `$208`.
 - Tables are compact and centered.
 - Live Preview loads the actual generated PDF.
 - Open Generated PDF works even if Live Preview fails.
@@ -53,6 +54,7 @@ Use this checklist for each tester.
 - Model/glass-height-specific URLs win over generic rows.
 - Example: FF-80-H resources are used before FF-80.
 - Resource URLs do not fall back to Download Center when a specific row exists.
+- VFST70 with 16-inch glass shows the Outdoor Vent Free See Through (`VST`) card and only `/Data/Ventless/ST/` resources, never `ST-OD` resources.
 
 ## 7. Gmail draft
 
@@ -81,4 +83,4 @@ Use this checklist for each tester.
 - A successful Gmail draft removes its app-owned temporary PDF.
 - A failed Gmail draft leaves the PDF available for retry.
 - Update checks reject a non-Flare host, mismatched release version, invalid SHA-256, or incorrect installer size.
-- The normal GitHub v1.4.9 release manifest downloads and launches only after verification.
+- The normal GitHub v1.4.10 release manifest downloads and launches only after verification.

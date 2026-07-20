@@ -1,39 +1,40 @@
-# Flare Fireplace Quotes v1.4.9 Email-Recipient Hotfix
+# Flare Fireplace Quotes v1.4.10 Vent-Free Quote Hotfix
 
-Publish-ready Windows WPF source prepared from the exact v1.4.9 source that passed the complete local release gate and the reported FF60H/new-recipient reproduction test.
+Publish-and-install-ready Windows WPF source prepared from the tested v1.4.10 release candidate.
 
-## v1.4.9 fix
+## v1.4.10 fixes
 
-- Normalizes customer email addresses copied from Outlook, websites, PDFs, and formatted documents.
-- Removes invisible Unicode and control characters before Gmail MIME headers are built.
-- Converts full-width `＠` and `．` characters to standard `@` and `.` characters.
-- Removes `mailto:` wrappers, display-name wrappers, nonbreaking spaces, and trailing punctuation.
-- Rejects missing, malformed, or multiple addresses in the single customer-email field before Gmail is called.
-- Refreshes the Gmail draft snapshot from the currently visible normalized email, preventing stale recipient data from a prior preview.
-- Revalidates the recipient inside the Gmail MIME builder.
-- Adds regression tests for the reported `Invalid To header` failure and final decoded MIME `To:` header.
+- Preserves Outdoor Vent Free identity for regular-height `VFST`/`VST` models during resource resolution and URL verification.
+- Uses the Outdoor Vent Free See Through style card for `VFST70` instead of the indoor See Through card.
+- Resolves `VFST70` resources from the Ventless See Through resource family and prevents fallback to indoor/outdoor `ST-OD` links.
+- Resolves regular-height Reflective Black Sides pricing through the actual `VF-RBS-ST` / `VFRBSST` price-book key.
+- Restores the expected $208 MSRP for Reflective Black Sides on the tested `VFST70` quote.
+- Extends regular-height alias handling so the same omitted-`R` suffix mismatch cannot affect equivalent front-facing or see-through pricing/resource lookups.
+- Adds focused regression coverage for both `VST70` and `VFST70` resource and pricing behavior.
 
-The v1.4.8 deployment protections remain in place: DPAPI-encrypted quote history, temporary-PDF cleanup, pinned GitHub updater paths, installer size verification, and SHA-256 verification.
+The v1.4.9 recipient-header fix remains in place, including copied-email normalization, stale-preview recipient refresh, final MIME validation, and regression coverage.
+
+The deployment protections from v1.4.8 also remain in place: DPAPI-encrypted quote history, temporary-PDF cleanup, pinned GitHub updater paths, installer size verification, and SHA-256 verification.
 
 Windows Authenticode publisher signing remains intentionally optional for this internal deployment lane.
 
-## Validation completed
+## Functional validation completed
 
-- Warning-free Release builds passed.
-- 20 of 20 unit and regression tests passed.
-- Dependency vulnerability and source-security scans passed.
-- All 302 canonical fireplace models passed live Gmail create-confirm-delete testing.
-- A brand-new auto-filled FF60H quote reproduced from the reported failure successfully created its Gmail draft.
+The reported `VFST70`, 16-inch quote was recreated successfully and confirmed to show:
+
+- the Outdoor Vent Free See Through/VST style identity
+- Ventless See Through resources instead of indoor/outdoor `ST-OD` resources
+- Reflective Black Sides with the expected $208 MSRP
 
 ## Publish and install
 
-Run `PUBLISH_v1.4.9.ps1` from this package. It will:
+Run `PUBLISH_v1.4.10.ps1` from this package. It will:
 
-1. Push the exact clean v1.4.9 source to `main`.
+1. Push the exact clean v1.4.10 source to `main`.
 2. Require the matching GitHub CodeQL run to pass.
-3. Build and publish the v1.4.9 GitHub release and updater assets.
-4. Verify the live manifest reports v1.4.9.
-5. Create `Flare Fireplace Quotes v1.4.9 FULL BACKUP.zip` on the Desktop.
+3. Build and publish the v1.4.10 GitHub release and updater assets.
+4. Verify the live manifest reports v1.4.10.
+5. Create `Flare Fireplace Quotes v1.4.10 FULL BACKUP.zip` on the Desktop.
 6. Silently update the app installed on the current computer and relaunch it.
 
 ## Maintained PowerShell workflows
@@ -45,7 +46,7 @@ Build_Release_Installer.ps1
 Build_Publish_Professional_Release.ps1
 ```
 
-`PUBLISH_v1.4.9.ps1` is a release-package launcher and is intentionally excluded from the committed repository and final production backup.
+`PUBLISH_v1.4.10.ps1` is a release-package launcher and is intentionally excluded from the committed repository and final production backup.
 
 ## Runtime data
 

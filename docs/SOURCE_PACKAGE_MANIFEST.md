@@ -1,28 +1,20 @@
-# Source Package Manifest
+# v1.4.10 RC1 Source Package Manifest
 
-This archive contains the clean, publish-ready v1.4.9 email-recipient hotfix source that passed the complete Windows release gate and the reported FF60H/new-recipient reproduction test.
+This archive contains a clean source candidate for the Vent Free regular-height URL and reflective-side pricing correction.
 
-## Included
+Included:
 
-- App, Core, Infrastructure, and Tests projects
-- recipient normalization and Gmail MIME regression tests
-- WPF themes and required runtime assets
-- pricing and resource-link workbooks
-- canonical 302-model release-test inventory
-- four maintained PowerShell workflows
-- one release-package publishing launcher
-- CodeQL workflow
-- architecture, security, and company-testing notes
+- WPF application, Core, Infrastructure, and Tests projects.
+- Bundled pricing and resource workbooks.
+- Four maintained PowerShell workflows.
+- Release/security documentation.
+- New Outdoor Vent Free regular-height regression tests.
 
-## Excluded
+Excluded:
 
-- installers and updater manifests before publication
-- Gmail credentials and OAuth tokens
-- personal settings and quote history
-- generated customer PDFs
-- build output (`bin`, `obj`, `publish`)
-- logs, test results, temporary files, nested backups, and repository history
+- `.git`
+- `bin`, `obj`, `TestResults`, publish output, installers, and artifacts
+- credentials, Gmail tokens, user settings, reports, and logs
+- publishing launchers
 
-## Required publication validation
-
-The publishing launcher must push the exact clean source, require the matching GitHub CodeQL run to pass, publish the two exact updater assets, verify the live v1.4.9 manifest, build the final Desktop backup, and update the local installation.
+Publication is blocked until the Windows release gate and GitHub CodeQL both pass.
