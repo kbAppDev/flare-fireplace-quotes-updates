@@ -86,11 +86,24 @@
 
                                     <Border Width="26" Height="26" CornerRadius="13" Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" VerticalAlignment="Top">
                                         <TextBlock Text="{Binding Icon}"
-                                                   Foreground="{DynamicResource FlareAccentBrush}"
                                                    FontSize="13"
                                                    FontWeight="Bold"
                                                    HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center" />
+                                                   VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{DynamicResource FlareAccentBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding State}" Value="Warning">
+                                                            <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding State}" Value="Error">
+                                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </Border>
 
                                     <StackPanel Grid.Column="1" Margin="6,0,18,0">
@@ -105,7 +118,21 @@
                                             BorderThickness="1"
                                             Padding="11,6"
                                             VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding StateText}" Foreground="{DynamicResource SuccessMutedBrush}" FontWeight="SemiBold" FontSize="11" />
+                                        <TextBlock Text="{Binding StateText}" FontWeight="SemiBold" FontSize="11">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{DynamicResource SuccessMutedBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding State}" Value="Warning">
+                                                            <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding State}" Value="Error">
+                                                            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </Border>
                                 </Grid>
                             </Border>

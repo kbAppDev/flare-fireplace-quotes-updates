@@ -413,7 +413,7 @@
 
                                                     <StackPanel VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="11.5" TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Text="{Binding Detail}" Style="{StaticResource MutedText}" FontSize="10.5" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,2,0,0" />
+                                                        <TextBlock Text="{Binding Detail}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,2,0,0" />
                                                     </StackPanel>
 
                                                     <Ellipse Grid.Column="1" Width="13" Height="13" Fill="{Binding IndicatorFill}" Stroke="{DynamicResource FlareBorderBrush}" StrokeThickness="1" ToolTip="{Binding StatusText}" VerticalAlignment="Center" HorizontalAlignment="Center" />
@@ -583,12 +583,12 @@
                                             <Setter Property="Opacity" Value="1" />
                                             <Setter Property="RenderTransform">
                                                 <Setter.Value>
-                                                    <TranslateTransform Y="-4" />
+                                                    <TranslateTransform Y="-1" />
                                                 </Setter.Value>
                                             </Setter>
                                             <Setter Property="Effect">
                                                 <Setter.Value>
-                                                    <DropShadowEffect Color="#000000" BlurRadius="18" ShadowDepth="5" Direction="270" Opacity="0.24" />
+                                                    <DropShadowEffect Color="#000000" BlurRadius="10" ShadowDepth="2" Direction="270" Opacity="0.18" />
                                                 </Setter.Value>
                                             </Setter>
                                         </DataTrigger>
@@ -955,7 +955,7 @@
                                                             <StackPanel Orientation="Horizontal">
                                                                 <Ellipse Width="8" Height="8" Fill="{DynamicResource FlareAccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
                                                                 <TextBlock Text="{Binding DisplayName}" />
-                                                                <Button Content="×" Command="{Binding DataContext.RemoveFeatureCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Width="24" Padding="0" Margin="8,0,0,0" />
+                                                                <Button Content="×" Style="{StaticResource ChipRemoveButton}" ToolTip="Remove" AutomationProperties.Name="Remove" Command="{Binding DataContext.RemoveFeatureCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Width="24" Padding="0" Margin="8,0,0,0" />
                                                             </StackPanel>
                                                         </Border>
                                                     </DataTemplate>
@@ -1051,7 +1051,7 @@
                                                             <StackPanel Orientation="Horizontal">
                                                                 <Ellipse Width="8" Height="8" Fill="{DynamicResource FlareAccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
                                                                 <TextBlock Text="{Binding DisplayName}" />
-                                                                <Button Content="×"
+                                                                <Button Content="×" Style="{StaticResource ChipRemoveButton}" ToolTip="Remove" AutomationProperties.Name="Remove"
                                                                         Command="{Binding DataContext.RemoveAdditionalClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                         CommandParameter="{Binding}"
                                                                         Width="24"
@@ -1093,7 +1093,7 @@
                                                     </Border>
                                                 </Popup>
                                             </Grid>
-                                            <ItemsControl ItemsSource="{Binding SelectedPremiumMedia}" Margin="0,0,0,8"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedPremiumMediaChip" Cursor="SizeAll" ToolTip="Drag to reorder" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,5" Margin="0,0,8,8" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True"><StackPanel Orientation="Horizontal"><Ellipse Width="8" Height="8" Fill="{DynamicResource FlareAccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0" /><TextBlock Text="{Binding DisplayName}" /><Button Content="×" Command="{Binding DataContext.RemovePremiumMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Width="24" Padding="0" Margin="8,0,0,0" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                            <ItemsControl ItemsSource="{Binding SelectedPremiumMedia}" Margin="0,0,0,8"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedPremiumMediaChip" Cursor="SizeAll" ToolTip="Drag to reorder" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,5" Margin="0,0,8,8" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True"><StackPanel Orientation="Horizontal"><Ellipse Width="8" Height="8" Fill="{DynamicResource FlareAccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0" /><TextBlock Text="{Binding DisplayName}" /><Button Content="×" Style="{StaticResource ChipRemoveButton}" ToolTip="Remove" AutomationProperties.Name="Remove" Command="{Binding DataContext.RemovePremiumMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Width="24" Padding="0" Margin="8,0,0,0" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
                                         </StackPanel>
                                     </Border>
 
@@ -1128,7 +1128,7 @@
                                                 <Button Content="Clear" Command="{Binding ClearCurrentFireplaceCommand}" Height="34" Margin="0,0,6,0" />
                                                 <Button Grid.Column="1" Content="{Binding AddFireplaceButtonText}" Command="{Binding AddFireplaceCommand}" Style="{StaticResource PrimaryButton}" Height="34" Margin="6,0,0,0" />
                                             </Grid>
-                                            <ItemsControl ItemsSource="{Binding Fireplaces}"><ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="8,6" Margin="0,0,0,8"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding FireplaceLabel}" FontWeight="SemiBold" TextWrapping="Wrap" /><TextBlock Text="{Binding LeadTimeLine}" Style="{StaticResource MutedText}" /><TextBlock Text="{Binding FeaturesLine}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /><TextBlock Text="{Binding ClassicMediaLine}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /><TextBlock Text="{Binding PremiumMediaLine}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /></StackPanel><Button Grid.Column="1" Content="×" Command="{Binding DataContext.RemoveFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Width="28" Padding="0" Margin="8,0,0,0" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                            <ItemsControl ItemsSource="{Binding Fireplaces}"><ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="8,6" Margin="0,0,0,8"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding FireplaceLabel}" FontWeight="SemiBold" TextWrapping="Wrap" /><TextBlock Text="{Binding LeadTimeLine}" Style="{StaticResource MutedText}" /><TextBlock Text="{Binding FeaturesLine}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /><TextBlock Text="{Binding ClassicMediaLine}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /><TextBlock Text="{Binding PremiumMediaLine}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /></StackPanel><Button Grid.Column="1" Content="×" Style="{StaticResource ChipRemoveButton}" ToolTip="Remove" AutomationProperties.Name="Remove" Command="{Binding DataContext.RemoveFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Width="28" Padding="0" Margin="8,0,0,0" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
                                         </StackPanel>
                                     </Border>
                         </StackPanel>

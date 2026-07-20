@@ -1294,6 +1294,8 @@ public partial class MainWindow : Window
                 SetBrush(resources, "ControlPressedBrush", "#22303D");
                 SetBrush(resources, "FocusRingBrush", "#718A32");
                 SetBrush(resources, "SuccessMutedBrush", "#A9BD7E");
+                SetBrush(resources, "WarningBrush", "#E2B04A");
+                SetBrush(resources, "DangerBrush", "#FF7377");
                 SetBrush(resources, "GlassHeaderBrush", "#0F161F");
 
                 SetBrush(resources, "FlareCardBrush", "#121A24");
@@ -1335,6 +1337,8 @@ public partial class MainWindow : Window
                 SetBrush(resources, "ControlPressedBrush", "#DDE6ED");
                 SetBrush(resources, "FocusRingBrush", "#6F8A27");
                 SetBrush(resources, "SuccessMutedBrush", "#587023");
+                SetBrush(resources, "WarningBrush", "#8A5B00");
+                SetBrush(resources, "DangerBrush", "#B42318");
                 SetBrush(resources, "GlassHeaderBrush", "#F5F8FB");
 
                 SetBrush(resources, "FlareCardBrush", "#FFFFFF");
