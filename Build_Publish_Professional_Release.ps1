@@ -24,9 +24,11 @@ Set-Location $Root
 
 $AssetName = "Flare.Fireplace.Quotes.exe"
 $ManifestName = "flare-quotes-v1-latest.json"
+$PortableAssetName = "Flare.Fireplace.Quotes-portable.zip"
 $InstallerDir = Join-Path $Root "installer"
 $AssetPath = Join-Path $InstallerDir $AssetName
 $ManifestPath = Join-Path $InstallerDir $ManifestName
+$PortableAssetPath = Join-Path $InstallerDir $PortableAssetName
 $Tag = "v$Version"
 $ReleaseAssetUrl = "https://github.com/$Repo/releases/download/$Tag/$AssetName"
 $LatestManifestUrl = "https://github.com/$Repo/releases/latest/download/$ManifestName"
@@ -149,7 +151,7 @@ Get-Process | Where-Object {
 
 Get-ChildItem $Root -Recurse -Directory -Force | Where-Object { $_.Name -in @("bin","obj") } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $InstallerDir -Force | Out-Null
-Get-ChildItem $InstallerDir -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in @(".exe",".json",".log") } | Remove-Item -Force
+Get-ChildItem $InstallerDir -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in @(".exe",".json",".log",".zip") } | Remove-Item -Force
 
 $AppProject = Join-Path $Root "FlareQuotes.App\FlareQuotes.App.csproj"
 dotnet restore $AppProject -r win-x64
@@ -167,6 +169,15 @@ $publishExe = Get-ChildItem (Join-Path $Root "FlareQuotes.App\bin\Release") -Rec
 if (-not $publishExe) { throw "Published app EXE not found." }
 
 Assert-SelfContained $publishExe.DirectoryName
+
+Compress-Archive -Path (Join-Path $publishExe.DirectoryName "*") `
+                 -DestinationPath $PortableAssetPath `
+                 -CompressionLevel Optimal `
+                 -Force
+
+if (-not (Test-Path $PortableAssetPath) -or (Get-Item $PortableAssetPath).Length -le 0) {
+    throw "Portable application archive was not created."
+}
 
 $iscc = Find-Iscc
 if (-not $iscc) { throw "ISCC.exe not found. Install Inno Setup 6." }
@@ -219,7 +230,7 @@ if (-not [string]::IsNullOrWhiteSpace($manifestSignature)) {
 }
 Write-Utf8NoBom $ManifestPath ($manifest | ConvertTo-Json -Depth 20)
 
-gh release create $Tag "$AssetPath" "$ManifestPath" --repo $Repo --title $Tag --notes $ReleaseNotes
+gh release create $Tag "$AssetPath" "$ManifestPath" "$PortableAssetPath" --repo $Repo --title $Tag --notes $ReleaseNotes
 if ($LASTEXITCODE -ne 0) { throw "GitHub release create failed." }
 
 Write-Host "Verifying live updater assets..." -ForegroundColor Cyan

@@ -1,4 +1,4 @@
-# v1.4.12 Source Package Manifest
+# v1.5.0 Source Package Manifest
 
 The source backup contains:
 
@@ -6,7 +6,7 @@ The source backup contains:
 - Bundled company pricing and resource workbooks.
 - Maintained local and GitHub release workflows.
 - Installer definition, updater policy, security documentation, and regression tests.
-- The verified published installer and manifest when a matching release has completed.
+- The verified published installer, updater manifest, and portable build when a matching release has completed.
 
 Generated `bin`, `obj`, test results, credentials, OAuth tokens, personal settings, logs, reports, temporary PDFs, and other runtime state are excluded.
 

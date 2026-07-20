@@ -2,234 +2,328 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Settings"
-        Width="760"
-        Height="820"
-        MinWidth="700"
-        MinHeight="680"
+        Width="920"
+        Height="730"
+        MinWidth="820"
+        MinHeight="650"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
         MouseLeftButtonDown="SettingsWindow_MouseDown">
 
-    <Border CornerRadius="22"
-            Background="{DynamicResource FlareDarkBrush}"
-            BorderBrush="{DynamicResource FlareBorderBrush}"
-            BorderThickness="1.5"
-            Margin="16">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="30"
-                              ShadowDepth="10"
-                              Opacity="0.45"
-                              Direction="270"
-                              Color="Black" />
-        </Border.Effect>
+    <Window.Resources>
+        <Style x:Key="SettingsNavTab" TargetType="TabItem">
+            <Setter Property="Foreground" Value="{DynamicResource FlareMutedTextBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FlareFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="NavItem"
+                                MinWidth="172"
+                                Padding="{TemplateBinding Padding}"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Cursor="Hand">
+                            <ContentPresenter ContentSource="Header"
+                                              HorizontalAlignment="Stretch"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="NavItem" Property="Background" Value="{DynamicResource ControlHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="NavItem" Property="Background" Value="{DynamicResource SurfaceRaisedBrush}" />
+                                <Setter TargetName="NavItem" Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-        <Grid Margin="26">
+        <Style x:Key="SettingsTabControl" TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="TabStripPlacement" Value="Left" />
+            <Setter Property="ItemsPanel">
+                <Setter.Value>
+                    <ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="198" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0"
+                                    Background="{DynamicResource WindowHeaderBrush}"
+                                    BorderBrush="{DynamicResource DividerBrush}"
+                                    BorderThickness="0,0,1,0"
+                                    Padding="12,18">
+                                <StackPanel>
+                                    <TextBlock Text="SETTINGS" Style="{StaticResource EyebrowText}" Margin="10,0,0,12" />
+                                    <ItemsPresenter />
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Background="{DynamicResource WindowWorkspaceBrush}">
+                                <ContentPresenter x:Name="PART_SelectedContentHost"
+                                                  ContentSource="SelectedContent"
+                                                  Margin="24,20" />
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SettingsFieldLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="14"
+            Background="{DynamicResource WindowSurfaceBrush}"
+            BorderBrush="{DynamicResource GlassBorderBrush}"
+            BorderThickness="1"
+            ClipToBounds="True">
+        <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
+                <RowDefinition Height="54" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
+                <RowDefinition Height="70" />
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0" Margin="0,0,0,18">
-                <TextBlock Text="Settings"
-                           FontSize="24"
-                           FontWeight="SemiBold"
-                           Foreground="{DynamicResource FlareTextBrush}" />
-                <TextBlock Text="Update contact info, Gmail settings, pricing files, update behavior, and lead times."
-                           Style="{StaticResource MutedText}"
-                           Margin="0,5,0,0"
-                           TextWrapping="Wrap" />
-                <Border BorderThickness="0,0,0,1"
-                        BorderBrush="{DynamicResource FlareBorderBrush}"
-                        Margin="0,16,0,0" />
-            </StackPanel>
-
-            <ScrollViewer Grid.Row="1"
-                          VerticalScrollBarVisibility="Auto"
-                          Padding="0,0,8,0">
-                <StackPanel>
-
-                    <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
-                        <StackPanel>
-                            <TextBlock Text="PDF Contact Information"
-                                       FontSize="16"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource FlareTextBrush}"
-                                       Margin="0,0,0,12" />
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="14" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <TextBlock Text="Sales Email" Grid.Row="0" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,0,4" />
-                                <TextBox x:Name="SalesEmailBox" Grid.Row="1" Grid.Column="0" Margin="0,0,0,10" />
-
-                                <TextBlock Text="Sales Phone" Grid.Row="0" Grid.Column="2" FontWeight="SemiBold" Margin="0,0,0,4" />
-                                <TextBox x:Name="SalesPhoneBox" Grid.Row="1" Grid.Column="2" Margin="0,0,0,10" />
-
-                                <TextBlock Text="Website" Grid.Row="2" Grid.Column="0" FontWeight="SemiBold" Margin="0,0,0,4" />
-                                <TextBox x:Name="WebsiteBox" Grid.Row="3" Grid.Column="0" Margin="0,0,0,2" />
-
-                                <TextBlock Text="Consultation URL" Grid.Row="2" Grid.Column="2" FontWeight="SemiBold" Margin="0,0,0,4" />
-                                <TextBox x:Name="ConsultationUrlBox" Grid.Row="3" Grid.Column="2" Margin="0,0,0,2" />
-                            </Grid>
+            <Border Grid.Row="0"
+                    Background="{DynamicResource WindowTitleBarBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="18,0,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource SurfaceRaisedBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Margin="0,0,11,0">
+                            <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Settings" FontSize="14" FontWeight="SemiBold" />
+                            <TextBlock Text="Application preferences and integrations" Style="{StaticResource MutedText}" FontSize="10.5" />
                         </StackPanel>
-                    </Border>
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Style="{StaticResource CloseCaptionButton}"
+                            Click="CancelButton_Click"
+                            ToolTip="Close settings"
+                            AutomationProperties.Name="Close settings">
+                        <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons" FontSize="12" />
+                    </Button>
+                </Grid>
+            </Border>
 
-                    <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
-                        <StackPanel>
-                            <TextBlock Text="Gmail &amp; HubSpot"
-                                       FontSize="16"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource FlareTextBrush}"
-                                       Margin="0,0,0,12" />
-
-                            <TextBlock Text="HubSpot BCC Address" FontWeight="SemiBold" Margin="0,0,0,4" />
-                            <TextBox x:Name="HubSpotBccBox" Margin="0,0,0,10" />
-
-                            <TextBlock Text="Gmail Credentials File" FontWeight="SemiBold" Margin="0,0,0,4" />
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="110" />
-                                </Grid.ColumnDefinitions>
-                                <TextBox x:Name="GmailCredentialsPathBox" Grid.Column="0" />
-                                <Button Grid.Column="2" Content="Browse" Click="BrowseGmailCredentials_Click" />
-                            </Grid>
-
-                            <CheckBox x:Name="UseGmailSignatureCheckBox"
-                                      Content="Use Gmail signature"
-                                      Margin="0,2,0,0" />
+            <TabControl Grid.Row="1" Style="{StaticResource SettingsTabControl}" ItemContainerStyle="{StaticResource SettingsNavTab}" SelectedIndex="0">
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE80F;" FontFamily="Segoe Fluent Icons" FontSize="15" Width="26" />
+                            <TextBlock Text="General" VerticalAlignment="Center" />
                         </StackPanel>
-                    </Border>
-
-                    <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                    </TabItem.Header>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
-                            <TextBlock Text="Pricing &amp; Updates"
-                                       FontSize="16"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource FlareTextBrush}"
-                                       Margin="0,0,0,12" />
+                            <TextBlock Text="General" FontSize="22" FontWeight="SemiBold" />
+                            <TextBlock Text="Contact details shown in generated PDFs and quote history preferences." Style="{StaticResource MutedText}" Margin="0,5,0,18" />
 
-                            <TextBlock Text="Pricing Workbook" FontWeight="SemiBold" Margin="0,0,0,4" />
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="110" />
-                                </Grid.ColumnDefinitions>
-                                <TextBox x:Name="PricingFileBox" Grid.Column="0" />
-                                <Button Grid.Column="2" Content="Browse" Click="BrowsePricingFile_Click" />
-                            </Grid>
+                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="PDF contact information" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="14" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="14" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Sales email" Style="{StaticResource SettingsFieldLabel}" />
+                                        <TextBox x:Name="SalesEmailBox" Grid.Row="1" Grid.Column="0" />
+                                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Sales phone" Style="{StaticResource SettingsFieldLabel}" />
+                                        <TextBox x:Name="SalesPhoneBox" Grid.Row="1" Grid.Column="2" />
+                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Website" Style="{StaticResource SettingsFieldLabel}" />
+                                        <TextBox x:Name="WebsiteBox" Grid.Row="4" Grid.Column="0" />
+                                        <TextBlock Grid.Row="3" Grid.Column="2" Text="Consultation URL" Style="{StaticResource SettingsFieldLabel}" />
+                                        <TextBox x:Name="ConsultationUrlBox" Grid.Row="4" Grid.Column="2" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
 
-                            <TextBlock Text="Verified Update Source" FontWeight="SemiBold" Margin="0,0,0,4" />
-                            <TextBox x:Name="UpdateManifestUrlBox"
-                                     IsReadOnly="True"
-                                     IsTabStop="False"
-                                     ToolTip="The updater is intentionally pinned to the Flare-managed GitHub release feed."
-                                     Margin="0,0,0,10" />
-
-                            <CheckBox x:Name="CheckUpdatesOnStartupCheckBox"
-                                      Content="Check for app updates automatically on startup"
-                                      Margin="0,2,0,0" />
+                            <Border Style="{StaticResource GlassCard}">
+                                <StackPanel>
+                                    <TextBlock Text="Recent quotes" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="Choose how many completed quotes appear in the Recent quotes menu." Style="{StaticResource MutedText}" Margin="0,4,0,12" TextWrapping="Wrap" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="120" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="RecallQuoteHistoryLimitBox" Width="100" HorizontalAlignment="Left" Text="5" />
+                                        <TextBlock Grid.Column="1" Text="Recommended: 5 · Allowed range: 1–20" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
-                    </Border>
+                    </ScrollViewer>
+                </TabItem>
 
-                                        <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE715;" FontFamily="Segoe Fluent Icons" FontSize="15" Width="26" />
+                            <TextBlock Text="Integrations" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
-                            <TextBlock Text="Quote Recall"
-                                       FontSize="16"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource FlareTextBrush}"
-                                       Margin="0,0,0,8" />
-
-                            <TextBlock Text="Number of completed quotes to keep in the Recall Last Quote list."
-                                       Style="{StaticResource MutedText}"
-                                       Margin="0,0,0,8"
-                                       TextWrapping="Wrap" />
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="180" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-
-                                <TextBox x:Name="RecallQuoteHistoryLimitBox"
-                                         Width="120"
-                                         HorizontalAlignment="Left"
-                                         Text="5" />
-
-                                <TextBlock Grid.Column="1"
-                                           Text="Recommended: 5. Allowed range: 1 to 20."
-                                           Style="{StaticResource MutedText}"
-                                           VerticalAlignment="Center"
-                                           Margin="12,0,0,0"
-                                           TextWrapping="Wrap" />
-                            </Grid>
+                            <TextBlock Text="Integrations" FontSize="22" FontWeight="SemiBold" />
+                            <TextBlock Text="Configure Gmail draft creation and HubSpot tracking." Style="{StaticResource MutedText}" Margin="0,5,0,18" />
+                            <Border Style="{StaticResource GlassCard}">
+                                <StackPanel>
+                                    <TextBlock Text="Gmail &amp; HubSpot" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14" />
+                                    <TextBlock Text="HubSpot BCC address" Style="{StaticResource SettingsFieldLabel}" />
+                                    <TextBox x:Name="HubSpotBccBox" Margin="0,0,0,14" />
+                                    <TextBlock Text="Gmail credentials file" Style="{StaticResource SettingsFieldLabel}" />
+                                    <Grid Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="10" />
+                                            <ColumnDefinition Width="100" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="GmailCredentialsPathBox" />
+                                        <Button Grid.Column="2" Content="Browse" Click="BrowseGmailCredentials_Click" />
+                                    </Grid>
+                                    <CheckBox x:Name="UseGmailSignatureCheckBox" Content="Use the Gmail account signature in generated drafts" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
-                    </Border>
-<Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                    </ScrollViewer>
+                </TabItem>
+
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe Fluent Icons" FontSize="15" Width="26" />
+                            <TextBlock Text="Data &amp; updates" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
-                            <TextBlock Text="Lead Time Presets"
-                                       FontSize="16"
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource FlareTextBrush}"
-                                       Margin="0,0,0,8" />
+                            <TextBlock Text="Data &amp; updates" FontSize="22" FontWeight="SemiBold" />
+                            <TextBlock Text="Pricing workbook and the verified application update channel." Style="{StaticResource MutedText}" Margin="0,5,0,18" />
 
-                            <TextBlock Text="One preset per line. These show in the Lead Time dropdown."
-                                       Style="{StaticResource MutedText}"
-                                       Margin="0,0,0,8"
-                                       TextWrapping="Wrap" />
+                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                                <StackPanel>
+                                    <TextBlock Text="Pricing" Style="{StaticResource SectionTitleText}" Margin="0,0,0,14" />
+                                    <TextBlock Text="Pricing workbook" Style="{StaticResource SettingsFieldLabel}" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="10" />
+                                            <ColumnDefinition Width="100" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="PricingFileBox" />
+                                        <Button Grid.Column="2" Content="Browse" Click="BrowsePricingFile_Click" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
 
-                            <TextBox x:Name="LeadTimePresetsBox"
-                                     AcceptsReturn="True"
-                                     TextWrapping="Wrap"
-                                     VerticalScrollBarVisibility="Auto"
-                                     MinHeight="150" />
+                            <Border Style="{StaticResource GlassCard}">
+                                <StackPanel>
+                                    <TextBlock Text="Application updates" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="Updates are pinned to the verified Flare GitHub release channel." Style="{StaticResource MutedText}" Margin="0,4,0,14" />
+                                    <TextBlock Text="Verified update source" Style="{StaticResource SettingsFieldLabel}" />
+                                    <TextBox x:Name="UpdateManifestUrlBox"
+                                             IsReadOnly="True"
+                                             IsTabStop="False"
+                                             ToolTip="The updater is intentionally pinned to the Flare-managed GitHub release feed."
+                                             Margin="0,0,0,14" />
+                                    <CheckBox x:Name="CheckUpdatesOnStartupCheckBox" Content="Check for app updates automatically on startup" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
-                    </Border>
+                    </ScrollViewer>
+                </TabItem>
 
-                </StackPanel>
-            </ScrollViewer>
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE823;" FontFamily="Segoe Fluent Icons" FontSize="15" Width="26" />
+                            <TextBlock Text="Lead times" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <TextBlock Text="Lead times" FontSize="22" FontWeight="SemiBold" />
+                            <TextBlock Text="Manage the presets available while building fireplace quotes." Style="{StaticResource MutedText}" Margin="0,5,0,18" />
+                            <Border Style="{StaticResource GlassCard}">
+                                <StackPanel>
+                                    <TextBlock Text="Lead-time presets" Style="{StaticResource SectionTitleText}" />
+                                    <TextBlock Text="Enter one preset per line. Blank and duplicate values are removed automatically." Style="{StaticResource MutedText}" Margin="0,4,0,12" TextWrapping="Wrap" />
+                                    <TextBox x:Name="LeadTimePresetsBox"
+                                             AcceptsReturn="True"
+                                             TextWrapping="Wrap"
+                                             VerticalScrollBarVisibility="Auto"
+                                             MinHeight="300" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
 
-            <Grid Grid.Row="2" Margin="0,18,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="120" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="140" />
-                </Grid.ColumnDefinitions>
-
-                <TextBlock x:Name="SettingsStatusText"
-                           Grid.Column="0"
-                           Style="{StaticResource MutedText}"
-                           VerticalAlignment="Center"
-                           TextWrapping="Wrap" />
-
-                <Button Grid.Column="1"
-                        Content="Cancel"
-                        Click="CancelButton_Click"
-                        Height="38" />
-
-                <Button Grid.Column="3"
-                        Content="Save Settings"
-                        Click="SaveButton_Click"
-                        Style="{StaticResource PrimaryButton}"
-                        Height="38" />
-            </Grid>
+            <Border Grid.Row="2"
+                    Background="{DynamicResource WindowTitleBarBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="0,1,0,0"
+                    Padding="20,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="140" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="SettingsStatusText"
+                               Style="{StaticResource MutedText}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               Margin="0,0,18,0" />
+                    <Button Grid.Column="1" Content="Cancel" Click="CancelButton_Click" />
+                    <Button Grid.Column="3" Content="Save settings" Click="SaveButton_Click" Style="{StaticResource PrimaryButton}" />
+                </Grid>
+            </Border>
         </Grid>
     </Border>
 </Window>
-

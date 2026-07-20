@@ -1,6 +1,6 @@
 # Architecture Notes
 
-Flare Fireplace Quotes v1.4.12 is a C# / WPF / MVVM rebuild of the original Python quote application.
+Flare Fireplace Quotes v1.5.0 is a C# / WPF / MVVM rebuild of the original Python quote application.
 
 ## Project layout
 
@@ -29,3 +29,7 @@ MainWindow must render before any heavy preview, Gmail, PDF, pricing, update, or
 ## PDF preview rule
 
 Live Preview uses WebView2 lazily after a PDF exists. It must never be created in XAML at startup. Open Generated PDF must remain available as the stable fallback.
+
+## UI contract
+
+The v1.5 presentation layer uses shared dynamic resources in `FlareTheme.xaml`; views should not introduce standalone theme palettes. `Test-UiContract.ps1` protects the named controls, bindings, commands, handlers, and updater surfaces required by code-behind and the quote workflow. Run it before every build that changes XAML.

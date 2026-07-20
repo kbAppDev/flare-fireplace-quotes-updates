@@ -50,7 +50,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        AttachV145DropdownScrollResetHooks();
+        AttachDropdownScrollResetHooks();
         Loaded += ShowSystemHealthOnce;
         SetAppVersionText();
 
@@ -145,7 +145,7 @@ public partial class MainWindow : Window
 
     private void DropdownPopup_Opened(object sender, EventArgs e)
     {
-        // : Whenever a feature/media popup opens, force its internal
+        // Whenever a feature/media popup opens, force its internal
         // scroll viewer back to the top so the next fireplace starts clean.
         if (sender is not System.Windows.Controls.Primitives.Popup popup)
             return;
@@ -181,28 +181,28 @@ public partial class MainWindow : Window
         return null;
     }
 
-    private bool _v145DropdownScrollResetHooksAttached;
+    private bool _dropdownScrollResetHooksAttached;
 
-    private void AttachV145DropdownScrollResetHooks()
+    private void AttachDropdownScrollResetHooks()
     {
-        if (_v145DropdownScrollResetHooksAttached)
+        if (_dropdownScrollResetHooksAttached)
             return;
 
-        _v145DropdownScrollResetHooksAttached = true;
+        _dropdownScrollResetHooksAttached = true;
 
-        foreach (var popup in GetV145NamedPopups())
+        foreach (var popup in GetNamedPopups())
         {
-            popup.Opened -= V145DropdownPopup_Opened;
-            popup.Opened += V145DropdownPopup_Opened;
+            popup.Opened -= DropdownPopupScrollReset_Opened;
+            popup.Opened += DropdownPopupScrollReset_Opened;
 
-            popup.Closed -= V145DropdownPopup_Closed;
-            popup.Closed += V145DropdownPopup_Closed;
+            popup.Closed -= DropdownPopupScrollReset_Closed;
+            popup.Closed += DropdownPopupScrollReset_Closed;
         }
 
-        QueueV145DropdownScrollReset();
+        QueueDropdownScrollReset();
     }
 
-    private IEnumerable<System.Windows.Controls.Primitives.Popup> GetV145NamedPopups()
+    private IEnumerable<System.Windows.Controls.Primitives.Popup> GetNamedPopups()
     {
         var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public |
                     System.Reflection.BindingFlags.NonPublic;
@@ -217,62 +217,62 @@ public partial class MainWindow : Window
         }
     }
 
-    private void V145DropdownPopup_Opened(object? sender, EventArgs e)
+    private void DropdownPopupScrollReset_Opened(object? sender, EventArgs e)
     {
-        QueueV145DropdownScrollReset();
+        QueueDropdownScrollReset();
 
         if (sender is System.Windows.Controls.Primitives.Popup popup)
-            QueueV145PopupScrollReset(popup);
+            QueuePopupScrollReset(popup);
     }
 
-    private void V145DropdownPopup_Closed(object? sender, EventArgs e)
+    private void DropdownPopupScrollReset_Closed(object? sender, EventArgs e)
     {
-        QueueV145DropdownScrollReset();
+        QueueDropdownScrollReset();
 
         if (sender is System.Windows.Controls.Primitives.Popup popup)
-            QueueV145PopupScrollReset(popup);
+            QueuePopupScrollReset(popup);
     }
 
-    private void QueueV145DropdownScrollReset()
+    private void QueueDropdownScrollReset()
     {
-        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions),
+        Dispatcher.BeginInvoke(new Action(ResetDropdownScrollPositions),
                                System.Windows.Threading.DispatcherPriority.Loaded);
-        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions),
+        Dispatcher.BeginInvoke(new Action(ResetDropdownScrollPositions),
                                System.Windows.Threading.DispatcherPriority.Render);
-        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions),
+        Dispatcher.BeginInvoke(new Action(ResetDropdownScrollPositions),
                                System.Windows.Threading.DispatcherPriority.ContextIdle);
-        Dispatcher.BeginInvoke(new Action(ResetV145DropdownScrollPositions),
+        Dispatcher.BeginInvoke(new Action(ResetDropdownScrollPositions),
                                System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     }
 
-    private void QueueV145PopupScrollReset(System.Windows.Controls.Primitives.Popup popup)
+    private void QueuePopupScrollReset(System.Windows.Controls.Primitives.Popup popup)
     {
-        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)),
+        Dispatcher.BeginInvoke(new Action(() => ResetPopupScrollPosition(popup)),
                                System.Windows.Threading.DispatcherPriority.Loaded);
-        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)),
+        Dispatcher.BeginInvoke(new Action(() => ResetPopupScrollPosition(popup)),
                                System.Windows.Threading.DispatcherPriority.Render);
-        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)),
+        Dispatcher.BeginInvoke(new Action(() => ResetPopupScrollPosition(popup)),
                                System.Windows.Threading.DispatcherPriority.ContextIdle);
-        Dispatcher.BeginInvoke(new Action(() => ResetV145PopupScrollPosition(popup)),
+        Dispatcher.BeginInvoke(new Action(() => ResetPopupScrollPosition(popup)),
                                System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     }
 
-    private void ResetV145DropdownScrollPositions()
+    private void ResetDropdownScrollPositions()
     {
-        foreach (var popup in GetV145NamedPopups())
-            ResetV145PopupScrollPosition(popup);
+        foreach (var popup in GetNamedPopups())
+            ResetPopupScrollPosition(popup);
     }
 
-    private static void ResetV145PopupScrollPosition(System.Windows.Controls.Primitives.Popup popup)
+    private static void ResetPopupScrollPosition(System.Windows.Controls.Primitives.Popup popup)
     {
         if (popup.Child is null)
             return;
 
-        ResetV145ScrollViewersIn(popup.Child);
-        ResetV145ItemsControlsIn(popup.Child);
+        ResetScrollViewersIn(popup.Child);
+        ResetItemsControlsIn(popup.Child);
     }
 
-    private static void ResetV145ScrollViewersIn(DependencyObject? parent)
+    private static void ResetScrollViewersIn(DependencyObject? parent)
     {
         if (parent is null)
             return;
@@ -287,10 +287,10 @@ public partial class MainWindow : Window
         var childCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
 
         for (var i = 0; i < childCount; i++)
-            ResetV145ScrollViewersIn(System.Windows.Media.VisualTreeHelper.GetChild(parent, i));
+            ResetScrollViewersIn(System.Windows.Media.VisualTreeHelper.GetChild(parent, i));
     }
 
-    private static void ResetV145ItemsControlsIn(DependencyObject? parent)
+    private static void ResetItemsControlsIn(DependencyObject? parent)
     {
         if (parent is null)
             return;
@@ -301,14 +301,14 @@ public partial class MainWindow : Window
         var childCount = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
 
         for (var i = 0; i < childCount; i++)
-            ResetV145ItemsControlsIn(System.Windows.Media.VisualTreeHelper.GetChild(parent, i));
+            ResetItemsControlsIn(System.Windows.Media.VisualTreeHelper.GetChild(parent, i));
     }
     private void DropdownToggle_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         // force dropdown scroll reset before opening
-        AttachV145DropdownScrollResetHooks();
-        ResetV145DropdownScrollPositions();
-        QueueV145DropdownScrollReset();
+        AttachDropdownScrollResetHooks();
+        ResetDropdownScrollPositions();
+        QueueDropdownScrollReset();
         TryAnimateButtonPress(e.OriginalSource as DependencyObject);
 
         if (DataContext is not MainViewModel viewModel)
@@ -1197,8 +1197,6 @@ public partial class MainWindow : Window
         SaveThemePreference(DarkThemeName);
         if (ThemeLabelText != null)
             ThemeLabelText.Text = "Dark Mode";
-
-        ApplyDropdownThemeResources(true);
     }
 
     private void ThemeToggleButton_Unchecked(object sender, RoutedEventArgs e)
@@ -1210,8 +1208,6 @@ public partial class MainWindow : Window
         SaveThemePreference(LightThemeName);
         if (ThemeLabelText != null)
             ThemeLabelText.Text = "Light Mode";
-
-        ApplyDropdownThemeResources(false);
     }
 
     private static string SettingsPath => AppPaths.UiSettingsFile;
@@ -1283,62 +1279,92 @@ public partial class MainWindow : Window
 
             if (dark)
             {
-                // Liquid Glass dark mode
-                SetGradientBrush(resources, "FlareDarkBrush", "#F2121C2D", "#E60A101C");
-                SetGradientBrush(resources, "GlassBackgroundBrush", "#F2121C2D", "#E60A101C");
-                SetBrush(resources, "GlassHeaderBrush", "#F70F1722");
+                SetGradientBrush(resources, "FlareDarkBrush", "#0D131B", "#0D131B");
+                SetGradientBrush(resources, "GlassBackgroundBrush", "#0D131B", "#0D131B");
+                SetBrush(resources, "WindowSurfaceBrush", "#0D131B");
+                SetBrush(resources, "WindowTitleBarBrush", "#0A1017");
+                SetBrush(resources, "WindowHeaderBrush", "#0F161F");
+                SetBrush(resources, "WindowWorkspaceBrush", "#0B1118");
+                SetBrush(resources, "SurfaceBrush", "#121A24");
+                SetBrush(resources, "SurfaceRaisedBrush", "#151F2A");
+                SetBrush(resources, "SurfaceSubtleBrush", "#101923");
+                SetBrush(resources, "DividerBrush", "#202C38");
+                SetBrush(resources, "ControlBorderBrush", "#30404F");
+                SetBrush(resources, "ControlHoverBrush", "#1C2834");
+                SetBrush(resources, "ControlPressedBrush", "#22303D");
+                SetBrush(resources, "FocusRingBrush", "#718A32");
+                SetBrush(resources, "SuccessMutedBrush", "#A9BD7E");
+                SetBrush(resources, "WarningBrush", "#E2B04A");
+                SetBrush(resources, "DangerBrush", "#FF7377");
+                SetBrush(resources, "GlassHeaderBrush", "#0F161F");
 
-                SetGradientBrush(resources, "FlareCardBrush", "#26FFFFFF", "#0DFFFFFF");
-                SetGradientBrush(resources, "FlareCardAltBrush", "#10FFFFFF", "#04FFFFFF");
+                SetBrush(resources, "FlareCardBrush", "#121A24");
+                SetBrush(resources, "FlareCardAltBrush", "#101923");
                 resources["GlassCardBrush"] = resources["FlareCardBrush"];
                 resources["GlassCardAltBrush"] = resources["FlareCardAltBrush"];
 
-                SetBrush(resources, "FlareInputBrush", "#14FFFFFF");
-                SetBrush(resources, "GlassInputBrush", "#14FFFFFF");
-                SetBrush(resources, "FlareBorderBrush", "#30405A");
-                SetBrush(resources, "GlassBorderBrush", "#30405A");
+                SetBrush(resources, "FlareInputBrush", "#0E161F");
+                SetBrush(resources, "GlassInputBrush", "#0E161F");
+                SetBrush(resources, "FlareBorderBrush", "#273543");
+                SetBrush(resources, "GlassBorderBrush", "#273543");
 
-                SetBrush(resources, "FlareTextBrush", "#F8FAFC");
-                SetBrush(resources, "FlareMutedTextBrush", "#A7B2C2");
-                SetBrush(resources, "FlareAccentBrush", "#99CC00");
-                SetBrush(resources, "FlareAccentTextBrush", "#102000");
+                SetBrush(resources, "FlareTextBrush", "#F4F7FA");
+                SetBrush(resources, "FlareMutedTextBrush", "#98A6B5");
+                SetBrush(resources, "FlareAccentBrush", "#A6CE39");
+                SetBrush(resources, "FlareAccentTextBrush", "#172000");
 
-                SetBrush(resources, "FlareButtonBrush", "#26FFFFFF");
-                SetBrush(resources, "FlareButtonBorderBrush", "#20FFFFFF");
-                SetBrush(resources, "FlareChipBrush", "#22FFFFFF");
-                SetBrush(resources, "FlareChipBorderBrush", "#4DFFFFFF");
-                SetBrush(resources, "GlassButtonHoverBrush", "#40FFFFFF");
-                SetBrush(resources, "GlassPopupBrush", "#FA1E293B");
+                SetBrush(resources, "FlareButtonBrush", "#17212C");
+                SetBrush(resources, "FlareButtonBorderBrush", "#344352");
+                SetBrush(resources, "FlareChipBrush", "#182431");
+                SetBrush(resources, "FlareChipBorderBrush", "#314252");
+                SetBrush(resources, "GlassButtonHoverBrush", "#1C2834");
+                SetBrush(resources, "GlassPopupBrush", "#151F2A");
             }
             else
             {
-                // Liquid Glass light mode
-                SetGradientBrush(resources, "FlareDarkBrush", "#F2EEF3F8", "#E6DCE5EF");
-                SetGradientBrush(resources, "GlassBackgroundBrush", "#F2EEF3F8", "#E6DCE5EF");
-                SetBrush(resources, "GlassHeaderBrush", "#DDF8FAFC");
+                SetGradientBrush(resources, "FlareDarkBrush", "#F3F6F9", "#F3F6F9");
+                SetGradientBrush(resources, "GlassBackgroundBrush", "#F3F6F9", "#F3F6F9");
+                SetBrush(resources, "WindowSurfaceBrush", "#F3F6F9");
+                SetBrush(resources, "WindowTitleBarBrush", "#F9FBFD");
+                SetBrush(resources, "WindowHeaderBrush", "#F5F8FB");
+                SetBrush(resources, "WindowWorkspaceBrush", "#EDF2F6");
+                SetBrush(resources, "SurfaceBrush", "#FFFFFF");
+                SetBrush(resources, "SurfaceRaisedBrush", "#FFFFFF");
+                SetBrush(resources, "SurfaceSubtleBrush", "#F5F8FB");
+                SetBrush(resources, "DividerBrush", "#DDE4EA");
+                SetBrush(resources, "ControlBorderBrush", "#C3CED8");
+                SetBrush(resources, "ControlHoverBrush", "#E8EEF3");
+                SetBrush(resources, "ControlPressedBrush", "#DDE6ED");
+                SetBrush(resources, "FocusRingBrush", "#6F8A27");
+                SetBrush(resources, "SuccessMutedBrush", "#587023");
+                SetBrush(resources, "WarningBrush", "#8A5B00");
+                SetBrush(resources, "DangerBrush", "#B42318");
+                SetBrush(resources, "GlassHeaderBrush", "#F5F8FB");
 
-                SetGradientBrush(resources, "FlareCardBrush", "#C8FFFFFF", "#88F8FAFC");
-                SetGradientBrush(resources, "FlareCardAltBrush", "#A8FFFFFF", "#70EAF0F7");
+                SetBrush(resources, "FlareCardBrush", "#FFFFFF");
+                SetBrush(resources, "FlareCardAltBrush", "#F5F8FB");
                 resources["GlassCardBrush"] = resources["FlareCardBrush"];
                 resources["GlassCardAltBrush"] = resources["FlareCardAltBrush"];
 
-                SetBrush(resources, "FlareInputBrush", "#CCFFFFFF");
-                SetBrush(resources, "GlassInputBrush", "#CCFFFFFF");
-                SetBrush(resources, "FlareBorderBrush", "#B8C4D2");
-                SetBrush(resources, "GlassBorderBrush", "#B8C4D2");
+                SetBrush(resources, "FlareInputBrush", "#F9FBFD");
+                SetBrush(resources, "GlassInputBrush", "#F9FBFD");
+                SetBrush(resources, "FlareBorderBrush", "#D5DEE6");
+                SetBrush(resources, "GlassBorderBrush", "#D5DEE6");
 
-                SetBrush(resources, "FlareTextBrush", "#111827");
-                SetBrush(resources, "FlareMutedTextBrush", "#475569");
-                SetBrush(resources, "FlareAccentBrush", "#99CC00");
-                SetBrush(resources, "FlareAccentTextBrush", "#102000");
+                SetBrush(resources, "FlareTextBrush", "#17212B");
+                SetBrush(resources, "FlareMutedTextBrush", "#5F6F7E");
+                SetBrush(resources, "FlareAccentBrush", "#8FB82B");
+                SetBrush(resources, "FlareAccentTextBrush", "#172000");
 
-                SetBrush(resources, "FlareButtonBrush", "#B8F1F5F9");
-                SetBrush(resources, "FlareButtonBorderBrush", "#B8C4D2");
-                SetBrush(resources, "FlareChipBrush", "#A8F1F5F9");
-                SetBrush(resources, "FlareChipBorderBrush", "#B8C4D2");
-                SetBrush(resources, "GlassButtonHoverBrush", "#CCE7EEF7");
-                SetBrush(resources, "GlassPopupBrush", "#EEF8FAFC");
+                SetBrush(resources, "FlareButtonBrush", "#F8FAFC");
+                SetBrush(resources, "FlareButtonBorderBrush", "#C3CED8");
+                SetBrush(resources, "FlareChipBrush", "#EFF4F7");
+                SetBrush(resources, "FlareChipBorderBrush", "#C9D4DD");
+                SetBrush(resources, "GlassButtonHoverBrush", "#E8EEF3");
+                SetBrush(resources, "GlassPopupBrush", "#FFFFFF");
             }
+
+            ApplyDropdownThemeResources(dark);
         }
         finally
         {
@@ -1624,23 +1650,23 @@ public partial class MainWindow : Window
 
         if (isDarkMode)
         {
-            SetBrush("DropdownPopupBrush", Brush(30, 41, 59, 248));
-            SetBrush("DropdownInputBrush", Brush(36, 50, 65));
-            SetBrush("DropdownOptionBrush", Brush(43, 57, 74));
-            SetBrush("DropdownOptionHoverBrush", Brush(52, 70, 92));
-            SetBrush("DropdownOptionBorderBrush", Brush(82, 103, 127));
-            SetBrush("DropdownTextBrush", Brush(248, 250, 252));
-            SetBrush("DropdownMutedTextBrush", Brush(203, 213, 225));
+            SetBrush("DropdownPopupBrush", Brush(21, 31, 42));
+            SetBrush("DropdownInputBrush", Brush(14, 22, 31));
+            SetBrush("DropdownOptionBrush", Brush(24, 36, 49));
+            SetBrush("DropdownOptionHoverBrush", Brush(32, 45, 58));
+            SetBrush("DropdownOptionBorderBrush", Brush(49, 66, 82));
+            SetBrush("DropdownTextBrush", Brush(244, 247, 250));
+            SetBrush("DropdownMutedTextBrush", Brush(152, 166, 181));
         }
         else
         {
-            SetBrush("DropdownPopupBrush", Brush(248, 250, 252, 238));
-            SetBrush("DropdownInputBrush", Brush(241, 245, 249, 210));
-            SetBrush("DropdownOptionBrush", Brush(241, 245, 249, 190));
-            SetBrush("DropdownOptionHoverBrush", Brush(226, 232, 240, 220));
-            SetBrush("DropdownOptionBorderBrush", Brush(174, 184, 197));
-            SetBrush("DropdownTextBrush", Brush(17, 24, 39));
-            SetBrush("DropdownMutedTextBrush", Brush(51, 65, 85));
+            SetBrush("DropdownPopupBrush", Brush(255, 255, 255));
+            SetBrush("DropdownInputBrush", Brush(249, 251, 253));
+            SetBrush("DropdownOptionBrush", Brush(245, 248, 251));
+            SetBrush("DropdownOptionHoverBrush", Brush(232, 238, 243));
+            SetBrush("DropdownOptionBorderBrush", Brush(195, 206, 216));
+            SetBrush("DropdownTextBrush", Brush(23, 33, 43));
+            SetBrush("DropdownMutedTextBrush", Brush(95, 111, 126));
         }
     }
 
