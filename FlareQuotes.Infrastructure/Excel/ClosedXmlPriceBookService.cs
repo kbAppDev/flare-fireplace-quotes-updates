@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using ClosedXML.Excel;
@@ -12,6 +13,10 @@ namespace FlareQuotes.Infrastructure.Excel;
 
 public sealed class ClosedXmlPriceBookService : IPriceBookService
 {
+    private const long MaximumSharedWorkbookBytes = 10L * 1024 * 1024;
+    private const string SharedPricingExportUrl =
+        "https://docs.google.com/spreadsheets/d/1kBfDyekOABQckF22v1mXzk59apccLBI1GCWi2CHO9zA/export?format=xlsx";
+
     private PriceBookWorkbook? _cached;
     private string _loadedPath = string.Empty;
 
@@ -355,28 +360,105 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
     private static async Task<string> TryDownloadSharedResourceWorkbookAsync(CancellationToken cancellationToken)
     {
-        const string sharedPricingExportUrl =
-            "https://docs.google.com/spreadsheets/d/1kBfDyekOABQckF22v1mXzk59apccLBI1GCWi2CHO9zA/export?format=xlsx";
-
         try
         {
             var cacheDir = AppPaths.Cache;
             Directory.CreateDirectory(cacheDir);
             var cachePath = Path.Combine(cacheDir, "shared_pricing.xlsx");
+            var downloadPath = cachePath + ".download";
 
             if (File.Exists(cachePath) && DateTime.UtcNow - File.GetLastWriteTimeUtc(cachePath) < TimeSpan.FromHours(6))
                 return cachePath;
 
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            var bytes = await client.GetByteArrayAsync(sharedPricingExportUrl, cancellationToken);
-            if (bytes.Length > 0)
-                await File.WriteAllBytesAsync(cachePath, bytes, cancellationToken);
+            using var response = await client.GetAsync(SharedPricingExportUrl, HttpCompletionOption.ResponseHeadersRead,
+                                                       cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            if (response.RequestMessage?.RequestUri is not { } finalUri ||
+                !IsTrustedSharedWorkbookResponseUri(finalUri))
+            {
+                return string.Empty;
+            }
+
+            if (response.Content.Headers.ContentLength is > MaximumSharedWorkbookBytes)
+                return string.Empty;
+
+            if (File.Exists(downloadPath))
+                File.Delete(downloadPath);
+
+            try
+            {
+                await using var source = await response.Content.ReadAsStreamAsync(cancellationToken)
+                                                         .ConfigureAwait(false);
+                await using var destination = new FileStream(downloadPath, FileMode.CreateNew, FileAccess.Write,
+                                                             FileShare.None, 81920, FileOptions.Asynchronous |
+                                                                                   FileOptions.WriteThrough);
+                var buffer = new byte[81920];
+                long totalBytes = 0;
+
+                while (true)
+                {
+                    var bytesRead = await source.ReadAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+                    if (bytesRead == 0)
+                        break;
+
+                    totalBytes += bytesRead;
+                    if (totalBytes > MaximumSharedWorkbookBytes)
+                        throw new InvalidDataException("Shared workbook exceeds the maximum allowed size.");
+
+                    await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken)
+                                     .ConfigureAwait(false);
+                }
+
+                await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                if (File.Exists(downloadPath))
+                    File.Delete(downloadPath);
+                throw;
+            }
+
+            if (!IsXlsxPackage(downloadPath))
+            {
+                File.Delete(downloadPath);
+                return string.Empty;
+            }
+
+            File.Move(downloadPath, cachePath, overwrite: true);
 
             return cachePath;
         }
         catch
         {
             return string.Empty;
+        }
+    }
+
+    internal static bool IsTrustedSharedWorkbookResponseUri(Uri uri)
+    {
+        if (!uri.IsAbsoluteUri || uri.Scheme != Uri.UriSchemeHttps || !uri.IsDefaultPort ||
+            !string.IsNullOrEmpty(uri.UserInfo))
+        {
+            return false;
+        }
+
+        return uri.Host.Equals("docs.google.com", StringComparison.OrdinalIgnoreCase) ||
+               uri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static bool IsXlsxPackage(string path)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(path);
+            return archive.GetEntry("[Content_Types].xml") is not null &&
+                   archive.GetEntry("xl/workbook.xml") is not null;
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 

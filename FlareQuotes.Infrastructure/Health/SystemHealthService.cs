@@ -1,5 +1,6 @@
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Services;
+using FlareQuotes.Core.Updates;
 
 namespace FlareQuotes.Infrastructure.Health;
 
@@ -51,14 +52,13 @@ public sealed class SystemHealthService : ISystemHealthService
 
     private static SystemHealthItem CheckUpdateFeed(string updateManifestUrl)
     {
+        var trusted = UpdateTrustPolicy.TryGetTrustedManifestUri(updateManifestUrl, out _);
         return new SystemHealthItem {
             Name = "Update feed",
-            Detail = Uri.TryCreate(updateManifestUrl, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps
-                         ? "HTTPS update manifest configured."
-                         : "Update manifest URL is missing or not HTTPS.",
-            State = Uri.TryCreate(updateManifestUrl, UriKind.Absolute, out uri) && uri.Scheme == Uri.UriSchemeHttps
-                        ? SystemHealthState.Ok
-                        : SystemHealthState.Error
+            Detail = trusted
+                         ? "Pinned Flare GitHub update manifest configured."
+                         : "Update manifest URL is outside the pinned release lane.",
+            State = trusted ? SystemHealthState.Ok : SystemHealthState.Error
         };
     }
 

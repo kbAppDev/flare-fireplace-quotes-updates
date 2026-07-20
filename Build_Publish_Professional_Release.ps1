@@ -12,7 +12,7 @@ param(
 
     [string]$PfxPassword = "",
 
-    [string]$TimestampUrl = "http://timestamp.digicert.com",
+    [string]$TimestampUrl = "https://timestamp.digicert.com",
 
     [string]$ManifestSigningPrivateKeyPath = ""
 )
@@ -123,7 +123,7 @@ function New-ManifestSignature($Manifest) {
     $rsa = [System.Security.Cryptography.RSA]::Create()
     $rsa.ImportFromPem($privateKeyPem)
 
-    $payload = "$($Manifest.version)`n$($Manifest.url)`n$($Manifest.sha256)`n$($Manifest.notes)"
+    $payload = "$($Manifest.version)`n$($Manifest.url)`n$($Manifest.sha256)`n$($Manifest.sizeBytes)`n$($Manifest.notes)"
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($payload)
     $sig = $rsa.SignData($bytes, [System.Security.Cryptography.HashAlgorithmName]::SHA256, [System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
     return [Convert]::ToBase64String($sig)
@@ -207,17 +207,9 @@ $manifest = [ordered]@{
     version = $Version
     url = $ReleaseAssetUrl
     installer = $ReleaseAssetUrl
-    installerUrl = $ReleaseAssetUrl
-    downloadUrl = $ReleaseAssetUrl
     sha256 = $hash
-    sha256Hash = $hash
-    fileSha256 = $hash
-    size = $size
-    fileSize = $size
     sizeBytes = $size
     notes = $ReleaseNotes.Trim()
-    publishedAt = (Get-Date).ToUniversalTime().ToString("o")
-    mandatory = $false
 }
 
 $manifestSignature = New-ManifestSignature $manifest
@@ -230,10 +222,40 @@ Write-Utf8NoBom $ManifestPath ($manifest | ConvertTo-Json -Depth 20)
 gh release create $Tag "$AssetPath" "$ManifestPath" --repo $Repo --title $Tag --notes $ReleaseNotes
 if ($LASTEXITCODE -ne 0) { throw "GitHub release create failed." }
 
-Start-Sleep -Seconds 5
-$live = Invoke-RestMethod -Uri $LatestManifestUrl -UseBasicParsing
-if ([string]$live.version -ne $Version) {
-    throw "Live manifest version was $($live.version), expected $Version."
+Write-Host "Verifying live updater assets..." -ForegroundColor Cyan
+$live = $null
+for ($attempt = 1; $attempt -le 18; $attempt++) {
+    try {
+        $live = Invoke-RestMethod -Uri "$LatestManifestUrl?cacheBust=$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())" `
+                                  -Headers @{ "Cache-Control" = "no-cache" }
+        if ([string]$live.version -eq $Version) { break }
+    }
+    catch {
+        if ($attempt -eq 18) { throw }
+    }
+
+    if ($attempt -lt 18) { Start-Sleep -Seconds 5 }
+}
+
+if ([string]$live.version -ne $Version -or
+    [string]$live.url -ne $ReleaseAssetUrl -or
+    [string]$live.installer -ne $ReleaseAssetUrl -or
+    [string]$live.sha256 -ne $hash -or
+    [long]$live.sizeBytes -ne $size) {
+    throw "Live manifest does not exactly match the published $Tag installer metadata."
+}
+
+$verificationDownload = Join-Path ([System.IO.Path]::GetTempPath()) "Flare.Fireplace.Quotes.$([Guid]::NewGuid().ToString('N')).exe"
+try {
+    Invoke-WebRequest -Uri $ReleaseAssetUrl -OutFile $verificationDownload -Headers @{ "Cache-Control" = "no-cache" }
+    $liveSize = (Get-Item $verificationDownload).Length
+    $liveHash = (Get-FileHash -Algorithm SHA256 -Path $verificationDownload).Hash.ToLowerInvariant()
+    if ($liveSize -ne $size -or $liveHash -ne $hash) {
+        throw "Downloaded GitHub release asset does not match the locally verified installer."
+    }
+}
+finally {
+    Remove-Item $verificationDownload -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host ""

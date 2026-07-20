@@ -9,8 +9,8 @@ public sealed class UpdateManifest
     public string Notes { get; set; } = string.Empty;
     public long SizeBytes { get; set; }
 
-    // Optional professional-hardening fields.
-    // Existing unsigned manifests still work unless StrictManifestSignatureValidation is enabled.
+    // Unsigned manifests remain compatible unless strict validation is enabled. If a signature
+    // is supplied, it must always be a verifiable RS256 signature; malformed signatures fail closed.
     public string Signature { get; set; } = string.Empty;
     public string SignatureAlgorithm { get; set; } = "RS256";
 }

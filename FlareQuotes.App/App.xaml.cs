@@ -51,6 +51,12 @@ public partial class App : Application
         base.OnStartup(e);
     }
 
+    protected override void OnExit(ExitEventArgs e)
+    {
+        Services?.Dispose();
+        base.OnExit(e);
+    }
+
     private void InstallGlobalExceptionHandling()
     {
         DispatcherUnhandledException += (_, args) =>

@@ -15,7 +15,6 @@
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Web.WebView2" />
   </ItemGroup>
   <ItemGroup>
@@ -31,7 +30,6 @@
     <Resource Include="Assets\UrlStyleCards\**\*" />
   </ItemGroup>
 </Project>
-
 
 
 

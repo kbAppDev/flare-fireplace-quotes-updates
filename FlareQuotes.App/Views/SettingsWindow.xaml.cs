@@ -1,38 +1,39 @@
 using System;
-using System.Collections;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
-using Microsoft.Win32;
+using FlareQuotes.App.ViewModels;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Paths;
+using FlareQuotes.Core.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Win32;
 
 namespace FlareQuotes.App.Views
 {
 public partial class SettingsWindow : Window
 {
-    private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
-
+    private readonly ISettingsService _settingsService;
     private AppSettings _settings = new();
 
-    public SettingsWindow()
+    public SettingsWindow() : this(App.Services.GetRequiredService<ISettingsService>())
     {
-        InitializeComponent();
+    }
 
-        Loaded += (_, _) =>
-        { LoadSettingsIntoForm(); };
+    internal SettingsWindow(ISettingsService settingsService)
+    {
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        InitializeComponent();
+        Loaded += async (_, _) => await LoadSettingsIntoFormAsync();
     }
 
     private static string SettingsPath => AppPaths.SettingsFile;
 
-    private void LoadSettingsIntoForm()
+    private async Task LoadSettingsIntoFormAsync()
     {
         try
         {
-            _settings = LoadSettings();
+            _settings = await _settingsService.LoadAsync();
 
             SalesEmailBox.Text = _settings.SalesEmail ?? string.Empty;
             SalesPhoneBox.Text = _settings.SalesPhone ?? string.Empty;
@@ -49,8 +50,6 @@ public partial class SettingsWindow : Window
                 Math.Clamp(_settings.RecallQuoteHistoryLimit <= 0 ? 5 : _settings.RecallQuoteHistoryLimit, 1, 20)
                     .ToString();
 
-            SelectEmailSendMode(_settings.EmailSendMode);
-
             LeadTimePresetsBox.Text = string.Join(Environment.NewLine, (_settings.LeadTimePresets is { Count : > 0 }
                                                                             ? _settings.LeadTimePresets
                                                                             : new AppSettings().LeadTimePresets));
@@ -63,23 +62,7 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private AppSettings LoadSettings()
-    {
-        try
-        {
-            if (!File.Exists(SettingsPath))
-                return new AppSettings();
-
-            var json = File.ReadAllText(SettingsPath);
-            return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-        }
-        catch
-        {
-            return new AppSettings();
-        }
-    }
-
-    private void SaveFormToSettings()
+    private async Task SaveFormToSettingsAsync()
     {
         _settings.SalesEmail = SalesEmailBox.Text.Trim();
         _settings.SalesPhone = SalesPhoneBox.Text.Trim();
@@ -91,7 +74,6 @@ public partial class SettingsWindow : Window
         _settings.UpdateManifestUrl = UpdateManifestUrlBox.Text.Trim();
         _settings.UseGmailSignature = UseGmailSignatureCheckBox.IsChecked == true;
         _settings.CheckUpdatesOnStartup = CheckUpdatesOnStartupCheckBox.IsChecked == true;
-        _settings.EmailSendMode = SelectedEmailSendMode();
         if (!int.TryParse(RecallQuoteHistoryLimitBox.Text.Trim(), out var recallLimit))
             recallLimit = 5;
 
@@ -107,10 +89,7 @@ public partial class SettingsWindow : Window
         if (_settings.LeadTimePresets.Count == 0)
             _settings.LeadTimePresets = new AppSettings().LeadTimePresets.ToList();
 
-        Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-
-        var json = JsonSerializer.Serialize(_settings, _jsonOptions);
-        File.WriteAllText(SettingsPath, json);
+        await _settingsService.SaveAsync(_settings);
 
         PushSettingsIntoOwnerViewModel();
     }
@@ -119,78 +98,13 @@ public partial class SettingsWindow : Window
     {
         try
         {
-            var vm = Owner?.DataContext;
-            if (vm is null)
-                return;
-
-            var vmType = vm.GetType();
-
-            var settingsField = vmType.GetField("_settings", BindingFlags.Instance | BindingFlags.NonPublic);
-            if (settingsField?.GetValue(vm) is AppSettings liveSettings)
-            {
-                CopySettings(_settings, liveSettings);
-            }
-
-            var leadTimeProperty = vmType.GetProperty("LeadTimePresets", BindingFlags.Instance | BindingFlags.Public);
-            if (leadTimeProperty?.GetValue(vm) is IList leadTimes)
-            {
-                leadTimes.Clear();
-                foreach (var item in _settings.LeadTimePresets)
-                    leadTimes.Add(item);
-            }
-
-            var onPropertyChanged = vmType.GetMethod(
-                "OnPropertyChanged", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public, null,
-                new[] { typeof(string) }, null);
-            onPropertyChanged?.Invoke(vm, new object[] { "LeadTimePresets" });
-            onPropertyChanged?.Invoke(vm, new object[] { "LeadTimeDropdownButtonText" });
+            if (Owner?.DataContext is MainViewModel viewModel)
+                viewModel.ApplySettings(_settings);
         }
         catch
         {
             // Settings were still saved to disk. Do not block the user over view-model refresh.
         }
-    }
-
-    private static void CopySettings(AppSettings source, AppSettings target)
-    {
-        target.SalesEmail = source.SalesEmail;
-        target.SalesPhone = source.SalesPhone;
-        target.Website = source.Website;
-        target.HubSpotBcc = source.HubSpotBcc;
-        target.ConsultationUrl = source.ConsultationUrl;
-        target.PricingFile = source.PricingFile;
-        target.LastSaveDir = source.LastSaveDir;
-        target.UseGmailSignature = source.UseGmailSignature;
-        target.EmailSendMode = source.EmailSendMode;
-        target.CheckUpdatesOnStartup = source.CheckUpdatesOnStartup;
-        target.UpdateManifestUrl = source.UpdateManifestUrl;
-        target.GmailCredentialsPath = source.GmailCredentialsPath;
-        target.LeadTimePresets = source.LeadTimePresets.ToList();
-    }
-
-    private void SelectEmailSendMode(string? mode)
-    {
-        var target = string.IsNullOrWhiteSpace(mode) ? "draft" : mode.Trim();
-
-        for (var i = 0; i < EmailSendModeBox.Items.Count; i++)
-        {
-            if (EmailSendModeBox.Items[i] is System.Windows.Controls.ComboBoxItem item &&
-                string.Equals(item.Content?.ToString(), target, StringComparison.OrdinalIgnoreCase))
-            {
-                EmailSendModeBox.SelectedIndex = i;
-                return;
-            }
-        }
-
-        EmailSendModeBox.SelectedIndex = 0;
-    }
-
-    private string SelectedEmailSendMode()
-    {
-        if (EmailSendModeBox.SelectedItem is System.Windows.Controls.ComboBoxItem item)
-            return item.Content?.ToString() ?? "draft";
-
-        return "draft";
     }
 
     private void BrowsePricingFile_Click(object sender, RoutedEventArgs e)
@@ -223,11 +137,11 @@ public partial class SettingsWindow : Window
         Close();
     }
 
-    private void SaveButton_Click(object sender, RoutedEventArgs e)
+    private async void SaveButton_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            SaveFormToSettings();
+            await SaveFormToSettingsAsync();
             SettingsStatusText.Text = "Settings saved.";
             DialogResult = true;
             Close();

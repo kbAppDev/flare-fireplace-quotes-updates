@@ -5,13 +5,17 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <Version>1.4.10</Version>
-    <AssemblyVersion>1.4.10.0</AssemblyVersion>
-    <FileVersion>1.4.10.0</FileVersion>
-    <InformationalVersion>1.4.10</InformationalVersion>
+    <Version>1.4.11</Version>
+    <AssemblyVersion>1.4.11.0</AssemblyVersion>
+    <FileVersion>1.4.11.0</FileVersion>
+    <InformationalVersion>1.4.11</InformationalVersion>
     <Product>Flare Fireplace Quotes</Product>
-    <ProductVersion>1.4.10.0</ProductVersion>
+    <ProductVersion>1.4.11.0</ProductVersion>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 </Project>

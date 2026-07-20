@@ -1,20 +1,13 @@
-# v1.4.10 RC1 Source Package Manifest
+# v1.4.11 Source Package Manifest
 
-This archive contains a clean source candidate for the Vent Free regular-height URL and reflective-side pricing correction.
+The source backup contains:
 
-Included:
+- WPF App, Core, Infrastructure, and Tests projects.
+- Bundled company pricing and resource workbooks.
+- Maintained local and GitHub release workflows.
+- Installer definition, updater policy, security documentation, and regression tests.
+- The verified published installer and manifest when a matching release has completed.
 
-- WPF application, Core, Infrastructure, and Tests projects.
-- Bundled pricing and resource workbooks.
-- Four maintained PowerShell workflows.
-- Release/security documentation.
-- New Outdoor Vent Free regular-height regression tests.
+Generated `bin`, `obj`, test results, credentials, OAuth tokens, personal settings, logs, reports, temporary PDFs, and other runtime state are excluded.
 
-Excluded:
-
-- `.git`
-- `bin`, `obj`, `TestResults`, publish output, installers, and artifacts
-- credentials, Gmail tokens, user settings, reports, and logs
-- publishing launchers
-
-Publication is blocked until the Windows release gate and GitHub CodeQL both pass.
+The production release is valid only when its tag matches `Directory.Build.props`, CI is green, and the live GitHub manifest matches the published installer byte-for-byte by size and SHA-256.

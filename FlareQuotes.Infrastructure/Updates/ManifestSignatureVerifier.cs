@@ -18,10 +18,14 @@ public static class ManifestSignatureVerifier
 
         if (string.IsNullOrWhiteSpace(publicKeyPem))
         {
-            status = strict ? "Manifest public key is required but missing."
-                            : "Manifest signature present, but no public key is configured.";
+            status = "Manifest signature is present, but its public key is unavailable.";
+            return false;
+        }
 
-            return !strict;
+        if (!string.Equals(manifest.SignatureAlgorithm, "RS256", StringComparison.Ordinal))
+        {
+            status = "Manifest signature algorithm is unsupported.";
+            return false;
         }
 
         try
@@ -38,10 +42,10 @@ public static class ManifestSignatureVerifier
             status = valid ? "Manifest signature verified." : "Manifest signature verification failed.";
             return valid;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            status = "Manifest signature could not be verified: " + ex.GetBaseException().Message;
-            return !strict;
+            status = "Manifest signature could not be verified.";
+            return false;
         }
     }
 
@@ -51,6 +55,7 @@ public static class ManifestSignatureVerifier
 
         return string.Join("\n", new[] { manifest.Version?.Trim() ?? string.Empty, installerUrl?.Trim() ?? string.Empty,
                                          manifest.Sha256?.Trim().ToLowerInvariant() ?? string.Empty,
+                                         manifest.SizeBytes.ToString(System.Globalization.CultureInfo.InvariantCulture),
                                          manifest.Notes?.Trim() ?? string.Empty });
     }
 }

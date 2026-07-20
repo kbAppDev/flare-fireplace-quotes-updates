@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace FlareQuotes.Core.Paths;
 
 public static class AppPaths
@@ -36,8 +38,6 @@ public static class AppPaths
         CopyFirstExisting("settings.json", SettingsFile);
         CopyFirstExisting("ui-settings.json", UiSettingsFile);
         CopyFirstExisting("recent_quotes.json", RecentQuotesFile);
-        CopyFirstExisting(Path.Combine("gmail-token", "Google.Apis.Auth.OAuth2.Responses.TokenResponse-user"),
-                          Path.Combine(GmailTokenStore, "Google.Apis.Auth.OAuth2.Responses.TokenResponse-user"));
     }
 
     public static void ImportGmailCredentials(string? configuredPath = null)
@@ -54,15 +54,48 @@ public static class AppPaths
 
         Directory.CreateDirectory(Credentials);
         var temporaryPath = GmailCredentialsFile + ".tmp";
-        File.Copy(source, temporaryPath, overwrite: true);
-        File.Move(temporaryPath, GmailCredentialsFile, overwrite: false);
+        try
+        {
+            File.Copy(source, temporaryPath, overwrite: true);
+            File.Move(temporaryPath, GmailCredentialsFile, overwrite: false);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+                File.Delete(temporaryPath);
+        }
     }
 
     private static bool IsValidCredentialSource(string? path)
     {
-        return !string.IsNullOrWhiteSpace(path) &&
-               string.Equals(Path.GetFileName(path), "gmail_credentials.json", StringComparison.OrdinalIgnoreCase) &&
-               File.Exists(path);
+        if (string.IsNullOrWhiteSpace(path) ||
+            !string.Equals(Path.GetFileName(path), "gmail_credentials.json", StringComparison.OrdinalIgnoreCase) ||
+            !File.Exists(path) || new FileInfo(path).Length is <= 0 or > 1024 * 1024)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllBytes(path),
+                                                    new JsonDocumentOptions { MaxDepth = 8 });
+            var root = document.RootElement;
+            var client = root.TryGetProperty("installed", out var installed)
+                             ? installed
+                             : root.TryGetProperty("web", out var web) ? web : default;
+
+            return client.ValueKind == JsonValueKind.Object &&
+                   client.TryGetProperty("client_id", out var clientId) &&
+                   clientId.ValueKind == JsonValueKind.String &&
+                   !string.IsNullOrWhiteSpace(clientId.GetString()) &&
+                   client.TryGetProperty("client_secret", out var clientSecret) &&
+                   clientSecret.ValueKind == JsonValueKind.String &&
+                   !string.IsNullOrWhiteSpace(clientSecret.GetString());
+        }
+        catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private static void CopyFirstExisting(string relativePath, string destination)
@@ -73,7 +106,7 @@ public static class AppPaths
         foreach (var legacyRoot in LegacyRoots)
         {
             var source = Path.Combine(legacyRoot, relativePath);
-            if (!File.Exists(source))
+            if (!File.Exists(source) || new FileInfo(source).Length > 16L * 1024 * 1024)
                 continue;
 
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);

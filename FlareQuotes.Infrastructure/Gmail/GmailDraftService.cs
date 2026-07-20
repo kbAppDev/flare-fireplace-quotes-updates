@@ -11,7 +11,7 @@ using Google.Apis.Services;
 
 namespace FlareQuotes.Infrastructure.Gmail;
 
-public sealed class GmailDraftService : IGmailDraftService
+public sealed class GmailDraftService : IGmailDraftService, IDisposable
 {
     private const int MaxAttachmentBytes = 20 * 1024 * 1024;
     // Keep the binary payload comfortably below Gmail's encoded message limit.
@@ -161,6 +161,12 @@ public sealed class GmailDraftService : IGmailDraftService
         return _service;
     }
 
+    public void Dispose()
+    {
+        _service?.Dispose();
+        _service = null;
+    }
+
     internal static string BuildRawMessage(EmailDraftRequest request)
     {
         var toHeader = BuildAddressHeader(request.ToEmail, required: true);
@@ -198,7 +204,8 @@ public sealed class GmailDraftService : IGmailDraftService
         }
 
         sb.AppendLine($"--{boundary}--");
-        return Base64UrlEncode(Encoding.UTF8.GetBytes(sb.ToString()));
+        var mime = sb.ToString().Replace(Environment.NewLine, "\r\n", StringComparison.Ordinal);
+        return Base64UrlEncode(Encoding.UTF8.GetBytes(mime));
     }
 
     internal static string BuildAddressHeader(string value, bool required)

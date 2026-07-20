@@ -1,71 +1,40 @@
-# Flare Fireplace Quotes v1.4.10 Vent-Free Quote Hotfix
+# Flare Fireplace Quotes v1.4.11
 
-Publish-and-install-ready Windows WPF source prepared from the tested v1.4.10 release candidate.
+Windows WPF application for turning fireplace quote requests into priced PDFs, verified specification links, and Gmail drafts.
 
-## v1.4.10 fixes
+## Release highlights
 
-- Preserves Outdoor Vent Free identity for regular-height `VFST`/`VST` models during resource resolution and URL verification.
-- Uses the Outdoor Vent Free See Through style card for `VFST70` instead of the indoor See Through card.
-- Resolves `VFST70` resources from the Ventless See Through resource family and prevents fallback to indoor/outdoor `ST-OD` links.
-- Resolves regular-height Reflective Black Sides pricing through the actual `VF-RBS-ST` / `VFRBSST` price-book key.
-- Restores the expected $208 MSRP for Reflective Black Sides on the tested `VFST70` quote.
-- Extends regular-height alias handling so the same omitted-`R` suffix mismatch cannot affect equivalent front-facing or see-through pricing/resource lookups.
-- Adds focused regression coverage for both `VST70` and `VFST70` resource and pricing behavior.
+v1.4.11 preserves the v1.4.10 Outdoor Vent Free pricing/resource fix and adds a full reliability and security hardening pass. See `RELEASE_NOTES.md` for the complete summary.
 
-The v1.4.9 recipient-header fix remains in place, including copied-email normalization, stale-preview recipient refresh, final MIME validation, and regression coverage.
+The updater is pinned to the Flare-managed GitHub release lane. Every installer download must match the release version, exact asset path, declared byte size, and SHA-256 hash before launch. Optional RS256 manifest signatures fail closed whenever a signature is present but invalid.
 
-The deployment protections from v1.4.8 also remain in place: DPAPI-encrypted quote history, temporary-PDF cleanup, pinned GitHub updater paths, installer size verification, and SHA-256 verification.
+## Build and test
 
-Windows Authenticode publisher signing remains intentionally optional for this internal deployment lane.
+Requirements: Windows, .NET 10 SDK, and Inno Setup 6 for installer builds.
 
-## Functional validation completed
-
-The reported `VFST70`, 16-inch quote was recreated successfully and confirmed to show:
-
-- the Outdoor Vent Free See Through/VST style identity
-- Ventless See Through resources instead of indoor/outdoor `ST-OD` resources
-- Reflective Black Sides with the expected $208 MSRP
-
-## Publish and install
-
-Run `PUBLISH_v1.4.10.ps1` from this package. It will:
-
-1. Push the exact clean v1.4.10 source to `main`.
-2. Require the matching GitHub CodeQL run to pass.
-3. Build and publish the v1.4.10 GitHub release and updater assets.
-4. Verify the live manifest reports v1.4.10.
-5. Create `Flare Fireplace Quotes v1.4.10 FULL BACKUP.zip` on the Desktop.
-6. Silently update the app installed on the current computer and relaunch it.
-
-## Maintained PowerShell workflows
-
-```text
-Build_And_Run_Safe.ps1
-Run-Final-Release-Gate.ps1
-Build_Release_Installer.ps1
-Build_Publish_Professional_Release.ps1
+```powershell
+dotnet restore .\FlareQuotes.Tests\FlareQuotes.Tests.csproj
+dotnet build .\FlareQuotes.App\FlareQuotes.App.csproj -c Release -p:TreatWarningsAsErrors=true
+dotnet test .\FlareQuotes.Tests\FlareQuotes.Tests.csproj -c Release --filter "FullyQualifiedName!~GmailEveryModelIntegrationTests"
 ```
 
-`PUBLISH_v1.4.10.ps1` is a release-package launcher and is intentionally excluded from the committed repository and final production backup.
+Maintained workflows:
+
+- `Build_And_Run_Safe.ps1` — local clean build and launch.
+- `Run-Final-Release-Gate.ps1` — full pre-release validation.
+- `Build_Release_Installer.ps1` — self-contained Windows installer and updater manifest.
+- `Build_Publish_Professional_Release.ps1` — validated installer build and GitHub release publication.
+- `.github/workflows/release.yml` — tag-driven Windows build, test, CodeQL, installer, manifest, and release pipeline.
+
+## Publishing
+
+Merge a clean, passing commit to `main`, then push a tag matching `Directory.Build.props`, such as `v1.4.11`. The release workflow refuses mismatched versions, vulnerable NuGet dependencies, compiler warnings, test failures, or CodeQL failures before publishing updater assets.
+
+Required release assets:
+
+- `Flare.Fireplace.Quotes.exe`
+- `flare-quotes-v1-latest.json`
 
 ## Runtime data
 
-Runtime data is stored under:
-
-```text
-%LOCALAPPDATA%\Flare Fireplace Quotes
-```
-
-Encrypted quote history:
-
-```text
-%LOCALAPPDATA%\Flare Fireplace Quotes\recent_quotes.json.dpapi
-```
-
-Gmail credentials:
-
-```text
-%LOCALAPPDATA%\Flare Fireplace Quotes\Credentials\gmail_credentials.json
-```
-
-Credentials, OAuth tokens, personal settings, logs, generated PDFs, build output, repository history, and temporary files are excluded from this source package.
+User data is kept outside the installation under `%LOCALAPPDATA%\Flare Fireplace Quotes`. Quote history and Gmail OAuth tokens use Windows DPAPI with CurrentUser scope. Credentials, tokens, user settings, logs, generated PDFs, and build output must never be committed or placed in source-only archives.
