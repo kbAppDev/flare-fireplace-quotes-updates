@@ -1,4 +1,4 @@
-# Company Testing Checklist — v1.4.11
+# Company Testing Checklist — v1.4.12
 
 Use this checklist for each tester.
 
@@ -83,4 +83,4 @@ Use this checklist for each tester.
 - A successful Gmail draft removes its app-owned temporary PDF.
 - A failed Gmail draft leaves the PDF available for retry.
 - Update checks reject a non-Flare host, mismatched release version, invalid SHA-256, or incorrect installer size.
-- The normal GitHub v1.4.11 release manifest downloads and launches only after verification.
+- The normal GitHub v1.4.12 release manifest downloads and launches only after verification.

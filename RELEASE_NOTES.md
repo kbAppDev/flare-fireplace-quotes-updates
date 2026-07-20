@@ -1,11 +1,6 @@
-Flare Fireplace Quotes v1.4.11 is a full reliability and security hardening release.
+Flare Fireplace Quotes v1.4.12 is a release-verification patch for the audited v1.4.11 security and reliability release.
 
-- Protects Gmail OAuth migration by removing legacy plaintext token remnants after verified DPAPI encryption.
-- Rejects malformed, unverifiable, or unsupported signed update manifests and binds signed manifests to installer size.
-- Restricts update and shared-workbook redirects to approved HTTPS hosts, ports, and assets.
-- Bounds remote workbook, settings, token, manifest, installer, and encrypted-history payloads.
-- Verifies downloaded shared pricing files are valid XLSX packages before atomically replacing the cache.
-- Makes settings and UI preference writes atomic, normalizes user-configurable values, and removes dead settings controls.
-- Strengthens log redaction for OAuth and bearer-token formats and adds bounded log rotation.
-- Tracks long-running UI commands to prevent duplicate fire-and-forget workflows and avoids blocking ZIP lookups.
-- Adds regression tests, transitive NuGet vulnerability gates, pinned CI actions, Dependabot, and a tag-driven release pipeline.
+- Carries forward every v1.4.11 credential, updater, workbook, settings, logging, UI, test, and release-pipeline hardening change.
+- Corrects the cache-busted public-manifest verification request by constructing it with `System.UriBuilder` instead of ambiguous PowerShell string interpolation.
+- Refreshes the pinned CodeQL action to the current immutable Node.js 24-compatible v4 commit.
+- Leaves quote generation, Gmail drafting, pricing data, resource workbooks, and end-user workflows unchanged from v1.4.11.
