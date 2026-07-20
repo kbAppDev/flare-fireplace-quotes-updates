@@ -14,6 +14,7 @@ public partial class SystemHealthWindow : Window
     public SystemHealthWindow(IReadOnlyList<SystemHealthItem> items)
     {
         InitializeComponent();
+        SourceInitialized += (_, _) => WindowPresentationService.Apply(this, useDark: true);
         DataContext = new SystemHealthWindowModel(items);
     }
 

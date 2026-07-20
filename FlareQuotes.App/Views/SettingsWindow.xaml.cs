@@ -24,6 +24,7 @@ public partial class SettingsWindow : Window
     {
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         InitializeComponent();
+        SourceInitialized += (_, _) => WindowPresentationService.Apply(this, useDark: true);
         Loaded += async (_, _) => await LoadSettingsIntoFormAsync();
     }
 

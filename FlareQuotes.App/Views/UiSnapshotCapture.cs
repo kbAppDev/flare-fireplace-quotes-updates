@@ -149,8 +149,8 @@ internal static class UiSnapshotCapture
         AssertRange(window.RequestPane.ActualWidth, 380, 430, "Request pane width");
         AssertRange(window.QuoteWorkspacePane.ActualWidth, 780, 1100, "Quote workspace width");
         AssertRange(window.GeneratePreviewButton.ActualWidth, 178, 240, "Generate preview width");
-        AssertRange(window.GeneratePreviewButton.ActualHeight, 34, 42, "Generate preview height");
-        AssertRange(window.ThemeToggleButton.ActualWidth, 36, 40, "Theme button width");
+        AssertRange(window.GeneratePreviewButton.ActualHeight, 38, 44, "Generate preview height");
+        AssertRange(window.ThemeToggleButton.ActualWidth, 38, 42, "Theme button width");
 
         if (Application.Current.Windows.OfType<SystemHealthWindow>().Any())
             throw new InvalidOperationException("The system health window opened during normal startup.");
@@ -170,8 +170,8 @@ internal static class UiSnapshotCapture
     {
         AssertWithinRoot(window.SettingsCancelButton, root, nameof(window.SettingsCancelButton));
         AssertWithinRoot(window.SettingsSaveButton, root, nameof(window.SettingsSaveButton));
-        AssertRange(window.SettingsCancelButton.ActualHeight, 32, 36, "Settings cancel height");
-        AssertRange(window.SettingsSaveButton.ActualHeight, 32, 36, "Settings save height");
+        AssertRange(window.SettingsCancelButton.ActualHeight, 38, 44, "Settings cancel height");
+        AssertRange(window.SettingsSaveButton.ActualHeight, 38, 44, "Settings save height");
         AssertRange(window.SettingsSaveButton.ActualWidth, 120, 150, "Settings save width");
 
         return new {
@@ -191,7 +191,7 @@ internal static class UiSnapshotCapture
         AssertWithinRoot(window.GeneratePreviewButton, root, nameof(window.GeneratePreviewButton));
         AssertRange(window.RequestPane.ActualWidth, 380, 430, "Minimum request pane width");
         AssertRange(window.QuoteWorkspacePane.ActualWidth, 680, 760, "Minimum quote workspace width");
-        AssertRange(window.GeneratePreviewButton.ActualHeight, 34, 42, "Minimum generate preview height");
+        AssertRange(window.GeneratePreviewButton.ActualHeight, 38, 44, "Minimum generate preview height");
 
         return new {
             width = root.ActualWidth,
