@@ -30,22 +30,21 @@ finally {
     Remove-Item Env:FLARE_UI_SNAPSHOT_DIR -ErrorAction SilentlyContinue
 }
 
-$requiredFiles = @(
+$requiredPngFiles = @(
     "main-window-dark.png",
     "main-window-minimum.png",
     "settings-window-dark.png",
-    "settings-window-minimum.png",
-    "layout-metrics.json"
+    "settings-window-minimum.png"
 )
 
-foreach ($fileName in $requiredFiles) {
+foreach ($fileName in $requiredPngFiles) {
     $path = Join-Path $outputPath $fileName
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Required rendered UI artifact is missing: $fileName"
     }
 
-    if ((Get-Item -LiteralPath $path).Length -lt 1KB) {
-        throw "Rendered UI artifact is unexpectedly small: $fileName"
+    if ((Get-Item -LiteralPath $path).Length -lt 10KB) {
+        throw "Rendered UI image is unexpectedly small: $fileName"
     }
 }
 
@@ -54,7 +53,27 @@ if (Test-Path -LiteralPath $errorPath -PathType Leaf) {
     throw (Get-Content -LiteralPath $errorPath -Raw)
 }
 
-$metrics = Get-Content -LiteralPath (Join-Path $outputPath "layout-metrics.json") -Raw | ConvertFrom-Json
+$metricsPath = Join-Path $outputPath "layout-metrics.json"
+if (-not (Test-Path -LiteralPath $metricsPath -PathType Leaf)) {
+    throw "Required rendered UI artifact is missing: layout-metrics.json"
+}
+
+if ((Get-Item -LiteralPath $metricsPath).Length -lt 2) {
+    throw "Rendered UI metrics file is empty."
+}
+
+try {
+    $metrics = Get-Content -LiteralPath $metricsPath -Raw | ConvertFrom-Json
+}
+catch {
+    throw "Rendered UI metrics are not valid JSON: $($_.Exception.Message)"
+}
+
+if ($null -eq $metrics.mainWindow -or $null -eq $metrics.minimumMainWindow -or
+    $null -eq $metrics.settingsWindow -or $null -eq $metrics.minimumSettingsWindow) {
+    throw "Rendered UI metrics are incomplete."
+}
+
 if ([int]$metrics.systemHealthWindowsOpened -ne 0) {
     throw "A system-health popup appeared during normal startup."
 }

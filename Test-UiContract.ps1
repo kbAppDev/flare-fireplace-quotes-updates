@@ -23,7 +23,7 @@ function Read-ValidatedXaml([string]$RelativePath) {
 
 function Assert-ContainsAll([string]$Content, [string]$RelativePath, [string[]]$RequiredTokens) {
     foreach ($token in $RequiredTokens) {
-        if (-not $Content.Contains($token, [StringComparison]::Ordinal)) {
+        if ($Content.IndexOf($token, [StringComparison]::Ordinal) -lt 0) {
             throw "UI contract token '$token' is missing from $RelativePath."
         }
     }
@@ -31,7 +31,7 @@ function Assert-ContainsAll([string]$Content, [string]$RelativePath, [string[]]$
 
 function Assert-ContainsNone([string]$Content, [string]$RelativePath, [string[]]$ForbiddenTokens) {
     foreach ($token in $ForbiddenTokens) {
-        if ($Content.Contains($token, [StringComparison]::Ordinal)) {
+        if ($Content.IndexOf($token, [StringComparison]::Ordinal) -ge 0) {
             throw "Forbidden UI contract token '$token' is present in $RelativePath."
         }
     }
