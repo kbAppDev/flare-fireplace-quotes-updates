@@ -44,8 +44,8 @@ public sealed class OutdoorVentFreeRegularHeightRegressionTests
         var priced = await priceBook.BuildPricedQuoteAsync(request, pricingPath);
         var pricedFireplace = Assert.Single(priced.Fireplaces);
         var reflectiveLine = Assert.Single(
-            pricedFireplace.OptionalFeatures.Where(line =>
-                line.Feature.Equals("Reflective Black Sides", StringComparison.OrdinalIgnoreCase)));
+            pricedFireplace.OptionalFeatures,
+            line => line.Feature.Equals("Reflective Black Sides", StringComparison.OrdinalIgnoreCase));
 
         Assert.Equal("VFRBSST", reflectiveLine.Sku);
         Assert.Equal(208m, reflectiveLine.Price);

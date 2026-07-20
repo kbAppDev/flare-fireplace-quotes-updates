@@ -35,7 +35,7 @@ public sealed class GmailMimeRecipientTests
 
             var mime = Encoding.UTF8.GetString(DecodeBase64Url(raw));
 
-            Assert.True(mime.StartsWith("To: phildaloisio@gmail.com\r\n", StringComparison.Ordinal));
+            Assert.StartsWith("To: phildaloisio@gmail.com\r\n", mime, StringComparison.Ordinal);
             Assert.False(mime.Contains("\u200B", StringComparison.Ordinal));
             Assert.False(mime.Contains("＠", StringComparison.Ordinal));
             Assert.False(mime.Contains("．", StringComparison.Ordinal));
