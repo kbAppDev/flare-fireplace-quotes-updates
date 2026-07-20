@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using System.Net.Mail;
 using System.Text;
+using FlareQuotes.Core.Email;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Services;
 using FlareQuotes.Core.Paths;
@@ -161,7 +161,7 @@ public sealed class GmailDraftService : IGmailDraftService
         return _service;
     }
 
-    private static string BuildRawMessage(EmailDraftRequest request)
+    internal static string BuildRawMessage(EmailDraftRequest request)
     {
         var toHeader = BuildAddressHeader(request.ToEmail, required: true);
         var bccHeader = BuildAddressHeader(request.BccEmail, required: false);
@@ -201,39 +201,23 @@ public sealed class GmailDraftService : IGmailDraftService
         return Base64UrlEncode(Encoding.UTF8.GetBytes(sb.ToString()));
     }
 
-    private static string BuildAddressHeader(string value, bool required)
+    internal static string BuildAddressHeader(string value, bool required)
     {
+        if (required)
+        {
+            if (!EmailAddressNormalizer.TryNormalizeSingle(value, out var recipient))
+                throw new InvalidOperationException("Enter one valid customer email address.");
+
+            return recipient;
+        }
+
         if (string.IsNullOrWhiteSpace(value))
-        {
-            if (required)
-                throw new InvalidOperationException("A valid recipient email is required.");
-
             return string.Empty;
-        }
 
-        var addresses = value.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                            .Select(SanitizeHeaderValue)
-                            .Where(x => !string.IsNullOrWhiteSpace(x))
-                            .ToList();
+        if (!EmailAddressNormalizer.TryNormalizeList(value, out var addresses))
+            throw new InvalidOperationException("One or more BCC email addresses are invalid.");
 
-        if (addresses.Count == 0)
-        {
-            if (required)
-                throw new InvalidOperationException("A valid recipient email is required.");
-
-            return string.Empty;
-        }
-
-        var valid = new List<string>();
-        foreach (var address in addresses)
-        {
-            if (!MailAddress.TryCreate(address, out var parsed))
-                throw new InvalidOperationException("One or more email addresses are invalid.");
-
-            valid.Add(parsed.Address);
-        }
-
-        return string.Join(", ", valid);
+        return string.Join(", ", addresses);
     }
 
     private static string EncodeHeader(string value)

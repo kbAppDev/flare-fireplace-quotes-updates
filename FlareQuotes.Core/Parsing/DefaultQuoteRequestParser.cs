@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using FlareQuotes.Core.Email;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Services;
 
@@ -14,8 +15,7 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
         request.ProjectName = FindValue(rawText, "Project Name", "Project");
         request.ClientName =
             FindValue(rawText, "Name", "Client Name", "Customer Name", "Customer", "Client", "Contact Name");
-        request.Email =
-            Regex.Match(rawText, @"[A-Z0-9._%+\-']+@[A-Z0-9.\-]+\.[A-Z]{2,}", RegexOptions.IgnoreCase).Value;
+        request.Email = EmailAddressNormalizer.ExtractFirstOrEmpty(rawText);
         request.Phone = NormalizePhone(FindValue(rawText, "Phone", "Telephone", "Tel", "Cell", "Mobile"));
         if (string.IsNullOrWhiteSpace(request.Phone))
             request.Phone = NormalizePhone(

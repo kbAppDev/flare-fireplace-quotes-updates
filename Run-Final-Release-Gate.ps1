@@ -107,7 +107,10 @@ try {
         ".\FlareQuotes.Core\Security\ProtectedJsonFileStore.cs",
         ".\FlareQuotes.Core\Updates\UpdateTrustPolicy.cs",
         ".\FlareQuotes.Tests\SecurityTests\ProtectedJsonFileStoreTests.cs",
-        ".\FlareQuotes.Tests\UpdateTests\UpdateTrustPolicyTests.cs"
+        ".\FlareQuotes.Tests\UpdateTests\UpdateTrustPolicyTests.cs",
+        ".\FlareQuotes.Core\Email\EmailAddressNormalizer.cs",
+        ".\FlareQuotes.Tests\EmailTests\EmailAddressNormalizerTests.cs",
+        ".\FlareQuotes.Tests\GmailTests\GmailMimeRecipientTests.cs"
     )
     foreach ($requiredFile in $requiredHardeningFiles) {
         if (-not (Test-Path $requiredFile)) {
@@ -121,6 +124,14 @@ try {
     }
     if ($mainViewModelSource -notmatch 'DeleteGeneratedPdfAfterSuccessfulDraft') {
         throw "Post-draft temporary PDF cleanup is missing."
+    }
+    if ($mainViewModelSource -notmatch '_lastRequest\.Email\s*=\s*normalizedRecipient') {
+        throw "The Gmail workflow does not refresh the draft snapshot from the normalized visible email."
+    }
+
+    $gmailServiceSource = Get-Content ".\FlareQuotes.Infrastructure\Gmail\GmailDraftService.cs" -Raw
+    if ($gmailServiceSource -notmatch 'EmailAddressNormalizer\.TryNormalizeSingle') {
+        throw "The Gmail MIME To header is not protected by recipient normalization."
     }
 
     $releaseScriptSource = Get-Content ".\Build_Release_Installer.ps1" -Raw

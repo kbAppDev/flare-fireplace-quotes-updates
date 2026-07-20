@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FlareQuotes.Core.Email;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Services;
 using FlareQuotes.Core.Paths;
@@ -607,7 +608,7 @@ public sealed class MainViewModel : ObservableObject
         var parsed = _parser.Parse(RawRequest);
         ProjectName = parsed.ProjectName;
         ClientName = parsed.ClientName;
-        Email = parsed.Email;
+        Email = EmailAddressNormalizer.NormalizeSingleOrEmpty(parsed.Email);
         Phone = parsed.Phone;
         Postal = ResolveProjectAddressForQuote(parsed.Postal, RawRequest);
         InstallDate = parsed.InstallDate;
@@ -811,6 +812,18 @@ public sealed class MainViewModel : ObservableObject
 
         try
         {
+            if (!EmailAddressNormalizer.TryNormalizeSingle(Email, out var normalizedRecipient))
+            {
+                WorkflowStage = stageBeforeDraft;
+                StatusMessage = "Enter one valid customer email address before creating the Gmail draft.";
+                _logger.Warning(
+                    $"Gmail draft stopped before PDF or API work. Recipient invalid. Models={modelSummary}.");
+                return;
+            }
+
+            if (!string.Equals(Email, normalizedRecipient, StringComparison.Ordinal))
+                Email = normalizedRecipient;
+
             StatusMessage = "Preparing current quote for Gmail draft...";
             _logger.Info(
                 $"Gmail draft started. Stage={stageBeforeDraft}; Models={modelSummary}; Fireplaces={Fireplaces.Count}.");
@@ -844,13 +857,9 @@ public sealed class MainViewModel : ObservableObject
             var pdfInfo = new FileInfo(GeneratedPdfPath);
             _logger.Info($"Draft PDF ready. File={pdfInfo.Name}; Bytes={pdfInfo.Length}; Models={modelSummary}.");
 
-            if (string.IsNullOrWhiteSpace(_lastRequest.Email))
-            {
-                WorkflowStage = stageBeforeDraft;
-                StatusMessage = "Customer email is required before creating a Gmail draft.";
-                _logger.Warning($"Gmail draft stopped before API call. Recipient missing. Models={modelSummary}.");
-                return;
-            }
+            // Refresh the draft snapshot from the visible, normalized email field.
+            // This prevents stale or copied hidden characters from reaching the MIME To header.
+            _lastRequest.Email = normalizedRecipient;
 
             if (SpecLinks.Count == 0)
             {
@@ -1714,7 +1723,7 @@ public sealed class MainViewModel : ObservableObject
     {
         var request = new QuoteRequest { ProjectName = ProjectName,
                                          ClientName = ClientName,
-                                         Email = Email,
+                                         Email = EmailAddressNormalizer.NormalizeSingleOrEmpty(Email),
                                          Phone = Phone,
                                          Postal = Postal,
                                          ProjectAddress = Postal,

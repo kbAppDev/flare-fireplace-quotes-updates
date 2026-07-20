@@ -29,4 +29,20 @@ public sealed class DefaultQuoteRequestParserTests
         Assert.Equal("80", result.Size);
         Assert.Equal("30", result.GlassHeight);
     }
+
+    [Fact]
+    public void NormalizesCopiedEmailCharactersDuringAutoFillParsing()
+    {
+        var parser = new DefaultQuoteRequestParser();
+        var result = parser.Parse("""
+            Project Name: Hidden Character Test
+            Name: Phil Daloisio
+            Email: phil​daloisio＠gmail．com 
+            Model: FF
+            Size: 60
+            Glass Height: 24
+            """);
+
+        Assert.Equal("phildaloisio@gmail.com", result.Email);
+    }
 }

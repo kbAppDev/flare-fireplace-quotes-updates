@@ -1,12 +1,12 @@
 # Flare Fireplace Quotes Source of Truth
 
-Release version: **1.4.8**
+Publish-ready version: **1.4.9**
 
-Validated production baseline:
+Published production baseline before this release:
 
 ```text
-v1.4.7
-commit 673e7f419b337e29d3cf7bdb6a2fc3c8f1375761
+v1.4.8
+commit e7da99dabc9d75db9083d6fb649b61060c3483bf
 ```
 
 Repository:
@@ -28,11 +28,12 @@ Flare.Fireplace.Quotes.exe
 flare-quotes-v1-latest.json
 ```
 
-v1.4.8 publication is permitted only after all of the following pass:
+Completed local v1.4.9 validation:
 
 - clean Release build with warnings treated as errors
-- unit, regression, DPAPI-history, and updater-policy tests
-- dependency vulnerability and source security scans
+- 20 unit, regression, email-normalization, MIME-recipient, DPAPI-history, and updater-policy tests
+- dependency vulnerability and source-security scans
 - live Gmail create-confirm-delete validation for all 302 canonical fireplace models
-- GitHub CodeQL analysis
-- published manifest verification at version 1.4.8
+- manual reproduction using a newly auto-filled FF60H quote addressed to the reported external Gmail recipient
+
+Publication remains fail-closed until the exact v1.4.9 commit passes GitHub CodeQL and the live manifest verifies at version 1.4.9.
