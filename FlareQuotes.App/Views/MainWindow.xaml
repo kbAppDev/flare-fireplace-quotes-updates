@@ -5,7 +5,8 @@
         WindowStartupLocation="CenterScreen" WindowStyle="None"
         MouseLeftButtonDown="Window_MouseDown" Background="Transparent" AllowsTransparency="True" UseLayoutRounding="True" SnapsToDevicePixels="True">
 
-    <Border CornerRadius="14"
+    <Border x:Name="WindowFrame"
+            CornerRadius="14"
             Background="{DynamicResource WindowSurfaceBrush}"
             BorderBrush="{DynamicResource GlassBorderBrush}"
             BorderThickness="1"
@@ -44,7 +45,7 @@
                                UseLayoutRounding="False" />
                         <Border Width="1" Height="18" Background="{DynamicResource DividerBrush}" Margin="11,0" />
                         <TextBlock Text="Quotes" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
-                        <TextBlock x:Name="AppVersionText" Text="v1.5.0" Style="{StaticResource MutedText}" FontSize="11" Margin="7,1,0,0" VerticalAlignment="Center" />
+                        <TextBlock x:Name="AppVersionText" Text="v1.5.1" Style="{StaticResource MutedText}" FontSize="11" Margin="7,1,0,0" VerticalAlignment="Center" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -57,22 +58,58 @@
                                       IsChecked="True"
                                       Checked="ThemeToggleButton_Checked"
                                       Unchecked="ThemeToggleButton_Unchecked">
-                            <TextBlock Text="&#xE706;" FontFamily="Segoe Fluent Icons" FontSize="16" />
+                            <Grid Width="18" Height="18">
+                                <Path Data="{StaticResource MoonIconGeometry}"
+                                      Stroke="{DynamicResource FlareTextBrush}"
+                                      StrokeThickness="1.5"
+                                      StrokeLineJoin="Round"
+                                      Stretch="Uniform">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <Path Data="{StaticResource SunIconGeometry}"
+                                      Stroke="{DynamicResource FlareTextBrush}"
+                                      StrokeThickness="1.35"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      Stretch="Uniform">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                            </Grid>
                         </ToggleButton>
                         <Button Style="{StaticResource IconButton}"
                                 Click="SettingsButton_Click"
                                 ToolTip="Settings"
                                 AutomationProperties.Name="Open settings">
-                            <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons" FontSize="16" />
+                            <Viewbox Width="18" Height="18">
+                                <Path Data="{StaticResource SettingsIconGeometry}" Stroke="{DynamicResource FlareTextBrush}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                            </Viewbox>
                         </Button>
                         <Button Style="{StaticResource CaptionButton}" Click="MinimizeButton_Click" ToolTip="Minimize" AutomationProperties.Name="Minimize">
-                            <TextBlock Text="&#xE921;" FontFamily="Segoe Fluent Icons" FontSize="10" />
+                            <Viewbox Width="12" Height="12"><Path Data="{StaticResource MinimizeIconGeometry}" Stroke="{DynamicResource FlareTextBrush}" StrokeThickness="1.25" /></Viewbox>
                         </Button>
                         <Button Style="{StaticResource CaptionButton}" Click="MaximizeButton_Click" ToolTip="Maximize or restore" AutomationProperties.Name="Maximize or restore">
-                            <TextBlock Text="&#xE922;" FontFamily="Segoe Fluent Icons" FontSize="10" />
+                            <Viewbox Width="12" Height="12"><Path Data="{StaticResource MaximizeIconGeometry}" Stroke="{DynamicResource FlareTextBrush}" StrokeThickness="1.25" /></Viewbox>
                         </Button>
                         <Button Style="{StaticResource CloseCaptionButton}" Click="CloseButton_Click" ToolTip="Close" AutomationProperties.Name="Close">
-                            <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons" FontSize="12" />
+                            <Viewbox Width="12" Height="12"><Path Data="{StaticResource CloseIconGeometry}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.35" StrokeStartLineCap="Round" /></Viewbox>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -233,10 +270,13 @@
                     <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Button x:Name="RecallLastQuoteButton"
                                 Style="{StaticResource QuietButton}"
-                                Content="Recent quotes"
                                 Click="RecallLastQuoteButton_Click"
                                 IsEnabled="{Binding CanRecallLastQuote}"
                                 Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Viewbox Width="14" Height="14" Margin="0,0,7,0"><Path Data="{StaticResource RecentIconGeometry}" Stroke="{DynamicResource FlareMutedTextBrush}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Viewbox>
+                                <TextBlock Text="Recent quotes" VerticalAlignment="Center" />
+                            </StackPanel>
                             <Button.ContextMenu>
                                 <ContextMenu ItemsSource="{Binding PlacementTarget.DataContext.RecentQuoteHistory, RelativeSource={RelativeSource Self}}"
                                              Placement="Bottom"
@@ -251,46 +291,29 @@
                                 </ContextMenu>
                             </Button.ContextMenu>
                         </Button>
-                        <Button Content="New quote" Command="{Binding ClearCommand}" />
+                        <Button Command="{Binding ClearCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <Viewbox Width="14" Height="14" Margin="0,0,7,0"><Path Data="{StaticResource PlusIconGeometry}" Stroke="{DynamicResource FlareTextBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" /></Viewbox>
+                                <TextBlock Text="New quote" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
 
             <Grid Grid.Row="2" Margin="16" Background="{DynamicResource WindowWorkspaceBrush}">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.0*" />
-                    <ColumnDefinition Width="1.5*" />
-                    <ColumnDefinition Width="1.0*" />
+                    <ColumnDefinition Width="410" />
+                    <ColumnDefinition Width="14" />
+                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <!-- One visual workspace spans the review and selection columns. -->
-                <Border Grid.Column="1"
-                        Grid.ColumnSpan="2"
-                        Margin="4,0,0,0"
-                        Background="{DynamicResource SurfaceBrush}"
-                        BorderBrush="{DynamicResource GlassBorderBrush}"
-                        BorderThickness="1"
-                        CornerRadius="10">
-                    <Border.Style>
-                        <Style TargetType="Border">
-                            <Setter Property="Visibility" Value="Visible" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Border.Style>
-                </Border>
-
                                 <!-- StageResponsivePasteCard -->
-                <Border Grid.Column="0" Margin="0,0,4,0">
+                <Border x:Name="RequestPane" Grid.Column="0" Margin="0">
                     <Border.Style>
                         <Style TargetType="Border" BasedOn="{StaticResource GlassCard}">
                             <Setter Property="Visibility" Value="Visible" />
+                            <Setter Property="Padding" Value="0" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -307,38 +330,48 @@
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <StackPanel>
-                            <TextBlock Text="STEP 1" Style="{StaticResource EyebrowText}" />
-                            <TextBlock Text="Customer request" FontSize="17" FontWeight="SemiBold" Margin="0,5,0,0" />
-                            <TextBlock Text="Paste the email or request details below." Style="{StaticResource MutedText}" Margin="0,4,0,14" />
-                        </StackPanel>
-                        <TextBox Grid.Row="1" Text="{Binding RawRequest, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
-                        <Grid Grid.Row="2" Margin="0,10,0,0" HorizontalAlignment="Stretch">
-    <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="0" />
-    </Grid.ColumnDefinitions>
-
-    <Button Grid.Column="0" Margin="0,0,5,0" MinWidth="0" Height="36" HorizontalAlignment="Stretch" VerticalAlignment="Center" Content="Clear" Command="{Binding ClearCommand}" />
-
-    <Button Grid.Column="1" Margin="5,0,0,0" MinWidth="0" Height="36" HorizontalAlignment="Stretch" VerticalAlignment="Center" Content="Auto-fill" Command="{Binding AutoFillCommand}" Style="{StaticResource PrimaryButton}" />
-
-
-</Grid>
+                        <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="18,15,18,13">
+                            <StackPanel>
+                                <TextBlock Text="STEP 1" Style="{StaticResource EyebrowText}" />
+                                <TextBlock Text="Customer request" FontSize="17" FontWeight="SemiBold" Margin="0,5,0,0" />
+                                <TextBlock Text="Paste the email or request details below." Style="{StaticResource MutedText}" Margin="0,3,0,0" />
+                            </StackPanel>
+                        </Border>
+                        <Grid Grid.Row="1" Margin="18,14">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="10" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Grid>
+                                <TextBlock Text="Request content" FontSize="11.5" FontWeight="SemiBold" />
+                                <TextBlock Text="Ctrl + V to paste" Style="{StaticResource MutedText}" FontSize="11" HorizontalAlignment="Right" />
+                            </Grid>
+                            <TextBox Grid.Row="2" Text="{Binding RawRequest, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Padding="14,12" />
+                        </Grid>
+                        <Border Grid.Row="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="18,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <Button Grid.Column="1" Content="Clear" Command="{Binding ClearCommand}" MinWidth="64" Height="34" />
+                                <Button Grid.Column="3" Content="Auto-fill" Command="{Binding AutoFillCommand}" Style="{StaticResource PrimaryButton}" MinWidth="84" Height="34" />
+                            </Grid>
+                        </Border>
                     </Grid>
                 </Border>
 
                                 <!-- StageResponsiveWorkflowCard -->
-                <Border Margin="4,0,4,0">
+                <Border x:Name="QuoteWorkspacePane" Margin="0">
                     <Border.Style>
                         <Style TargetType="Border" BasedOn="{StaticResource GlassCard}">
-                            <Setter Property="Grid.Column" Value="1" />
+                            <Setter Property="Grid.Column" Value="2" />
                             <Setter Property="Grid.ColumnSpan" Value="1" />
-                            <Setter Property="Background" Value="Transparent" />
-                            <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
-                            <Setter Property="BorderThickness" Value="0,0,1,0" />
-                            <Setter Property="CornerRadius" Value="0" />
+                            <Setter Property="Padding" Value="0" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview">
                                     <Setter Property="Grid.Column" Value="0" />
@@ -374,62 +407,178 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
-                            <StackPanel Grid.Row="0">
-                                <TextBlock Text="QUOTE WORKSPACE" Style="{StaticResource EyebrowText}" />
-                                <TextBlock Text="Review quote details" FontSize="17" FontWeight="SemiBold" Margin="0,5,0,0" />
-                                <TextBlock Text="Confirm the customer and fireplace information before previewing." Style="{StaticResource MutedText}" Margin="0,4,0,14" />
-                            </StackPanel>
-                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
-                                <StackPanel>
-                                    <UniformGrid Columns="2" Rows="0">
-                                        <StackPanel Margin="0,0,10,12"><TextBlock Text="Project" /><TextBox Text="{Binding ProjectName}" /></StackPanel>
-                                        <StackPanel Margin="0,0,0,12"><TextBlock Text="Name" /><TextBox Text="{Binding ClientName}" /></StackPanel>
-                                        <StackPanel Margin="0,0,10,12"><TextBlock Text="Email" /><TextBox Text="{Binding Email}" /></StackPanel>
-                                        <StackPanel Margin="0,0,0,12"><TextBlock Text="Phone" /><TextBox Text="{Binding Phone}" /></StackPanel>
-                                        <StackPanel Margin="0,0,10,12"><TextBlock Text="Project Address" /><TextBox Text="{Binding Postal}" /></StackPanel>
-                                        <StackPanel Margin="0,0,0,12"><TextBlock Text="Install Date" /><TextBox Text="{Binding InstallDate}" /></StackPanel>
-                                        <StackPanel Margin="0,0,10,12"><TextBlock Text="Model" /><TextBox Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                                        <StackPanel Margin="0,0,0,12"><TextBlock Text="Size" /><TextBox Text="{Binding Size, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                                        <StackPanel Margin="0,0,10,12"><TextBlock Text="Glass Height" /><TextBox Text="{Binding GlassHeight, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                                        <StackPanel Margin="0,0,0,12"><TextBlock Text="Location" /><TextBox Text="{Binding FireplaceLocation, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                                    </UniformGrid>
-                            <!-- ReviewStageStatusPills -->
-                            <Border Background="{DynamicResource FlareCardAltBrush}" BorderBrush="{DynamicResource FlareBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,12,0,0">
-                                <ItemsControl ItemsSource="{Binding StatusCards}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <UniformGrid Columns="3" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="{DynamicResource FlareCardBrush}" CornerRadius="11" Padding="9,7" Margin="0,0,8,8" Height="58">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="22" />
-                                                    </Grid.ColumnDefinitions>
-
-                                                    <StackPanel VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="11.5" TextTrimming="CharacterEllipsis" />
-                                                        <TextBlock Text="{Binding Detail}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,2,0,0" />
-                                                    </StackPanel>
-
-                                                    <Ellipse Grid.Column="1" Width="13" Height="13" Fill="{Binding IndicatorFill}" Stroke="{DynamicResource FlareBorderBrush}" StrokeThickness="1" ToolTip="{Binding StatusText}" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                            <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="18,14">
+                                <Grid>
+                                    <StackPanel>
+                                        <TextBlock Text="QUOTE WORKSPACE" Style="{StaticResource EyebrowText}" />
+                                        <TextBlock Text="Review quote details" FontSize="17" FontWeight="SemiBold" Margin="0,5,0,0" />
+                                        <TextBlock Text="Confirm the customer and fireplace information before previewing." Style="{StaticResource MutedText}" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                    <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="16" Padding="10,5">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Ellipse Width="7" Height="7" Fill="{DynamicResource FlareAccentBrush}" Margin="0,0,7,0" />
+                                            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource MutedText}" FontSize="11" MaxWidth="260" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
                             </Border>
 
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="18,14,10,14">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <StackPanel Grid.Column="0"><TextBlock Text="Project" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding ProjectName}" /></StackPanel>
+                                        <StackPanel Grid.Column="2"><TextBlock Text="Customer" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding ClientName}" /></StackPanel>
+                                        <StackPanel Grid.Column="4"><TextBlock Text="Email" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Email}" /></StackPanel>
+                                        <StackPanel Grid.Row="2" Grid.Column="0"><TextBlock Text="Phone" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Phone}" /></StackPanel>
+                                        <StackPanel Grid.Row="2" Grid.Column="2"><TextBlock Text="Project address" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Postal}" /></StackPanel>
+                                        <StackPanel Grid.Row="2" Grid.Column="4"><TextBlock Text="Install target" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding InstallDate}" /></StackPanel>
+                                    </Grid>
 
-                                    
+                                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="0,16,0,0">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,10">
+                                                <StackPanel>
+                                                    <TextBlock Text="Fireplaces" FontSize="15" FontWeight="SemiBold" />
+                                                    <TextBlock Text="Build the current fireplace, then add another only when the quote needs one." Style="{StaticResource MutedText}" FontSize="11" Margin="0,3,0,0" />
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                    <Button Content="Clear current" Command="{Binding ClearCurrentFireplaceCommand}" Style="{StaticResource QuietButton}" Height="32" Margin="0,0,6,0" />
+                                                    <Button Content="{Binding AddFireplaceButtonText}" Command="{Binding AddFireplaceCommand}" Height="32" />
+                                                </StackPanel>
+                                            </Grid>
 
-                                    
+                                            <Border Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14">
+                                                <StackPanel>
+                                                    <Grid Margin="0,0,0,12">
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <Border Width="30" Height="30" CornerRadius="8" Background="#1E2B12" BorderBrush="#4E6B25" BorderThickness="1" Margin="0,0,10,0">
+                                                            <Path Data="M15,3 C16,7 21,8 21,14 C21,19 18,23 12,23 C7,23 4,19 4,14 C4,10 7,7 10,4 C10,8 12,10 14,11 C15,9 15,6 15,3 Z" Fill="{DynamicResource FlareAccentBrush}" Stretch="Uniform" Margin="6" />
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="Current fireplace" FontWeight="SemiBold" />
+                                                            <TextBlock Text="{Binding CurrentFireplaceLabel}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="1.15*" /><ColumnDefinition Width="12" />
+                                                            <ColumnDefinition Width="0.8*" /><ColumnDefinition Width="12" />
+                                                            <ColumnDefinition Width="0.8*" /><ColumnDefinition Width="12" />
+                                                            <ColumnDefinition Width="1.1*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0"><TextBlock Text="Model" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
+                                                        <StackPanel Grid.Column="2"><TextBlock Text="Size" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Size, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
+                                                        <StackPanel Grid.Column="4"><TextBlock Text="Glass height" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding GlassHeight, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
+                                                        <StackPanel Grid.Column="6"><TextBlock Text="Location" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding FireplaceLocation, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
+                                                    </Grid>
+
+                                                    <Grid Margin="0,12,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="1.15*" /><ColumnDefinition Width="12" />
+                                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="12" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="Lead time" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                                            <Grid>
+                                                                <ToggleButton x:Name="LeadTimeDropdownButton" Content="{Binding LeadTimeDropdownButtonText}" IsChecked="{Binding IsLeadTimeDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
+                                                                <Popup x:Name="LeadTimeDropdownPopup" AllowsTransparency="True" IsOpen="{Binding IsLeadTimeDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=LeadTimeDropdownButton}" Placement="Bottom" StaysOpen="True">
+                                                                    <Border Width="260" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0">
+                                                                        <StackPanel>
+                                                                            <ItemsControl ItemsSource="{Binding LeadTimePresets}"><ItemsControl.ItemTemplate><DataTemplate><Button Content="{Binding}" Command="{Binding DataContext.SelectLeadTimeCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                                                            <TextBlock Text="Custom lead time" Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,4" />
+                                                                            <TextBox Text="{Binding CustomLeadTime, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+                                                                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="6" /><ColumnDefinition Width="*" /><ColumnDefinition Width="6" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearLeadTimeCommand}" Height="32" /><Button Grid.Column="2" Content="Use custom" Command="{Binding SelectLeadTimeCommand}" CommandParameter="" Height="32" /><Button Grid.Column="4" Content="Done" Command="{Binding CloseLeadTimeDropdownCommand}" Height="32" /></Grid>
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </Popup>
+                                                            </Grid>
+                                                        </StackPanel>
+
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock Text="Additional features" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                                            <Grid>
+                                                                <ToggleButton x:Name="FeatureDropdownButton" Content="{Binding FeatureDropdownButtonText}" IsChecked="{Binding IsFeatureDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
+                                                                <Popup x:Name="FeatureDropdownPopup" AllowsTransparency="True" IsOpen="{Binding IsFeatureDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=FeatureDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
+                                                                    <Border Width="300" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding FeatureSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search features" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredFeatureOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.ToggleFeatureCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearFeaturesCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding CloseFeatureDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
+                                                                </Popup>
+                                                            </Grid>
+                                                        </StackPanel>
+
+                                                        <StackPanel Grid.Column="4">
+                                                            <TextBlock Text="Included classic media" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                                            <Grid>
+                                                                <ToggleButton x:Name="ClassicMediaDropdownButton" Content="{Binding ClassicMediaDropdownButtonText}" IsChecked="{Binding IsClassicMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
+                                                                <Popup x:Name="ClassicMediaDropdownPopup" AllowsTransparency="True" IsOpen="{Binding IsClassicMediaDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=ClassicMediaDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
+                                                                    <Border Width="300" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding ClassicMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search classic media" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredClassicMediaOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.SelectClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearClassicMediaCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding CloseClassicMediaDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
+                                                                </Popup>
+                                                            </Grid>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <Grid Margin="0,12,0,0">
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="Additional classic media" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                                            <Grid>
+                                                                <ToggleButton x:Name="AdditionalClassicMediaDropdownButton" Content="{Binding AdditionalClassicMediaDropdownButtonText}" IsChecked="{Binding IsAdditionalClassicMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
+                                                                <Popup x:Name="AdditionalClassicMediaDropdownPopup" AllowsTransparency="True" IsOpen="{Binding IsAdditionalClassicMediaDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=AdditionalClassicMediaDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
+                                                                    <Border Width="320" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding AdditionalClassicMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search additional classic media" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredAdditionalClassicMediaOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.SelectAdditionalClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearAdditionalClassicMediaCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding CloseAdditionalClassicMediaDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
+                                                                </Popup>
+                                                            </Grid>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock Text="Premium media" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                                            <Grid>
+                                                                <ToggleButton x:Name="PremiumMediaDropdownButton" Content="{Binding PremiumMediaDropdownButtonText}" IsChecked="{Binding IsPremiumMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
+                                                                <Popup x:Name="PremiumMediaDropdownPopup" AllowsTransparency="True" IsOpen="{Binding IsPremiumMediaDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=PremiumMediaDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
+                                                                    <Border Width="320" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding PremiumMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search premium media" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredPremiumMediaOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.TogglePremiumMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearPremiumMediaCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding ClosePremiumMediaDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
+                                                                </Popup>
+                                                            </Grid>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <WrapPanel Margin="0,12,0,0">
+                                                        <ItemsControl ItemsSource="{Binding SelectedFeatures}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedFeatureChip" Cursor="SizeAll" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="#1B2A16" BorderBrush="#496529" BorderThickness="1" CornerRadius="14" Padding="10,4" Margin="0,0,7,7"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DisplayName}" FontSize="11" /><Button Content="×" Style="{StaticResource ChipRemoveButton}" Command="{Binding DataContext.RemoveFeatureCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,-5,0" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                                        <ItemsControl ItemsSource="{Binding SelectedAdditionalClassicMedia}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedAdditionalClassicMediaChip" Cursor="SizeAll" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,4" Margin="0,0,7,7"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DisplayName}" FontSize="11" /><Button Content="×" Style="{StaticResource ChipRemoveButton}" Command="{Binding DataContext.RemoveAdditionalClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,-5,0" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                                        <ItemsControl ItemsSource="{Binding SelectedPremiumMedia}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedPremiumMediaChip" Cursor="SizeAll" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,4" Margin="0,0,7,7"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DisplayName}" FontSize="11" /><Button Content="×" Style="{StaticResource ChipRemoveButton}" Command="{Binding DataContext.RemovePremiumMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,-5,0" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                                    </WrapPanel>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <ItemsControl ItemsSource="{Binding Fireplaces}" Margin="0,10,0,0">
+                                                <ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="9" Padding="12,9" Margin="0,0,0,8"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding FireplaceLabel}" FontWeight="SemiBold" /><TextBlock Text="{Binding LeadTimeLine}" Style="{StaticResource MutedText}" FontSize="11" /><TextBlock Text="{Binding FeaturesLine}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" /><TextBlock Text="{Binding ClassicMediaLine}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" /><TextBlock Text="{Binding PremiumMediaLine}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" /></StackPanel><Button Grid.Column="1" Content="×" Style="{StaticResource ChipRemoveButton}" Command="{Binding DataContext.RemoveFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="8,0,0,0" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
                             </ScrollViewer>
+
+                            <Border Grid.Row="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="18,12">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Width="30" Height="30" CornerRadius="15" BorderBrush="{DynamicResource FlareAccentBrush}" BorderThickness="2" Margin="0,0,10,0"><TextBlock Text="✓" Foreground="{DynamicResource FlareAccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" /></Border>
+                                        <StackPanel><TextBlock Text="Ready to generate" FontWeight="SemiBold" /><TextBlock Text="Review the customer and fireplace details above." Style="{StaticResource MutedText}" FontSize="11" /></StackPanel>
+                                    </StackPanel>
+                                    <Button x:Name="GeneratePreviewButton" Content="Generate preview  →" Command="{Binding NextToPreviewCommand}" Style="{StaticResource PrimaryButton}" Height="40" MinWidth="178" HorizontalAlignment="Right" />
+                                </Grid>
+                            </Border>
                         </Grid>
 
                                                                             <!-- FullWidthPreviewStage -->
@@ -869,274 +1018,6 @@
                     </Grid>
                 </Border>
 
-                                <!-- StageResponsiveStatusCard -->
-                <!-- RightRailQuoteBuildControls -->
-                <Border Grid.Column="2" Margin="4,0,0,0">
-                    <Border.Style>
-                        <Style TargetType="Border" BasedOn="{StaticResource GlassCard}">
-                            <Setter Property="Visibility" Value="Visible" />
-                            <Setter Property="Background" Value="Transparent" />
-                            <Setter Property="BorderThickness" Value="0" />
-                            <Setter Property="CornerRadius" Value="0" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Border.Style>
-
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                            <TextBlock Text="FIREPLACE OPTIONS" Style="{StaticResource EyebrowText}" />
-                            <TextBlock Text="Features &amp; media" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,5,0,0" />
-                            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource MutedText}" Margin="0,4,0,0" TextWrapping="Wrap" MaxHeight="42" />
-                        </StackPanel>
-
-                                                <!-- RightRailScrollableContent -->
-                        <ScrollViewer Grid.Row="1"
-                                      VerticalScrollBarVisibility="Auto"
-                                      HorizontalScrollBarVisibility="Disabled"
-                                      Padding="0,0,6,0"
-                                      Margin="0,0,0,8">
-<StackPanel VerticalAlignment="Top">
-<Border Background="{DynamicResource FlareCardAltBrush}" BorderBrush="{DynamicResource FlareBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,0,0,8">
-                                        <StackPanel>
-                                            <TextBlock Text="Selections" Style="{StaticResource SectionTitleText}" />
-                                            <TextBlock Text="Choose features, media, and quote options." Style="{StaticResource MutedText}" Margin="0,3,0,14" TextWrapping="Wrap" />
-
-                                            <TextBlock Text="Additional Features" FontWeight="SemiBold" Margin="0,0,0,6" />
-                                            <Grid Margin="0,0,0,8">
-                                                <ToggleButton x:Name="FeatureDropdownButton" Content="{Binding FeatureDropdownButtonText}" IsChecked="{Binding IsFeatureDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" MinHeight="34" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
-                                                <Popup AllowsTransparency="True" x:Name="FeatureDropdownPopup" IsOpen="{Binding IsFeatureDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=FeatureDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
-                                                    <Border Width="{Binding ActualWidth, ElementName=FeatureDropdownButton}" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,4,0,0">
-                                                        <StackPanel>
-                                                            <TextBox Text="{Binding FeatureSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search features"  Background="{DynamicResource DropdownInputBrush}" Foreground="{DynamicResource DropdownTextBrush}" CaretBrush="{DynamicResource DropdownTextBrush}" />
-                                                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="120">
-                                                                <ItemsControl ItemsSource="{Binding FilteredFeatureOptions}">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate>
-                                                                            <Button Command="{Binding DataContext.ToggleFeatureCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Stretch" Margin="0,0,0,8" Padding="8,6" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}">
-                                                                                <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition Width="24" /></Grid.ColumnDefinitions>
-                                                                                    <Ellipse Width="9" Height="9" Fill="{DynamicResource FlareAccentBrush}" Stroke="Transparent" StrokeThickness="0" VerticalAlignment="Center" Grid.Column="0" HorizontalAlignment="Center">
-                                                                                        <Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding IsSelected}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Ellipse.Style>
-                                                                                    </Ellipse>
-                                                                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center" Foreground="{DynamicResource DropdownTextBrush}" TextTrimming="CharacterEllipsis" HorizontalAlignment="Stretch" TextAlignment="Center" />
-                                                                                </Grid>
-                                                                            </Button>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                            </ScrollViewer>
-                                                            <Grid Margin="0,5,0,0">
-                                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                                <Button Content="Clear" Command="{Binding ClearFeaturesCommand}" Margin="0,0,6,0" Height="32" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-                                                                <Button Grid.Column="1" Content="Done" Command="{Binding CloseFeatureDropdownCommand}" Margin="6,0,0,0" Height="32" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-                                                            </Grid>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </Popup>
-                                            </Grid>
-
-                                            <ItemsControl ItemsSource="{Binding SelectedFeatures}" Margin="0,0,0,8">
-                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border Tag="SelectedFeatureChip" Cursor="SizeAll" ToolTip="Drag to reorder" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,5" Margin="0,0,8,8" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <Ellipse Width="8" Height="8" Fill="{DynamicResource FlareAccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                                <TextBlock Text="{Binding DisplayName}" />
-                                                                <Button Content="×" Style="{StaticResource ChipRemoveButton}" ToolTip="Remove" AutomationProperties.Name="Remove" Command="{Binding DataContext.RemoveFeatureCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Width="24" Padding="0" Margin="8,0,0,0" />
-                                                            </StackPanel>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-
-                                            <TextBlock Text="Classic Media" FontWeight="SemiBold" Margin="0,2,0,6" />
-                                            <Grid Margin="0,0,0,8">
-                                                <ToggleButton x:Name="ClassicMediaDropdownButton" Content="{Binding ClassicMediaDropdownButtonText}" IsChecked="{Binding IsClassicMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" MinHeight="34" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
-                                                <Popup AllowsTransparency="True" x:Name="ClassicMediaDropdownPopup" IsOpen="{Binding IsClassicMediaDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=ClassicMediaDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
-                                                    <Border Width="{Binding ActualWidth, ElementName=ClassicMediaDropdownButton}" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,4,0,0">
-                                                        <StackPanel>
-                                                            <TextBox Text="{Binding ClassicMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search classic media"  Background="{DynamicResource DropdownInputBrush}" Foreground="{DynamicResource DropdownTextBrush}" CaretBrush="{DynamicResource DropdownTextBrush}" />
-                                                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="120">
-                                                                <ItemsControl ItemsSource="{Binding FilteredClassicMediaOptions}">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate>
-                                                                            <Button Command="{Binding DataContext.SelectClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Stretch" Margin="0,0,0,8" Padding="8,6" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}">
-                                                                                <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition Width="24" /></Grid.ColumnDefinitions>
-                                                                                    <Ellipse Width="9" Height="9" Fill="{DynamicResource FlareAccentBrush}" Stroke="Transparent" StrokeThickness="0" VerticalAlignment="Center" Grid.Column="0" HorizontalAlignment="Center">
-                                                                                        <Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding IsSelected}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Ellipse.Style>
-                                                                                    </Ellipse>
-                                                                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center" Foreground="{DynamicResource DropdownTextBrush}" TextTrimming="CharacterEllipsis" HorizontalAlignment="Stretch" TextAlignment="Center" />
-                                                                                </Grid>
-                                                                            </Button>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                            </ScrollViewer>
-                                                            <Grid Margin="0,5,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                                <Button Content="Clear" Command="{Binding ClearClassicMediaCommand}" Margin="0,0,6,0" Height="32" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" />
-                                                                <Button Grid.Column="1" Content="Done" Command="{Binding CloseClassicMediaDropdownCommand}" Margin="6,0,0,0" Height="32" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" />
-                                                            </Grid>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </Popup>
-                                            </Grid>
-
-                                            <TextBlock Text="Additional Classic Media" FontWeight="SemiBold" Margin="0,2,0,6" />
-                                            <Grid Margin="0,0,0,8">
-                                                <ToggleButton x:Name="AdditionalClassicMediaDropdownButton" Content="{Binding AdditionalClassicMediaDropdownButtonText}" IsChecked="{Binding IsAdditionalClassicMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" MinHeight="34" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
-                                                <Popup AllowsTransparency="True" x:Name="AdditionalClassicMediaDropdownPopup" IsOpen="{Binding IsAdditionalClassicMediaDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=AdditionalClassicMediaDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
-                                                    <Border Width="{Binding ActualWidth, ElementName=AdditionalClassicMediaDropdownButton}" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,4,0,0">
-                                                        <StackPanel>
-                                                            <TextBox Text="{Binding AdditionalClassicMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search additional classic media" Background="{DynamicResource DropdownInputBrush}" Foreground="{DynamicResource DropdownTextBrush}" CaretBrush="{DynamicResource DropdownTextBrush}" />
-                                                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="120">
-                                                                <ItemsControl ItemsSource="{Binding FilteredAdditionalClassicMediaOptions}">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate>
-                                                                            <Button Command="{Binding DataContext.SelectAdditionalClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Stretch" Margin="0,0,0,8" Padding="8,6" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}">
-                                                                                <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition Width="24" /></Grid.ColumnDefinitions>
-                                                                                    <Ellipse Width="9" Height="9" Fill="{DynamicResource FlareAccentBrush}" Stroke="Transparent" StrokeThickness="0" VerticalAlignment="Center" Grid.Column="0" HorizontalAlignment="Center">
-                                                                                        <Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding IsSelected}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Ellipse.Style>
-                                                                                    </Ellipse>
-                                                                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center" Foreground="{DynamicResource DropdownTextBrush}" TextTrimming="CharacterEllipsis" HorizontalAlignment="Stretch" TextAlignment="Center" />
-                                                                                </Grid>
-                                                                            </Button>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                            </ScrollViewer>
-                                                            <Grid Margin="0,5,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                                <Button Content="Clear" Command="{Binding ClearAdditionalClassicMediaCommand}" Margin="0,0,6,0" Height="32" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" />
-                                                                <Button Grid.Column="1" Content="Done" Command="{Binding CloseAdditionalClassicMediaDropdownCommand}" Margin="6,0,0,0" Height="32" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" />
-                                                            </Grid>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </Popup>
-                                            </Grid>
-                                            <ItemsControl ItemsSource="{Binding SelectedAdditionalClassicMedia}" Margin="0,0,0,8">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <WrapPanel />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border Tag="SelectedAdditionalClassicMediaChip"
-                                                                Cursor="SizeAll"
-                                                                ToolTip="Drag to reorder"
-                                                                PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown"
-                                                                PreviewMouseMove="SelectedChip_PreviewMouseMove"
-                                                                PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp"
-                                                                LostMouseCapture="SelectedChip_LostMouseCapture"
-                                                                Background="{DynamicResource FlareChipBrush}"
-                                                                BorderBrush="{DynamicResource FlareChipBorderBrush}"
-                                                                BorderThickness="1"
-                                                                CornerRadius="14"
-                                                                Padding="10,5"
-                                                                Margin="0,0,8,8"
-                                                                RenderTransformOrigin="0.5,0.5"
-                                                                SnapsToDevicePixels="True">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <Ellipse Width="8" Height="8" Fill="{DynamicResource FlareAccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                                <TextBlock Text="{Binding DisplayName}" />
-                                                                <Button Content="×" Style="{StaticResource ChipRemoveButton}" ToolTip="Remove" AutomationProperties.Name="Remove"
-                                                                        Command="{Binding DataContext.RemoveAdditionalClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                        CommandParameter="{Binding}"
-                                                                        Width="24"
-                                                                        Padding="0"
-                                                                        Margin="8,0,0,0" />
-                                                            </StackPanel>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                            <TextBlock Text="Premium Media" FontWeight="SemiBold" Margin="0,0,0,6" />
-                                            <Grid Margin="0,0,0,8">
-                                                <ToggleButton x:Name="PremiumMediaDropdownButton" Content="{Binding PremiumMediaDropdownButtonText}" IsChecked="{Binding IsPremiumMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" MinHeight="34" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
-                                                <Popup AllowsTransparency="True" x:Name="PremiumMediaDropdownPopup" IsOpen="{Binding IsPremiumMediaDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=PremiumMediaDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
-                                                    <Border Width="{Binding ActualWidth, ElementName=PremiumMediaDropdownButton}" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,4,0,0">
-                                                        <StackPanel>
-                                                            <TextBox Text="{Binding PremiumMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search premium media"  Background="{DynamicResource DropdownInputBrush}" Foreground="{DynamicResource DropdownTextBrush}" CaretBrush="{DynamicResource DropdownTextBrush}" />
-                                                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="120">
-                                                                <ItemsControl ItemsSource="{Binding FilteredPremiumMediaOptions}">
-                                                                    <ItemsControl.ItemTemplate>
-                                                                        <DataTemplate>
-                                                                            <Button Command="{Binding DataContext.TogglePremiumMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Stretch" Margin="0,0,0,8" Padding="8,6" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}">
-                                                                                <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition Width="24" /></Grid.ColumnDefinitions>
-                                                                                    <Ellipse Width="9" Height="9" Fill="{DynamicResource FlareAccentBrush}" Stroke="Transparent" StrokeThickness="0" VerticalAlignment="Center" Grid.Column="0" HorizontalAlignment="Center">
-                                                                                        <Ellipse.Style><Style TargetType="Ellipse"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding IsSelected}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Ellipse.Style>
-                                                                                    </Ellipse>
-                                                                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center" Foreground="{DynamicResource DropdownTextBrush}" TextTrimming="CharacterEllipsis" HorizontalAlignment="Stretch" TextAlignment="Center" />
-                                                                                </Grid>
-                                                                            </Button>
-                                                                        </DataTemplate>
-                                                                    </ItemsControl.ItemTemplate>
-                                                                </ItemsControl>
-                                                            </ScrollViewer>
-                                                            <Grid Margin="0,5,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                                <Button Content="Clear" Command="{Binding ClearPremiumMediaCommand}" Margin="0,0,6,0" Height="32" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-                                                                <Button Grid.Column="1" Content="Done" Command="{Binding ClosePremiumMediaDropdownCommand}" Margin="6,0,0,0" Height="32" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
-                                                            </Grid>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </Popup>
-                                            </Grid>
-                                            <ItemsControl ItemsSource="{Binding SelectedPremiumMedia}" Margin="0,0,0,8"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedPremiumMediaChip" Cursor="SizeAll" ToolTip="Drag to reorder" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,5" Margin="0,0,8,8" RenderTransformOrigin="0.5,0.5" SnapsToDevicePixels="True"><StackPanel Orientation="Horizontal"><Ellipse Width="8" Height="8" Fill="{DynamicResource FlareAccentBrush}" VerticalAlignment="Center" Margin="0,0,8,0" /><TextBlock Text="{Binding DisplayName}" /><Button Content="×" Style="{StaticResource ChipRemoveButton}" ToolTip="Remove" AutomationProperties.Name="Remove" Command="{Binding DataContext.RemovePremiumMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Width="24" Padding="0" Margin="8,0,0,0" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-                                        </StackPanel>
-                                    </Border>
-
-<Border Background="{DynamicResource FlareCardAltBrush}" BorderBrush="{DynamicResource FlareBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,0,0,8">
-                                        <StackPanel>
-                                            <TextBlock Text="Fireplaces" FontSize="15" FontWeight="SemiBold" />
-                                            <TextBlock Text="Lead time and multi-fireplace controls." Style="{StaticResource MutedText}" Margin="0,3,0,12" TextWrapping="Wrap" />
-                                            <TextBlock Text="{Binding CurrentFireplaceLabel}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                            <TextBlock Text="Lead Time" FontWeight="SemiBold" Margin="0,8,0,6" />
-                                            <Grid Margin="0,0,0,10">
-                                                <ToggleButton x:Name="LeadTimeDropdownButton" Content="{Binding LeadTimeDropdownButtonText}" IsChecked="{Binding IsLeadTimeDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" MinHeight="34" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
-                                                <Popup AllowsTransparency="True" x:Name="LeadTimeDropdownPopup" IsOpen="{Binding IsLeadTimeDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=LeadTimeDropdownButton}" Placement="Bottom" StaysOpen="True">
-                                                    <Border Width="{Binding ActualWidth, ElementName=LeadTimeDropdownButton}" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10" Margin="0,4,0,0">
-                                                        <StackPanel>
-                                                            <ItemsControl ItemsSource="{Binding LeadTimePresets}"><ItemsControl.ItemTemplate><DataTemplate><Button Content="{Binding}" Command="{Binding DataContext.SelectLeadTimeCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Center" Margin="0,0,0,8" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-                                                            <TextBlock Text="Custom lead time" Style="{StaticResource MutedText}" Margin="0,4,0,4" Foreground="{DynamicResource DropdownMutedTextBrush}" />
-                                                            <TextBox Text="{Binding CustomLeadTime, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" Background="{DynamicResource DropdownInputBrush}" Foreground="{DynamicResource DropdownTextBrush}" CaretBrush="{DynamicResource DropdownTextBrush}" />
-                                                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                                <Button Content="Clear" Command="{Binding ClearLeadTimeCommand}" Margin="0,0,6,0" Height="32" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" />
-                                                                <Button Grid.Column="1" Content="Use Custom" Command="{Binding SelectLeadTimeCommand}" CommandParameter="" Margin="6,0,6,0" Height="32" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" />
-                                                                <Button Grid.Column="2" Content="Done" Command="{Binding CloseLeadTimeDropdownCommand}" Margin="6,0,0,0" Height="32" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Background="{DynamicResource DropdownOptionBrush}" Foreground="{DynamicResource DropdownTextBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" />
-                                                            </Grid>
-                                                        </StackPanel>
-                                                    </Border>
-                                                </Popup>
-                                            </Grid>
-                                            <Grid Margin="0,0,0,8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <Button Content="Clear" Command="{Binding ClearCurrentFireplaceCommand}" Height="34" Margin="0,0,6,0" />
-                                                <Button Grid.Column="1" Content="{Binding AddFireplaceButtonText}" Command="{Binding AddFireplaceCommand}" Style="{StaticResource PrimaryButton}" Height="34" Margin="6,0,0,0" />
-                                            </Grid>
-                                            <ItemsControl ItemsSource="{Binding Fireplaces}"><ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="8,6" Margin="0,0,0,8"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding FireplaceLabel}" FontWeight="SemiBold" TextWrapping="Wrap" /><TextBlock Text="{Binding LeadTimeLine}" Style="{StaticResource MutedText}" /><TextBlock Text="{Binding FeaturesLine}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /><TextBlock Text="{Binding ClassicMediaLine}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /><TextBlock Text="{Binding PremiumMediaLine}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /></StackPanel><Button Grid.Column="1" Content="×" Style="{StaticResource ChipRemoveButton}" ToolTip="Remove" AutomationProperties.Name="Remove" Command="{Binding DataContext.RemoveFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Width="28" Padding="0" Margin="8,0,0,0" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-                                        </StackPanel>
-                                    </Border>
-                        </StackPanel>
-                        </ScrollViewer>
-
-                        <Button Grid.Row="2" Content="Generate preview" Command="{Binding NextToPreviewCommand}" Style="{StaticResource PrimaryButton}" Height="40" Margin="0,10,0,0" />
-                    </Grid>
-                </Border>
             </Grid>
         </Grid>
     </Border>

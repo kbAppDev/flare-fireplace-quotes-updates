@@ -1,10 +1,10 @@
-# Flare Fireplace Quotes v1.5.0
+# Flare Fireplace Quotes v1.5.1
 
 Windows WPF application for turning fireplace quote requests into priced PDFs, verified specification links, and Gmail drafts.
 
 ## Release highlights
 
-v1.5.0 adds a modern, streamlined Windows interface on top of the audited v1.4.12 application. The quote, pricing, PDF, URL-verification, Gmail, settings, history, and updater behavior remain unchanged. See `RELEASE_NOTES.md` for the complete summary.
+v1.5.1 delivers the approved two-pane quote workspace, compact window-safe actions, crisp vector icons, and removes the automatic system-health popup. The quote, pricing, PDF, URL-verification, Gmail, settings, history, and updater behavior remain unchanged. See `RELEASE_NOTES.md` for the complete summary.
 
 The updater is pinned to the Flare-managed GitHub release lane. Every installer download must match the release version, exact asset path, declared byte size, and SHA-256 hash before launch. Optional RS256 manifest signatures fail closed whenever a signature is present but invalid.
 
@@ -22,6 +22,7 @@ Maintained workflows:
 
 - `Build_And_Run_Safe.ps1` — local clean build and launch.
 - `Test-UiContract.ps1` — validates required workflow bindings, commands, named controls, and theme resources.
+- `Test-UiSnapshots.ps1` — renders the actual WPF main and settings windows on Windows and rejects key layout overflow.
 - `Run-Final-Release-Gate.ps1` — full pre-release validation.
 - `Build_Release_Installer.ps1` — self-contained Windows installer and updater manifest.
 - `Build_Publish_Professional_Release.ps1` — validated installer build and GitHub release publication.
@@ -29,7 +30,7 @@ Maintained workflows:
 
 ## Publishing
 
-Merge a clean, passing commit to `main`, then push a tag matching `Directory.Build.props`, such as `v1.5.0`. The release workflow refuses mismatched versions, vulnerable NuGet dependencies, compiler warnings, test failures, or CodeQL failures before publishing updater assets.
+Merge a clean, passing commit to `main`, then push a tag matching `Directory.Build.props`, such as `v1.5.1`. The release workflow refuses mismatched versions, vulnerable NuGet dependencies, UI render failures, compiler warnings, test failures, or CodeQL failures before publishing updater assets.
 
 Required release assets:
 

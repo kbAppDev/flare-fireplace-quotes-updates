@@ -82,6 +82,19 @@ jobs:
       - name: Run automated tests
         run: dotnet test .\FlareQuotes.Tests\FlareQuotes.Tests.csproj -c Release --no-restore --filter "FullyQualifiedName!~GmailEveryModelIntegrationTests"
 
+      - name: Render and validate Windows UI snapshots
+        shell: pwsh
+        run: .\Test-UiSnapshots.ps1
+
+      - name: Upload rendered UI review artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rendered-ui-${{ github.run_id }}
+          path: artifacts/ui-snapshots
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Analyze with CodeQL
         uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4
 

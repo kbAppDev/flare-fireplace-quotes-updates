@@ -22,7 +22,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="54" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="70" />
+                <RowDefinition Height="58" />
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0"
@@ -37,7 +37,7 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource SurfaceRaisedBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Margin="0,0,11,0">
-                            <TextBlock Text="&#xE896;" FontFamily="Segoe Fluent Icons" Foreground="{DynamicResource FlareAccentBrush}" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"><Path Data="M8,1.5 A6.5,6.5 0 1 1 2.2,5 M2.2,1.8 L2.2,5 L5.4,5 M8,4 L8,8.2 L11,10" Stroke="{DynamicResource FlareAccentBrush}" StrokeThickness="1.45" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Viewbox>
                         </Border>
                         <TextBlock Text="Application update" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </StackPanel>
@@ -116,8 +116,8 @@
                     BorderThickness="0,1,0,0"
                     Padding="20,0">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button x:Name="LaterButton" Content="Later" Width="110" Margin="0,0,10,0" Click="LaterButton_Click" />
-                    <Button x:Name="InstallButton" Content="Install update" Width="150" Style="{StaticResource PrimaryButton}" Click="InstallButton_Click" />
+                    <Button x:Name="LaterButton" Content="Later" Width="96" Height="34" Margin="0,0,10,0" Click="LaterButton_Click" />
+                    <Button x:Name="InstallButton" Content="Install update" Width="138" Height="34" Style="{StaticResource PrimaryButton}" Click="InstallButton_Click" />
                 </StackPanel>
             </Border>
         </Grid>
