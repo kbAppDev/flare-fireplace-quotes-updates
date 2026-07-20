@@ -69,4 +69,4 @@ jobs:
         run: dotnet test .\FlareQuotes.Tests\FlareQuotes.Tests.csproj -c Release --no-restore --filter "FullyQualifiedName!~GmailEveryModelIntegrationTests"
 
       - name: Analyze with CodeQL
-        uses: github/codeql-action/analyze@eec0bff2f6c15bf3f1e8a0152f94d17664a06a06 # v4
+        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4
