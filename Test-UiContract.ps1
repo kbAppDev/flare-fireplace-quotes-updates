@@ -41,6 +41,7 @@ $mainPath = "FlareQuotes.App\Views\MainWindow.xaml"
 $main = Read-ValidatedXaml $mainPath
 Assert-ContainsAll $main $mainPath @(
     'x:Name="HeaderLogoImage"',
+    'x:Name="WindowFrame"',
     'x:Name="AppVersionText"',
     'x:Name="ThemeToggleButton"',
     'x:Name="RequestPane"',
@@ -89,6 +90,7 @@ $settingsPath = "FlareQuotes.App\Views\SettingsWindow.xaml"
 $settings = Read-ValidatedXaml $settingsPath
 Assert-ContainsAll $settings $settingsPath @(
     'x:Name="SalesEmailBox"',
+    'x:Name="SettingsFrame"',
     'x:Name="SalesPhoneBox"',
     'x:Name="WebsiteBox"',
     'x:Name="ConsultationUrlBox"',

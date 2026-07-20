@@ -98,7 +98,8 @@
         </Style>
     </Window.Resources>
 
-    <Border CornerRadius="14"
+    <Border x:Name="SettingsFrame"
+            CornerRadius="14"
             Background="{DynamicResource WindowSurfaceBrush}"
             BorderBrush="{DynamicResource GlassBorderBrush}"
             BorderThickness="1"

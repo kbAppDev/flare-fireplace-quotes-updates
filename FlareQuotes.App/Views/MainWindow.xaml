@@ -5,7 +5,8 @@
         WindowStartupLocation="CenterScreen" WindowStyle="None"
         MouseLeftButtonDown="Window_MouseDown" Background="Transparent" AllowsTransparency="True" UseLayoutRounding="True" SnapsToDevicePixels="True">
 
-    <Border CornerRadius="14"
+    <Border x:Name="WindowFrame"
+            CornerRadius="14"
             Background="{DynamicResource WindowSurfaceBrush}"
             BorderBrush="{DynamicResource GlassBorderBrush}"
             BorderThickness="1"

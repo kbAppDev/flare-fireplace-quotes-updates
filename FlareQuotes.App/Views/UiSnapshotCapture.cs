@@ -31,28 +31,25 @@ internal static class UiSnapshotCapture
 
         try
         {
-            mainWindow.WindowState = WindowState.Normal;
-            mainWindow.Width = 1480;
-            mainWindow.Height = 920;
-
             if (mainWindow.DataContext is not MainViewModel viewModel)
                 throw new InvalidOperationException("The main window view model was not available.");
 
             PopulateRepresentativeQuote(viewModel);
             await RenderPendingLayoutAsync(mainWindow);
 
-            var mainMetrics = ValidateMainWindow(mainWindow);
-            SaveVisual(mainWindow, Path.Combine(snapshotDirectory, "main-window-dark.png"));
+            var mainFrame = mainWindow.WindowFrame;
+            mainWindow.Content = null;
+            mainFrame.DataContext = viewModel;
 
-            mainWindow.Width = 1180;
-            mainWindow.Height = 760;
-            await RenderPendingLayoutAsync(mainWindow);
-            var minimumMainMetrics = ValidateMinimumMainWindow(mainWindow);
-            SaveVisual(mainWindow, Path.Combine(snapshotDirectory, "main-window-minimum.png"));
+            ArrangeAtSize(mainFrame, 1480, 920);
+            var mainMetrics = ValidateMainWindow(mainWindow, mainFrame);
+            SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "main-window-dark.png"));
 
-            mainWindow.Width = 1480;
-            mainWindow.Height = 920;
-            await RenderPendingLayoutAsync(mainWindow);
+            ArrangeAtSize(mainFrame, 1180, 760);
+            var minimumMainMetrics = ValidateMinimumMainWindow(mainWindow, mainFrame);
+            SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "main-window-minimum.png"));
+
+            mainWindow.Content = mainFrame;
 
             var settingsWindow = new SettingsWindow {
                 Owner = mainWindow,
@@ -64,14 +61,17 @@ internal static class UiSnapshotCapture
             settingsWindow.Show();
             await RenderPendingLayoutAsync(settingsWindow);
 
-            var settingsMetrics = ValidateSettingsWindow(settingsWindow);
-            SaveVisual(settingsWindow, Path.Combine(snapshotDirectory, "settings-window-dark.png"));
+            var settingsFrame = settingsWindow.SettingsFrame;
+            settingsWindow.Content = null;
 
-            settingsWindow.Width = 820;
-            settingsWindow.Height = 620;
-            await RenderPendingLayoutAsync(settingsWindow);
-            var minimumSettingsMetrics = ValidateSettingsWindow(settingsWindow);
-            SaveVisual(settingsWindow, Path.Combine(snapshotDirectory, "settings-window-minimum.png"));
+            ArrangeAtSize(settingsFrame, 920, 700);
+            var settingsMetrics = ValidateSettingsWindow(settingsWindow, settingsFrame);
+            SaveVisual(settingsFrame, Path.Combine(snapshotDirectory, "settings-window-dark.png"));
+
+            ArrangeAtSize(settingsFrame, 820, 620);
+            var minimumSettingsMetrics = ValidateSettingsWindow(settingsWindow, settingsFrame);
+            SaveVisual(settingsFrame, Path.Combine(snapshotDirectory, "settings-window-minimum.png"));
+            settingsWindow.Content = settingsFrame;
             settingsWindow.Close();
 
             var metrics = new {
@@ -134,12 +134,21 @@ internal static class UiSnapshotCapture
         await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
     }
 
-    private static object ValidateMainWindow(MainWindow window)
+    private static void ArrangeAtSize(FrameworkElement root, double width, double height)
     {
-        AssertWithinWindow(window.RequestPane, window, nameof(window.RequestPane));
-        AssertWithinWindow(window.QuoteWorkspacePane, window, nameof(window.QuoteWorkspacePane));
-        AssertWithinWindow(window.GeneratePreviewButton, window, nameof(window.GeneratePreviewButton));
-        AssertWithinWindow(window.ThemeToggleButton, window, nameof(window.ThemeToggleButton));
+        root.Width = width;
+        root.Height = height;
+        root.Measure(new Size(width, height));
+        root.Arrange(new Rect(0, 0, width, height));
+        root.UpdateLayout();
+    }
+
+    private static object ValidateMainWindow(MainWindow window, FrameworkElement root)
+    {
+        AssertWithinRoot(window.RequestPane, root, nameof(window.RequestPane));
+        AssertWithinRoot(window.QuoteWorkspacePane, root, nameof(window.QuoteWorkspacePane));
+        AssertWithinRoot(window.GeneratePreviewButton, root, nameof(window.GeneratePreviewButton));
+        AssertWithinRoot(window.ThemeToggleButton, root, nameof(window.ThemeToggleButton));
 
         AssertRange(window.RequestPane.ActualWidth, 380, 430, "Request pane width");
         AssertRange(window.QuoteWorkspacePane.ActualWidth, 780, 1100, "Quote workspace width");
@@ -151,8 +160,8 @@ internal static class UiSnapshotCapture
             throw new InvalidOperationException("The system health window opened during normal startup.");
 
         return new {
-            width = window.ActualWidth,
-            height = window.ActualHeight,
+            width = root.ActualWidth,
+            height = root.ActualHeight,
             requestPaneWidth = window.RequestPane.ActualWidth,
             workspaceWidth = window.QuoteWorkspacePane.ActualWidth,
             generateButtonWidth = window.GeneratePreviewButton.ActualWidth,
@@ -161,17 +170,17 @@ internal static class UiSnapshotCapture
         };
     }
 
-    private static object ValidateSettingsWindow(SettingsWindow window)
+    private static object ValidateSettingsWindow(SettingsWindow window, FrameworkElement root)
     {
-        AssertWithinWindow(window.SettingsCancelButton, window, nameof(window.SettingsCancelButton));
-        AssertWithinWindow(window.SettingsSaveButton, window, nameof(window.SettingsSaveButton));
+        AssertWithinRoot(window.SettingsCancelButton, root, nameof(window.SettingsCancelButton));
+        AssertWithinRoot(window.SettingsSaveButton, root, nameof(window.SettingsSaveButton));
         AssertRange(window.SettingsCancelButton.ActualHeight, 32, 36, "Settings cancel height");
         AssertRange(window.SettingsSaveButton.ActualHeight, 32, 36, "Settings save height");
         AssertRange(window.SettingsSaveButton.ActualWidth, 120, 150, "Settings save width");
 
         return new {
-            width = window.ActualWidth,
-            height = window.ActualHeight,
+            width = root.ActualWidth,
+            height = root.ActualHeight,
             cancelButtonWidth = window.SettingsCancelButton.ActualWidth,
             cancelButtonHeight = window.SettingsCancelButton.ActualHeight,
             saveButtonWidth = window.SettingsSaveButton.ActualWidth,
@@ -179,18 +188,18 @@ internal static class UiSnapshotCapture
         };
     }
 
-    private static object ValidateMinimumMainWindow(MainWindow window)
+    private static object ValidateMinimumMainWindow(MainWindow window, FrameworkElement root)
     {
-        AssertWithinWindow(window.RequestPane, window, nameof(window.RequestPane));
-        AssertWithinWindow(window.QuoteWorkspacePane, window, nameof(window.QuoteWorkspacePane));
-        AssertWithinWindow(window.GeneratePreviewButton, window, nameof(window.GeneratePreviewButton));
+        AssertWithinRoot(window.RequestPane, root, nameof(window.RequestPane));
+        AssertWithinRoot(window.QuoteWorkspacePane, root, nameof(window.QuoteWorkspacePane));
+        AssertWithinRoot(window.GeneratePreviewButton, root, nameof(window.GeneratePreviewButton));
         AssertRange(window.RequestPane.ActualWidth, 380, 430, "Minimum request pane width");
         AssertRange(window.QuoteWorkspacePane.ActualWidth, 680, 760, "Minimum quote workspace width");
         AssertRange(window.GeneratePreviewButton.ActualHeight, 34, 42, "Minimum generate preview height");
 
         return new {
-            width = window.ActualWidth,
-            height = window.ActualHeight,
+            width = root.ActualWidth,
+            height = root.ActualHeight,
             requestPaneWidth = window.RequestPane.ActualWidth,
             workspaceWidth = window.QuoteWorkspacePane.ActualWidth,
             generateButtonWidth = window.GeneratePreviewButton.ActualWidth,
@@ -198,17 +207,17 @@ internal static class UiSnapshotCapture
         };
     }
 
-    private static void AssertWithinWindow(FrameworkElement element, Window window, string name)
+    private static void AssertWithinRoot(FrameworkElement element, FrameworkElement root, string name)
     {
         if (element.ActualWidth <= 0 || element.ActualHeight <= 0)
             throw new InvalidOperationException($"{name} did not render with a usable size.");
 
-        var bounds = element.TransformToAncestor(window)
+        var bounds = element.TransformToAncestor(root)
                             .TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
-        var windowBounds = new Rect(0, 0, window.ActualWidth, window.ActualHeight);
+        var rootBounds = new Rect(0, 0, root.ActualWidth, root.ActualHeight);
 
-        if (!windowBounds.Contains(bounds.TopLeft) || !windowBounds.Contains(bounds.BottomRight))
-            throw new InvalidOperationException($"{name} rendered outside its window: {bounds}.");
+        if (!rootBounds.Contains(bounds.TopLeft) || !rootBounds.Contains(bounds.BottomRight))
+            throw new InvalidOperationException($"{name} rendered outside its root surface: {bounds}.");
     }
 
     private static void AssertRange(double actual, double minimum, double maximum, string name)
