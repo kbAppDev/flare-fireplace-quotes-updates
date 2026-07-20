@@ -12,4 +12,9 @@
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\LocalData\pricing.xlsx" Link="LocalData\pricing.xlsx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\LocalData\resource_links.xlsx" Link="LocalData\resource_links.xlsx" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\LocalData\outdoor_spec_center_extracted_links.xlsx" Link="LocalData\outdoor_spec_center_extracted_links.xlsx" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
