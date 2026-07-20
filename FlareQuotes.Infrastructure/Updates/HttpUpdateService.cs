@@ -4,7 +4,7 @@ using FlareQuotes.Core.Updates;
 
 namespace FlareQuotes.Infrastructure.Updates;
 
-public sealed class HttpUpdateService : IUpdateService
+public sealed class HttpUpdateService : IUpdateService, IDisposable
 {
     private readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
     private readonly IAppLogger? _logger;
@@ -140,4 +140,6 @@ public sealed class HttpUpdateService : IUpdateService
         return UpdateTrustPolicy.IsValidVersion(latest) && Version.TryParse(latest, out var l) &&
                Version.TryParse(current, out var c) && l > c;
     }
+
+    public void Dispose() => _httpClient.Dispose();
 }

@@ -8,6 +8,9 @@ namespace FlareQuotes.Core.Settings;
 
 public sealed class JsonSettingsService : ISettingsService
 {
+    private const long MaximumSettingsBytes = 1024 * 1024;
+    private const int MaximumSettingsBackups = 3;
+
     private static readonly JsonSerializerOptions JsonOptions =
         new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
 
@@ -42,7 +45,8 @@ public sealed class JsonSettingsService : ISettingsService
                 if (!File.Exists(legacyPath))
                     continue;
 
-                File.Copy(legacyPath, _settingsPath, overwrite: false);
+                if (new FileInfo(legacyPath).Length <= MaximumSettingsBytes)
+                    File.Copy(legacyPath, _settingsPath, overwrite: false);
                 return;
             }
         }
@@ -68,6 +72,9 @@ public sealed class JsonSettingsService : ISettingsService
                 AppSettingsRuntimeCache.Set(defaults);
                 return Task.FromResult(defaults);
             }
+
+            if (new FileInfo(_settingsPath).Length > MaximumSettingsBytes)
+                throw new InvalidDataException("Settings file exceeds the maximum allowed size.");
 
             var json = File.ReadAllText(_settingsPath);
             var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
@@ -99,8 +106,16 @@ public sealed class JsonSettingsService : ISettingsService
         var json = JsonSerializer.Serialize(normalized, JsonOptions);
         var tempPath = _settingsPath + ".tmp";
 
-        File.WriteAllText(tempPath, json);
-        File.Move(tempPath, _settingsPath, overwrite: true);
+        try
+        {
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, _settingsPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+                File.Delete(tempPath);
+        }
 
         AppSettingsRuntimeCache.Set(normalized);
 
@@ -117,7 +132,31 @@ public sealed class JsonSettingsService : ISettingsService
             settings.UpdateManifestUrl = UpdateTrustPolicy.ManifestUrl;
         }
 
+        settings.SalesEmail = TrimTo(settings.SalesEmail, 320);
+        settings.SalesPhone = TrimTo(settings.SalesPhone, 64);
+        settings.Website = TrimTo(settings.Website, 2048);
+        settings.HubSpotBcc = TrimTo(settings.HubSpotBcc, 1000);
+        settings.ConsultationUrl = TrimTo(settings.ConsultationUrl, 2048);
+        settings.PricingFile = TrimTo(settings.PricingFile, 32767);
+        settings.GmailCredentialsPath = TrimTo(settings.GmailCredentialsPath, 32767);
+        settings.UpdateManifestPublicKeyPem = TrimTo(settings.UpdateManifestPublicKeyPem, 16384);
+        settings.RecallQuoteHistoryLimit = Math.Clamp(settings.RecallQuoteHistoryLimit, 1, 20);
+
+        var presets = (settings.LeadTimePresets ?? [])
+            .Select(value => TrimTo(value, 80))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(30)
+            .ToList();
+        settings.LeadTimePresets = presets.Count > 0 ? presets : new AppSettings().LeadTimePresets;
+
         return settings;
+    }
+
+    private static string TrimTo(string? value, int maximumLength)
+    {
+        var trimmed = value?.Trim() ?? string.Empty;
+        return trimmed.Length <= maximumLength ? trimmed : trimmed[..maximumLength];
     }
 
     private void TryBackupCorruptSettings()
@@ -127,8 +166,19 @@ public sealed class JsonSettingsService : ISettingsService
             if (!File.Exists(_settingsPath))
                 return;
 
+            if (new FileInfo(_settingsPath).Length > MaximumSettingsBytes)
+                return;
+
             var backupPath = _settingsPath + ".bak-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
             File.Copy(_settingsPath, backupPath, overwrite: false);
+
+            var pattern = Path.GetFileName(_settingsPath) + ".bak-*";
+            foreach (var staleBackup in Directory.EnumerateFiles(Path.GetDirectoryName(_settingsPath)!, pattern)
+                         .OrderByDescending(File.GetLastWriteTimeUtc)
+                         .Skip(MaximumSettingsBackups))
+            {
+                File.Delete(staleBackup);
+            }
         }
         catch
         {

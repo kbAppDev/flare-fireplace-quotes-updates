@@ -83,7 +83,7 @@ public sealed class MainViewModel : ObservableObject
 
         CleanOldTemporaryQuotePdfs();
 
-        AutoFillCommand = new RelayCommand(AutoFill);
+        AutoFillCommand = new AsyncRelayCommand(AutoFillAsync);
         ClearCommand = new RelayCommand(Clear);
         RecallLastQuoteCommand = new RelayCommand(RecallLastQuote);
         RecallQuoteCommand = new RelayCommand<object>(RecallQuote);
@@ -114,11 +114,11 @@ public sealed class MainViewModel : ObservableObject
         AddFireplaceCommand = new RelayCommand(AddFireplaceToQuote);
         ClearCurrentFireplaceCommand = new RelayCommand(ClearCurrentFireplaceInputs);
         RemoveFireplaceCommand = new RelayCommand<FireplaceQuoteDraft>(RemoveFireplace);
-        NextToPreviewCommand = new RelayCommand(() => _ = NextToPreviewAsync());
+        NextToPreviewCommand = new AsyncRelayCommand(NextToPreviewAsync);
         BackToReviewCommand = new RelayCommand(() => WorkflowStage = QuoteWorkflowStage.Review);
-        NextToSpecLinksCommand = new RelayCommand(() => _ = NextToSpecLinksAsync());
+        NextToSpecLinksCommand = new AsyncRelayCommand(NextToSpecLinksAsync);
         BackToPreviewCommand = new RelayCommand(() => WorkflowStage = QuoteWorkflowStage.PdfPreview);
-        CreateDraftCommand = new RelayCommand(() => _ = CreateDraftAsync());
+        CreateDraftCommand = new AsyncRelayCommand(CreateDraftAsync);
         ChooseFireplacePhotoCommand = new RelayCommand(ChooseFireplacePhoto);
         ClearFireplacePhotoCommand = new RelayCommand(ClearFireplacePhoto);
         OpenGeneratedPdfCommand = new RelayCommand(OpenGeneratedPdf);
@@ -569,7 +569,7 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    public RelayCommand AutoFillCommand { get; }
+    public IAsyncRelayCommand AutoFillCommand { get; }
     public RelayCommand ClearCommand { get; }
     public RelayCommand RecallLastQuoteCommand { get; }
     public RelayCommand<object> RecallQuoteCommand { get; }
@@ -594,23 +594,45 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand AddFireplaceCommand { get; }
     public RelayCommand ClearCurrentFireplaceCommand { get; }
     public RelayCommand<FireplaceQuoteDraft> RemoveFireplaceCommand { get; }
-    public RelayCommand NextToPreviewCommand { get; }
+    public IAsyncRelayCommand NextToPreviewCommand { get; }
     public RelayCommand BackToReviewCommand { get; }
-    public RelayCommand NextToSpecLinksCommand { get; }
+    public IAsyncRelayCommand NextToSpecLinksCommand { get; }
     public RelayCommand BackToPreviewCommand { get; }
-    public RelayCommand CreateDraftCommand { get; }
+    public IAsyncRelayCommand CreateDraftCommand { get; }
     public RelayCommand ChooseFireplacePhotoCommand { get; }
     public RelayCommand ClearFireplacePhotoCommand { get; }
     public RelayCommand OpenGeneratedPdfCommand { get; }
 
-    private void AutoFill()
+    public void ApplySettings(AppSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        _settings.PricingFile = settings.PricingFile;
+        _settings.RecallQuoteHistoryLimit = settings.RecallQuoteHistoryLimit;
+        _settings.LeadTimePresets = settings.LeadTimePresets.ToList();
+
+        LeadTimePresets.Clear();
+        foreach (var preset in _settings.LeadTimePresets.DefaultIfEmpty("3-5 Business Days"))
+            LeadTimePresets.Add(preset);
+        if (!LeadTimePresets.Contains("TBD"))
+            LeadTimePresets.Add("TBD");
+
+        while (RecentQuoteHistory.Count > RecallQuoteHistoryLimit)
+            RecentQuoteHistory.RemoveAt(RecentQuoteHistory.Count - 1);
+
+        SaveRecallHistory();
+        OnPropertyChanged(nameof(LeadTimeDropdownButtonText));
+        OnPropertyChanged(nameof(RecallQuoteHistoryLimit));
+    }
+
+    private async Task AutoFillAsync()
     {
         var parsed = _parser.Parse(RawRequest);
         ProjectName = parsed.ProjectName;
         ClientName = parsed.ClientName;
         Email = EmailAddressNormalizer.NormalizeSingleOrEmpty(parsed.Email);
         Phone = parsed.Phone;
-        Postal = ResolveProjectAddressForQuote(parsed.Postal, RawRequest);
+        Postal = await ResolveProjectAddressForQuoteAsync(parsed.Postal, RawRequest);
         InstallDate = parsed.InstallDate;
         Model = FirstNonBlank(ExtractIndoorOutdoorSeeThroughModelCode(RawRequest), parsed.Model);
         Size = parsed.Size;
@@ -640,7 +662,7 @@ public sealed class MainViewModel : ObservableObject
         UpdateStatusCards();
     }
 
-    private static string ResolveProjectAddressForQuote(string? parsedValue, string? rawRequest)
+    private static async Task<string> ResolveProjectAddressForQuoteAsync(string? parsedValue, string? rawRequest)
     {
         var value = FirstNonBlank(parsedValue, ExtractLabeledProjectAddress(rawRequest), ExtractLooseUsZip(rawRequest));
 
@@ -658,7 +680,7 @@ public sealed class MainViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(zip))
             return value;
 
-        var cityStateZip = TryLookupUsZipCityState(zip);
+        var cityStateZip = await TryLookupUsZipCityStateAsync(zip);
 
         return string.IsNullOrWhiteSpace(cityStateZip) ? zip : cityStateZip;
     }
@@ -692,14 +714,14 @@ public sealed class MainViewModel : ObservableObject
         return Regex.IsMatch((value ?? string.Empty).Trim(), @"^\d{5}(?:-\d{4})?$");
     }
 
-    private static string TryLookupUsZipCityState(string zip)
+    private static async Task<string> TryLookupUsZipCityStateAsync(string zip)
     {
         try
         {
             using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(4) };
 
             var url = "https://api.zippopotam.us/us/" + Uri.EscapeDataString(zip[..5]);
-            var json = client.GetStringAsync(url).GetAwaiter().GetResult();
+            var json = await client.GetStringAsync(url);
 
             using var document = System.Text.Json.JsonDocument.Parse(json);
             var root = document.RootElement;

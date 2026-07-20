@@ -1222,6 +1222,8 @@ public partial class MainWindow : Window
         {
             if (!File.Exists(SettingsPath))
                 return DarkThemeName;
+            if (new FileInfo(SettingsPath).Length > 16 * 1024)
+                return DarkThemeName;
             using var stream = File.OpenRead(SettingsPath);
             var settings = JsonSerializer.Deserialize<UiSettings>(stream);
             return string.IsNullOrWhiteSpace(settings?.Theme) ? DarkThemeName : settings.Theme;
@@ -1238,7 +1240,21 @@ public partial class MainWindow : Window
         {
             var settings = new UiSettings { Theme = theme };
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(SettingsPath, json);
+            var directory = Path.GetDirectoryName(SettingsPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+
+            var tempPath = SettingsPath + ".tmp";
+            try
+            {
+                File.WriteAllText(tempPath, json);
+                File.Move(tempPath, SettingsPath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+            }
         }
         catch
         {

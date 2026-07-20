@@ -10,6 +10,7 @@ namespace FlareQuotes.Core.Security;
 /// </summary>
 public sealed class ProtectedJsonFileStore
 {
+    private const long MaximumPayloadBytes = 16L * 1024 * 1024;
     private static readonly byte[] FileHeader = "FLARE-DPAPI-JSON-1\n"u8.ToArray();
     private readonly byte[] _entropy;
 
@@ -30,12 +31,15 @@ public sealed class ProtectedJsonFileStore
         {
             var existing = ReadProtected<T>(protectedPath, options);
             if (!string.IsNullOrWhiteSpace(legacyPlaintextPath) && File.Exists(legacyPlaintextPath))
-                SecureDeletePlaintext(legacyPlaintextPath);
+                SensitiveFileDeletion.DeletePlaintext(legacyPlaintextPath);
             return existing;
         }
 
         if (string.IsNullOrWhiteSpace(legacyPlaintextPath) || !File.Exists(legacyPlaintextPath))
             return default;
+
+        if (new FileInfo(legacyPlaintextPath).Length > MaximumPayloadBytes)
+            throw new InvalidDataException("Legacy JSON payload exceeds the maximum allowed size.");
 
         var json = File.ReadAllText(legacyPlaintextPath, Encoding.UTF8);
         var value = JsonSerializer.Deserialize<T>(json, options);
@@ -49,7 +53,7 @@ public sealed class ProtectedJsonFileStore
         if (verified is null)
             throw new CryptographicException("Encrypted JSON verification failed after migration.");
 
-        SecureDeletePlaintext(legacyPlaintextPath);
+        SensitiveFileDeletion.DeletePlaintext(legacyPlaintextPath);
         return value;
     }
 
@@ -63,57 +67,61 @@ public sealed class ProtectedJsonFileStore
             Directory.CreateDirectory(directory);
 
         var clearBytes = JsonSerializer.SerializeToUtf8Bytes(value, options);
-        var protectedBytes = ProtectedData.Protect(clearBytes, _entropy, DataProtectionScope.CurrentUser);
+        if (clearBytes.LongLength > MaximumPayloadBytes)
+        {
+            CryptographicOperations.ZeroMemory(clearBytes);
+            throw new InvalidDataException("JSON payload exceeds the maximum allowed size.");
+        }
+
+        byte[] protectedBytes;
+        try
+        {
+            protectedBytes = ProtectedData.Protect(clearBytes, _entropy, DataProtectionScope.CurrentUser);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(clearBytes);
+        }
         var payload = new byte[FileHeader.Length + protectedBytes.Length];
         Buffer.BlockCopy(FileHeader, 0, payload, 0, FileHeader.Length);
         Buffer.BlockCopy(protectedBytes, 0, payload, FileHeader.Length, protectedBytes.Length);
 
         var tempPath = protectedPath + ".tmp";
-        File.WriteAllBytes(tempPath, payload);
+        try
+        {
+            File.WriteAllBytes(tempPath, payload);
 
-        if (File.Exists(protectedPath))
-            File.Replace(tempPath, protectedPath, null, ignoreMetadataErrors: true);
-        else
-            File.Move(tempPath, protectedPath);
+            if (File.Exists(protectedPath))
+                File.Replace(tempPath, protectedPath, null, ignoreMetadataErrors: true);
+            else
+                File.Move(tempPath, protectedPath);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+                File.Delete(tempPath);
+        }
     }
 
     private T? ReadProtected<T>(string protectedPath, JsonSerializerOptions? options)
     {
+        if (new FileInfo(protectedPath).Length > MaximumPayloadBytes + 4096)
+            throw new InvalidDataException("Encrypted JSON payload exceeds the maximum allowed size.");
+
         var payload = File.ReadAllBytes(protectedPath);
         if (payload.Length <= FileHeader.Length || !payload.AsSpan(0, FileHeader.Length).SequenceEqual(FileHeader))
             throw new InvalidDataException("The encrypted JSON file header is invalid.");
 
         var protectedBytes = payload.AsSpan(FileHeader.Length).ToArray();
         var clearBytes = ProtectedData.Unprotect(protectedBytes, _entropy, DataProtectionScope.CurrentUser);
-        return JsonSerializer.Deserialize<T>(clearBytes, options);
-    }
-
-    private static void SecureDeletePlaintext(string path)
-    {
         try
         {
-            var info = new FileInfo(path);
-            if (info.Exists && info.Length > 0 && info.Length <= 16 * 1024 * 1024)
-            {
-                using var stream = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.None,
-                                                  bufferSize: 4096, FileOptions.WriteThrough);
-                var zeros = new byte[Math.Min(81920, (int)Math.Min(info.Length, int.MaxValue))];
-                long remaining = info.Length;
-
-                while (remaining > 0)
-                {
-                    var count = (int)Math.Min(zeros.Length, remaining);
-                    stream.Write(zeros, 0, count);
-                    remaining -= count;
-                }
-
-                stream.Flush(flushToDisk: true);
-            }
+            return JsonSerializer.Deserialize<T>(clearBytes, options);
         }
         finally
         {
-            if (File.Exists(path))
-                File.Delete(path);
+            CryptographicOperations.ZeroMemory(clearBytes);
         }
     }
+
 }

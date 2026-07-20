@@ -12,120 +12,7 @@
         Background="Transparent"
         MouseLeftButtonDown="SettingsWindow_MouseDown">
 
-    
-    <Window.Resources>
-        <Style x:Key="SettingsComboBoxItemStyle" TargetType="{x:Type ComboBoxItem}">
-            <Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Padding" Value="12,8" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type ComboBoxItem}">
-                        <Border x:Name="ItemBorder"
-                                CornerRadius="10"
-                                Background="{TemplateBinding Background}"
-                                Padding="{TemplateBinding Padding}"
-                                Margin="4,2">
-                            <ContentPresenter />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource GlassButtonHoverBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource FlareAccentBrush}" />
-                                <Setter Property="Foreground" Value="White" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SettingsComboBoxStyle" TargetType="{x:Type ComboBox}">
-            <Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" />
-            <Setter Property="Background" Value="{DynamicResource GlassInputBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource FlareBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="MinHeight" Value="42" />
-            <Setter Property="Padding" Value="12,0" />
-            <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type ComboBox}">
-                        <Grid>
-                            <Border x:Name="OuterBorder"
-                                    CornerRadius="10"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}" />
-
-                            <ContentPresenter x:Name="ContentSite"
-                                              IsHitTestVisible="False"
-                                              Content="{TemplateBinding SelectionBoxItem}"
-                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
-                                              Margin="14,0,38,0"
-                                              VerticalAlignment="Center"
-                                              HorizontalAlignment="Left" />
-
-                            <Path HorizontalAlignment="Right"
-                                  VerticalAlignment="Center"
-                                  Margin="0,0,14,0"
-                                  Fill="{DynamicResource FlareMutedTextBrush}"
-                                  Data="M 0 0 L 5 5 L 10 0 Z" />
-
-                            <ToggleButton x:Name="ToggleButton"
-                                          Focusable="False"
-                                          Background="Transparent"
-                                          BorderThickness="0"
-                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
-                                          ClickMode="Press" />
-
-                            <Popup x:Name="PART_Popup"
-                                   Placement="Bottom"
-                                   AllowsTransparency="True"
-                                   Focusable="False"
-                                   IsOpen="{TemplateBinding IsDropDownOpen}"
-                                   PopupAnimation="Fade">
-                                <Border Background="{DynamicResource FlareDarkBrush}"
-                                        BorderBrush="{DynamicResource FlareBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="12"
-                                        Padding="4"
-                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
-                                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                                    <Border.Effect>
-                                        <DropShadowEffect BlurRadius="18"
-                                                          ShadowDepth="8"
-                                                          Opacity="0.35"
-                                                          Color="Black" />
-                                    </Border.Effect>
-                                    <ScrollViewer>
-                                        <ItemsPresenter />
-                                    </ScrollViewer>
-                                </Border>
-                            </Popup>
-                        </Grid>
-
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource FlareAccentBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                                <Setter TargetName="OuterBorder" Property="BorderBrush" Value="{DynamicResource FlareAccentBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.55" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
-<Border CornerRadius="22"
+    <Border CornerRadius="22"
             Background="{DynamicResource FlareDarkBrush}"
             BorderBrush="{DynamicResource FlareBorderBrush}"
             BorderThickness="1.5"
@@ -222,26 +109,9 @@
                                 <Button Grid.Column="2" Content="Browse" Click="BrowseGmailCredentials_Click" />
                             </Grid>
 
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="14" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-
-                                <CheckBox x:Name="UseGmailSignatureCheckBox"
-                                          Grid.Column="0"
-                                          Content="Use Gmail signature"
-                                          Margin="0,2,0,0" />
-
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="Email Send Mode" FontWeight="SemiBold" Margin="0,0,0,4" />
-                                    <ComboBox x:Name="EmailSendModeBox" SelectedIndex="0" Style="{StaticResource SettingsComboBoxStyle}" ItemContainerStyle="{StaticResource SettingsComboBoxItemStyle}">
-                                        <ComboBoxItem Content="draft" />
-                                        <ComboBoxItem Content="send" />
-                                    </ComboBox>
-                                </StackPanel>
-                            </Grid>
+                            <CheckBox x:Name="UseGmailSignatureCheckBox"
+                                      Content="Use Gmail signature"
+                                      Margin="0,2,0,0" />
                         </StackPanel>
                     </Border>
 
@@ -264,8 +134,12 @@
                                 <Button Grid.Column="2" Content="Browse" Click="BrowsePricingFile_Click" />
                             </Grid>
 
-                            <TextBlock Text="Update Manifest URL" FontWeight="SemiBold" Margin="0,0,0,4" />
-                            <TextBox x:Name="UpdateManifestUrlBox" Margin="0,0,0,10" />
+                            <TextBlock Text="Verified Update Source" FontWeight="SemiBold" Margin="0,0,0,4" />
+                            <TextBox x:Name="UpdateManifestUrlBox"
+                                     IsReadOnly="True"
+                                     IsTabStop="False"
+                                     ToolTip="The updater is intentionally pinned to the Flare-managed GitHub release feed."
+                                     Margin="0,0,0,10" />
 
                             <CheckBox x:Name="CheckUpdatesOnStartupCheckBox"
                                       Content="Check for app updates automatically on startup"

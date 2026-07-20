@@ -1,6 +1,6 @@
 # Architecture Notes
 
-Flare Fireplace Quotes v1.4.10 is a C# / WPF / MVVM rebuild of the original Python quote application.
+Flare Fireplace Quotes v1.4.11 is a C# / WPF / MVVM rebuild of the original Python quote application.
 
 ## Project layout
 

@@ -26,6 +26,7 @@ public static partial class UpdateTrustPolicy
 
         if (!string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(parsed.Host, "github.com", StringComparison.OrdinalIgnoreCase) ||
+            !parsed.IsDefaultPort || !string.IsNullOrEmpty(parsed.UserInfo) ||
             !string.IsNullOrEmpty(parsed.Query) || !string.IsNullOrEmpty(parsed.Fragment) ||
             !string.Equals(parsed.AbsoluteUri, ManifestUrl, StringComparison.OrdinalIgnoreCase))
         {
@@ -46,6 +47,7 @@ public static partial class UpdateTrustPolicy
 
         if (!string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
             !string.Equals(parsed.Host, "github.com", StringComparison.OrdinalIgnoreCase) ||
+            !parsed.IsDefaultPort || !string.IsNullOrEmpty(parsed.UserInfo) ||
             !string.IsNullOrEmpty(parsed.Query) || !string.IsNullOrEmpty(parsed.Fragment) ||
             !string.Equals(parsed.AbsolutePath, expectedPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -58,7 +60,8 @@ public static partial class UpdateTrustPolicy
 
     public static bool IsTrustedDownloadResponseUri(Uri? uri)
     {
-        if (uri is null || !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        if (uri is null || !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+            !uri.IsDefaultPort || !string.IsNullOrEmpty(uri.UserInfo))
             return false;
 
         return string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase) ||
