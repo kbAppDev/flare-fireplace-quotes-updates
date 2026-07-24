@@ -63,6 +63,7 @@ public sealed class MainViewModel : ObservableObject
     private bool _canRecallLastQuote;
     private string _manualUrlToolName = string.Empty;
     private string _manualUrlValue = string.Empty;
+    private FireplaceQuoteDraft? _editingFireplace;
 
     public MainViewModel(IQuoteRequestParser parser, IFeatureSelectionService featureSelectionService,
                          IMediaSelectionService mediaSelectionService, IPriceBookService priceBookService,
@@ -114,6 +115,7 @@ public sealed class MainViewModel : ObservableObject
         AddFireplaceCommand = new RelayCommand(AddFireplaceToQuote);
         ClearCurrentFireplaceCommand = new RelayCommand(ClearCurrentFireplaceInputs);
         RemoveFireplaceCommand = new RelayCommand<FireplaceQuoteDraft>(RemoveFireplace);
+        EditFireplaceCommand = new RelayCommand<FireplaceQuoteDraft>(EditFireplace);
         NextToPreviewCommand = new AsyncRelayCommand(NextToPreviewAsync);
         BackToReviewCommand = new RelayCommand(() => WorkflowStage = QuoteWorkflowStage.Review);
         NextToSpecLinksCommand = new AsyncRelayCommand(NextToSpecLinksAsync);
@@ -136,18 +138,42 @@ public sealed class MainViewModel : ObservableObject
 
         LoadRecallHistory();
 
-        StatusCards.Add(new QuoteStatusCard { Name = "Fireplace Model", Detail = "Model missing.",
-                                              State = QuoteFlowStepState.Pending });
-        StatusCards.Add(new QuoteStatusCard { Name = "Fireplace Size", Detail = "Size missing.",
-                                              State = QuoteFlowStepState.Pending });
-        StatusCards.Add(new QuoteStatusCard { Name = "Fireplace Glass Height", Detail = "Glass height missing.",
-                                              State = QuoteFlowStepState.Pending });
-        StatusCards.Add(new QuoteStatusCard { Name = "Additional Features", Detail = "No features selected.",
-                                              State = QuoteFlowStepState.Pending });
-        StatusCards.Add(new QuoteStatusCard { Name = "Classic Media", Detail = "No classic media selected.",
-                                              State = QuoteFlowStepState.Pending });
-        StatusCards.Add(new QuoteStatusCard { Name = "Premium Media", Detail = "No premium media selected.",
-                                              State = QuoteFlowStepState.Pending });
+        StatusCards.Add(new QuoteStatusCard
+        {
+            Name = "Fireplace Model",
+            Detail = "Model missing.",
+            State = QuoteFlowStepState.Pending
+        });
+        StatusCards.Add(new QuoteStatusCard
+        {
+            Name = "Fireplace Size",
+            Detail = "Size missing.",
+            State = QuoteFlowStepState.Pending
+        });
+        StatusCards.Add(new QuoteStatusCard
+        {
+            Name = "Fireplace Glass Height",
+            Detail = "Glass height missing.",
+            State = QuoteFlowStepState.Pending
+        });
+        StatusCards.Add(new QuoteStatusCard
+        {
+            Name = "Additional Features",
+            Detail = "No features selected.",
+            State = QuoteFlowStepState.Pending
+        });
+        StatusCards.Add(new QuoteStatusCard
+        {
+            Name = "Classic Media",
+            Detail = "No classic media selected.",
+            State = QuoteFlowStepState.Pending
+        });
+        StatusCards.Add(new QuoteStatusCard
+        {
+            Name = "Premium Media",
+            Detail = "No premium media selected.",
+            State = QuoteFlowStepState.Pending
+        });
 
         RefreshSelectionOptions(preserveSelected: false);
         UpdateStatusCards();
@@ -192,7 +218,8 @@ public sealed class MainViewModel : ObservableObject
     public string Model
     {
         get => _model;
-        set {
+        set
+        {
             if (SetProperty(ref _model, value))
             {
                 ApplyPassageDefaultsForModel(value);
@@ -205,7 +232,8 @@ public sealed class MainViewModel : ObservableObject
     public string Size
     {
         get => _size;
-        set {
+        set
+        {
             if (SetProperty(ref _size, value))
             {
                 RefreshSelectionOptions(preserveSelected: true);
@@ -216,7 +244,8 @@ public sealed class MainViewModel : ObservableObject
     public string GlassHeight
     {
         get => _glassHeight;
-        set {
+        set
+        {
             var normalized = NormalizeGlassHeightAlias(value);
             if (SetProperty(ref _glassHeight, normalized))
                 NotifyFireplaceContextChanged();
@@ -225,7 +254,8 @@ public sealed class MainViewModel : ObservableObject
     public string FireplaceLocation
     {
         get => _fireplaceLocation;
-        set {
+        set
+        {
             if (SetProperty(ref _fireplaceLocation, value))
                 NotifyFireplaceContextChanged();
         }
@@ -233,7 +263,8 @@ public sealed class MainViewModel : ObservableObject
     public string LeadTime
     {
         get => _leadTime;
-        set {
+        set
+        {
             if (SetProperty(ref _leadTime, value))
             {
                 OnPropertyChanged(nameof(CurrentFireplaceLeadTimePreview));
@@ -254,7 +285,8 @@ public sealed class MainViewModel : ObservableObject
     public string GeneratedPdfPath
     {
         get => _generatedPdfPath;
-        set {
+        set
+        {
             if (SetProperty(ref _generatedPdfPath, value))
             {
                 OnPropertyChanged(nameof(GeneratedPdfSummary));
@@ -271,7 +303,8 @@ public sealed class MainViewModel : ObservableObject
     public string ManualPhotoAttachmentPath
     {
         get => _manualPhotoAttachmentPath;
-        set {
+        set
+        {
             if (SetProperty(ref _manualPhotoAttachmentPath, value))
                 OnPropertyChanged(nameof(ManualPhotoAttachmentSummary));
         }
@@ -284,8 +317,8 @@ public sealed class MainViewModel : ObservableObject
     public bool CanRecallLastQuote
     {
         get => _canRecallLastQuote;
-    private
-        set => SetProperty(ref _canRecallLastQuote, value);
+        private
+            set => SetProperty(ref _canRecallLastQuote, value);
     }
 
     public string ManualUrlToolName
@@ -304,7 +337,8 @@ public sealed class MainViewModel : ObservableObject
     public string FeatureSearch
     {
         get => _featureSearch;
-        set {
+        set
+        {
             if (SetProperty(ref _featureSearch, value))
                 ApplyFeatureFilter();
         }
@@ -312,7 +346,8 @@ public sealed class MainViewModel : ObservableObject
     public string ClassicMediaSearch
     {
         get => _classicMediaSearch;
-        set {
+        set
+        {
             if (SetProperty(ref _classicMediaSearch, value))
                 ApplyClassicMediaFilter();
         }
@@ -320,7 +355,8 @@ public sealed class MainViewModel : ObservableObject
     public string AdditionalClassicMediaSearch
     {
         get => _additionalClassicMediaSearch;
-        set {
+        set
+        {
             if (SetProperty(ref _additionalClassicMediaSearch, value))
                 ApplyAdditionalClassicMediaFilter();
         }
@@ -328,7 +364,8 @@ public sealed class MainViewModel : ObservableObject
     public string PremiumMediaSearch
     {
         get => _premiumMediaSearch;
-        set {
+        set
+        {
             if (SetProperty(ref _premiumMediaSearch, value))
                 ApplyPremiumMediaFilter();
         }
@@ -366,7 +403,8 @@ public sealed class MainViewModel : ObservableObject
     public SelectableMediaOption? ClassicMediaChoice
     {
         get => _classicMediaChoice;
-        set {
+        set
+        {
             if (SetProperty(ref _classicMediaChoice, value))
             {
                 if (value is not null)
@@ -386,7 +424,8 @@ public sealed class MainViewModel : ObservableObject
     public SelectableMediaOption? AdditionalClassicMediaChoice
     {
         get => _additionalClassicMediaChoice;
-        set {
+        set
+        {
             if (value is null)
             {
                 ClearAdditionalClassicMedia();
@@ -406,7 +445,8 @@ public sealed class MainViewModel : ObservableObject
     public QuoteWorkflowStage WorkflowStage
     {
         get => _workflowStage;
-        set {
+        set
+        {
             if (SetProperty(ref _workflowStage, value))
             {
                 OnPropertyChanged(nameof(WorkflowTitle));
@@ -414,11 +454,15 @@ public sealed class MainViewModel : ObservableObject
             }
         }
     }
-    public string WorkflowTitle => WorkflowStage switch { QuoteWorkflowStage.Review => "2. Review",
-                                                          QuoteWorkflowStage.PdfPreview => "2. Preview Quote PDF",
-                                                          QuoteWorkflowStage.SpecLinks => "2. Verify Spec Files",
-                                                          _ => "2. Review" };
-    public string WorkflowSubtitle => WorkflowStage switch {
+    public string WorkflowTitle => WorkflowStage switch
+    {
+        QuoteWorkflowStage.Review => "2. Review",
+        QuoteWorkflowStage.PdfPreview => "2. Preview Quote PDF",
+        QuoteWorkflowStage.SpecLinks => "2. Verify Spec Files",
+        _ => "2. Review"
+    };
+    public string WorkflowSubtitle => WorkflowStage switch
+    {
         QuoteWorkflowStage.Review => "Review fields, selections, and fireplaces before previewing the quote.",
         QuoteWorkflowStage.PdfPreview => "Preview the generated quote PDF before verifying spec links.",
         QuoteWorkflowStage.SpecLinks => "Verify spec file URLs before creating the Gmail draft.",
@@ -445,7 +489,8 @@ public sealed class MainViewModel : ObservableObject
 
     public System.Collections.Generic.IReadOnlyList<string> FireplacePhotoFileNames
     {
-        get {
+        get
+        {
             var names = new System.Collections.Generic.List<string>();
 
             foreach (var path in FireplacePhotoPaths)
@@ -466,7 +511,8 @@ public sealed class MainViewModel : ObservableObject
                                                : $"{FireplacePhotoPaths.Count} fireplace photos selected.";
     public string FireplacePhotoDisplayText
     {
-        get {
+        get
+        {
             if (FireplacePhotoPaths.Count == 0)
                 return "No fireplace photos selected.";
 
@@ -485,7 +531,8 @@ public sealed class MainViewModel : ObservableObject
     public UrlVerificationFireplaceCard? SelectedUrlVerificationFireplace
     {
         get => _selectedUrlVerificationFireplace;
-        set {
+        set
+        {
             if (SetProperty(ref _selectedUrlVerificationFireplace, value))
             {
                 foreach (var card in UrlVerificationFireplaces)
@@ -501,8 +548,14 @@ public sealed class MainViewModel : ObservableObject
                                                         ? "Select a fireplace to review its URLs."
                                                         : SelectedUrlVerificationFireplace.UrlHeading;
 
-    public RelayCommand<UrlVerificationFireplaceCard> SelectUrlVerificationFireplaceCommand { get; }
-    public RelayCommand AddManualUrlCommand { get; }
+    public RelayCommand<UrlVerificationFireplaceCard> SelectUrlVerificationFireplaceCommand
+    {
+        get;
+    }
+    public RelayCommand AddManualUrlCommand
+    {
+        get;
+    }
 
     public string SelectedFeatureSummary =>
         SelectedFeatures.Count == 0 ? "None selected" : string.Join(", ", SelectedFeatures.Select(x => x.DisplayName));
@@ -516,7 +569,8 @@ public sealed class MainViewModel : ObservableObject
                                         : string.Join(", ", SelectedPremiumMedia.Select(x => x.DisplayName));
     public string ChargeableMediaSummary
     {
-        get {
+        get
+        {
             var parts = SelectedPremiumMedia.Select(x => x.DisplayName).ToList();
             parts.AddRange(SelectedAdditionalClassicMedia.Select(x => $"Additional Classic: {x.DisplayName}"));
             return parts.Count == 0 ? "None selected" : string.Join(", ", parts);
@@ -538,7 +592,8 @@ public sealed class MainViewModel : ObservableObject
     public string FireplaceQuoteSummary =>
         Fireplaces.Count == 0 ? "No fireplaces added yet."
                               : string.Join("; ", Fireplaces.Select(x => $"{x.FireplaceLabel}: {x.LeadTime}"));
-    public string AddFireplaceButtonText => "Add Fireplace";
+    public bool IsEditingFireplace => _editingFireplace is not null;
+    public string AddFireplaceButtonText => IsEditingFireplace ? "Save Changes" : "Add Fireplace";
     private static string NormalizeGlassHeightForQuote(string? value)
     {
         var text = (value ?? string.Empty).Trim();
@@ -560,7 +615,8 @@ public sealed class MainViewModel : ObservableObject
     }
     public string CurrentFireplaceLabel
     {
-        get {
+        get
+        {
             var parts = new[] { FireplaceLocation, Model, string.IsNullOrWhiteSpace(Size) ? string.Empty : $"{Size}\"",
                                 string.IsNullOrWhiteSpace(GlassHeight) ? string.Empty : $"{GlassHeight}\" glass" }
                             .Where(x => !string.IsNullOrWhiteSpace(x));
@@ -569,44 +625,149 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    public IAsyncRelayCommand AutoFillCommand { get; }
-    public RelayCommand ClearCommand { get; }
-    public RelayCommand RecallLastQuoteCommand { get; }
-    public RelayCommand<object> RecallQuoteCommand { get; }
-    public RelayCommand<FeatureSelection> RemoveFeatureCommand { get; }
-    public RelayCommand<MediaSelection> RemovePremiumMediaCommand { get; }
-    public RelayCommand<MediaSelection> RemoveAdditionalClassicMediaCommand { get; }
-    public RelayCommand<SelectableFeatureOption> ToggleFeatureCommand { get; }
-    public RelayCommand<SelectableMediaOption> TogglePremiumMediaCommand { get; }
-    public RelayCommand<SelectableMediaOption> SelectClassicMediaCommand { get; }
-    public RelayCommand<SelectableMediaOption> SelectAdditionalClassicMediaCommand { get; }
-    public RelayCommand ClearClassicMediaCommand { get; }
-    public RelayCommand ClearAdditionalClassicMediaCommand { get; }
-    public RelayCommand ClearFeaturesCommand { get; }
-    public RelayCommand ClearPremiumMediaCommand { get; }
-    public RelayCommand ClearLeadTimeCommand { get; }
-    public RelayCommand CloseFeatureDropdownCommand { get; }
-    public RelayCommand CloseClassicMediaDropdownCommand { get; }
-    public RelayCommand CloseAdditionalClassicMediaDropdownCommand { get; }
-    public RelayCommand ClosePremiumMediaDropdownCommand { get; }
-    public RelayCommand CloseLeadTimeDropdownCommand { get; }
-    public RelayCommand<string> SelectLeadTimeCommand { get; }
-    public RelayCommand AddFireplaceCommand { get; }
-    public RelayCommand ClearCurrentFireplaceCommand { get; }
-    public RelayCommand<FireplaceQuoteDraft> RemoveFireplaceCommand { get; }
-    public IAsyncRelayCommand NextToPreviewCommand { get; }
-    public RelayCommand BackToReviewCommand { get; }
-    public IAsyncRelayCommand NextToSpecLinksCommand { get; }
-    public RelayCommand BackToPreviewCommand { get; }
-    public IAsyncRelayCommand CreateDraftCommand { get; }
-    public RelayCommand ChooseFireplacePhotoCommand { get; }
-    public RelayCommand ClearFireplacePhotoCommand { get; }
-    public RelayCommand OpenGeneratedPdfCommand { get; }
+    public IAsyncRelayCommand AutoFillCommand
+    {
+        get;
+    }
+    public RelayCommand ClearCommand
+    {
+        get;
+    }
+    public RelayCommand RecallLastQuoteCommand
+    {
+        get;
+    }
+    public RelayCommand<object> RecallQuoteCommand
+    {
+        get;
+    }
+    public RelayCommand<FeatureSelection> RemoveFeatureCommand
+    {
+        get;
+    }
+    public RelayCommand<MediaSelection> RemovePremiumMediaCommand
+    {
+        get;
+    }
+    public RelayCommand<MediaSelection> RemoveAdditionalClassicMediaCommand
+    {
+        get;
+    }
+    public RelayCommand<SelectableFeatureOption> ToggleFeatureCommand
+    {
+        get;
+    }
+    public RelayCommand<SelectableMediaOption> TogglePremiumMediaCommand
+    {
+        get;
+    }
+    public RelayCommand<SelectableMediaOption> SelectClassicMediaCommand
+    {
+        get;
+    }
+    public RelayCommand<SelectableMediaOption> SelectAdditionalClassicMediaCommand
+    {
+        get;
+    }
+    public RelayCommand ClearClassicMediaCommand
+    {
+        get;
+    }
+    public RelayCommand ClearAdditionalClassicMediaCommand
+    {
+        get;
+    }
+    public RelayCommand ClearFeaturesCommand
+    {
+        get;
+    }
+    public RelayCommand ClearPremiumMediaCommand
+    {
+        get;
+    }
+    public RelayCommand ClearLeadTimeCommand
+    {
+        get;
+    }
+    public RelayCommand CloseFeatureDropdownCommand
+    {
+        get;
+    }
+    public RelayCommand CloseClassicMediaDropdownCommand
+    {
+        get;
+    }
+    public RelayCommand CloseAdditionalClassicMediaDropdownCommand
+    {
+        get;
+    }
+    public RelayCommand ClosePremiumMediaDropdownCommand
+    {
+        get;
+    }
+    public RelayCommand CloseLeadTimeDropdownCommand
+    {
+        get;
+    }
+    public RelayCommand<string> SelectLeadTimeCommand
+    {
+        get;
+    }
+    public RelayCommand AddFireplaceCommand
+    {
+        get;
+    }
+    public RelayCommand ClearCurrentFireplaceCommand
+    {
+        get;
+    }
+    public RelayCommand<FireplaceQuoteDraft> RemoveFireplaceCommand
+    {
+        get;
+    }
+    public RelayCommand<FireplaceQuoteDraft> EditFireplaceCommand
+    {
+        get;
+    }
+    public IAsyncRelayCommand NextToPreviewCommand
+    {
+        get;
+    }
+    public RelayCommand BackToReviewCommand
+    {
+        get;
+    }
+    public IAsyncRelayCommand NextToSpecLinksCommand
+    {
+        get;
+    }
+    public RelayCommand BackToPreviewCommand
+    {
+        get;
+    }
+    public IAsyncRelayCommand CreateDraftCommand
+    {
+        get;
+    }
+    public RelayCommand ChooseFireplacePhotoCommand
+    {
+        get;
+    }
+    public RelayCommand ClearFireplacePhotoCommand
+    {
+        get;
+    }
+    public RelayCommand OpenGeneratedPdfCommand
+    {
+        get;
+    }
 
     public void ApplySettings(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
+        var pricingFileChanged =
+            !string.Equals(_settings.PricingFile, settings.PricingFile, StringComparison.OrdinalIgnoreCase);
         _settings.PricingFile = settings.PricingFile;
         _settings.RecallQuoteHistoryLimit = settings.RecallQuoteHistoryLimit;
         _settings.LeadTimePresets = settings.LeadTimePresets.ToList();
@@ -621,6 +782,8 @@ public sealed class MainViewModel : ObservableObject
             RecentQuoteHistory.RemoveAt(RecentQuoteHistory.Count - 1);
 
         SaveRecallHistory();
+        if (pricingFileChanged)
+            InvalidatePricedSnapshot();
         OnPropertyChanged(nameof(LeadTimeDropdownButtonText));
         OnPropertyChanged(nameof(RecallQuoteHistoryLimit));
     }
@@ -750,6 +913,7 @@ public sealed class MainViewModel : ObservableObject
     }
     private void Clear()
     {
+        EndFireplaceEdit();
         RawRequest = ProjectName = ClientName = Email = Phone = Postal = InstallDate = Model = Size = GlassHeight =
             FireplaceLocation = string.Empty;
         LeadTime = "3-5 Business Days";
@@ -791,6 +955,7 @@ public sealed class MainViewModel : ObservableObject
             await _quotePdfService.BuildQuotePdfAsync(request, pdfPath);
             _lastRequest = request;
             _lastPricedQuote = priced;
+            OnPropertyChanged(nameof(EstimatedTotalDisplay));
             GeneratedPdfPath = string.Empty;
             GeneratedPdfPath = pdfPath;
             BuildQuotePreviewRows(priced);
@@ -814,8 +979,13 @@ public sealed class MainViewModel : ObservableObject
             foreach (var set in links)
                 foreach (var link in set.Links)
                     SpecLinks.Add(
-                        new SpecLinkDraft { FireplaceCode = set.ModelNumber, Label = link.Key, Url = link.Value,
-                                            Status = set.Sources.TryGetValue(link.Key, out var s) ? s : "specific" });
+                        new SpecLinkDraft
+                        {
+                            FireplaceCode = set.ModelNumber,
+                            Label = link.Key,
+                            Url = link.Value,
+                            Status = set.Sources.TryGetValue(link.Key, out var s) ? s : "specific"
+                        });
             WorkflowStage = QuoteWorkflowStage.SpecLinks;
             StatusMessage = $"Spec link review ready with {SpecLinks.Count} URL(s).";
         }
@@ -954,7 +1124,8 @@ public sealed class MainViewModel : ObservableObject
 
     private void ChooseFireplacePhoto()
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
             Title = "Select Fireplace Photos",
             Filter =
                 "Image files (*.jpg;*.jpeg;*.png;*.webp;*.bmp)|*.jpg;*.jpeg;*.png;*.webp;*.bmp|All files (*.*)|*.*",
@@ -1102,8 +1273,12 @@ public sealed class MainViewModel : ObservableObject
             // quoted unit from splitting just because a URL filename says ST60
             // while another filename says ST60R.
             var explicitGroups =
-                rows.Select(row => new { Row = row, Code = NormalizeUrlVerificationExplicitGroupCode(
-                                                        GetUrlVerificationExplicitFireplaceCode(row)) })
+                rows.Select(row => new
+                {
+                    Row = row,
+                    Code = NormalizeUrlVerificationExplicitGroupCode(
+                                                        GetUrlVerificationExplicitFireplaceCode(row))
+                })
                     .Where(item => !string.IsNullOrWhiteSpace(item.Code))
                     .GroupBy(item => item.Code!, StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -1250,8 +1425,11 @@ public sealed class MainViewModel : ObservableObject
             var styleKey = ResolveUrlVerificationStyleKey(modelCode, groupRows);
             var isValid = groupRows.All(IsUrlVerificationRowValid);
 
-            UrlVerificationFireplaces.Add(new UrlVerificationFireplaceCard {
-                Index = i + 1, ModelCode = modelCode, StyleKey = styleKey,
+            UrlVerificationFireplaces.Add(new UrlVerificationFireplaceCard
+            {
+                Index = i + 1,
+                ModelCode = modelCode,
+                StyleKey = styleKey,
                 StyleLabel = ResolveUrlVerificationStyleLabel(styleKey, modelCode, groupRows),
                 UrlHeading = BuildUrlVerificationHeading(modelCode, styleKey, groupRows),
                 ImagePath = IsFf25EhModelText(modelCode) ? "pack://application:,,,/Assets/UrlStyleCards/FF25EH.png"
@@ -1260,8 +1438,10 @@ public sealed class MainViewModel : ObservableObject
                             : string.Equals(styleKey, "PASS", StringComparison.OrdinalIgnoreCase)
                                 ? "pack://application:,,,/Assets/UrlStyleCards/PASS.png"
                                 : $"pack://application:,,,/Assets/UrlStyleCards/{styleKey}.png",
-                IsValid = isValid, StatusText = isValid ? "Valid" : "Needs Attention",
-                StatusGlyph = isValid ? "✓" : "✕", Rows = groupRows.ToList()
+                IsValid = isValid,
+                StatusText = isValid ? "Valid" : "Needs Attention",
+                StatusGlyph = isValid ? "✓" : "✕",
+                Rows = groupRows.ToList()
             });
         }
 
@@ -1290,8 +1470,14 @@ public sealed class MainViewModel : ObservableObject
             var valid = IsUrlVerificationRowValid(row);
 
             SelectedUrlVerificationRows.Add(
-                new UrlVerificationRowVm { Item = item, Url = url, StatusText = valid ? "Valid" : "Needs Attention",
-                                           StatusGlyph = valid ? "✓" : "✕", IsValid = valid });
+                new UrlVerificationRowVm
+                {
+                    Item = item,
+                    Url = url,
+                    StatusText = valid ? "Valid" : "Needs Attention",
+                    StatusGlyph = valid ? "✓" : "✕",
+                    IsValid = valid
+                });
         }
 
         OnPropertyChanged(nameof(SelectedUrlVerificationSummary));
@@ -1690,13 +1876,16 @@ public sealed class MainViewModel : ObservableObject
 
         var normalized = value.Trim().ToUpperInvariant();
 
-        return normalized switch { "R" => "16",
-                                   "REGULAR" => "16",
-                                   "H" => "24",
-                                   "HIGH" => "24",
-                                   "EH" => "30",
-                                   "EXTRA HIGH" => "30",
-                                   _ => NormalizeUrlVerificationNumber(normalized) };
+        return normalized switch
+        {
+            "R" => "16",
+            "REGULAR" => "16",
+            "H" => "24",
+            "HIGH" => "24",
+            "EH" => "30",
+            "EXTRA HIGH" => "30",
+            _ => NormalizeUrlVerificationNumber(normalized)
+        };
     }
     private static string ResolveUrlVerificationStyleLabel(string styleKey) =>
         ResolveUrlVerificationStyleLabel(styleKey, string.Empty, Array.Empty<object>());
@@ -1720,19 +1909,22 @@ public sealed class MainViewModel : ObservableObject
             return IsUrlVerificationSeeThroughPassageText(combined) ? "See Through Passage" : "Front Facing Passage";
         }
 
-        return styleKey switch { "TR" => "Traditional",
-                                 "VFF" => "Outdoor Vent Free Front Facing",
-                                 "VST" => "Outdoor Vent Free See Through",
-                                 "VLC" => "Outdoor Vent Free Left Corner",
-                                 "VRC" => "Outdoor Vent Free Right Corner",
-                                 "VDC" => "Outdoor Vent Free Double Corner",
-                                 "LC" => "Left Corner",
-                                 "RC" => "Right Corner",
-                                 "ST" => "See Through",
-                                 "RD" => "Room Definer",
-                                 "DC" => "Double Corner",
-                                 "TRA" => "Traditional",
-                                 _ => "Front Facing" };
+        return styleKey switch
+        {
+            "TR" => "Traditional",
+            "VFF" => "Outdoor Vent Free Front Facing",
+            "VST" => "Outdoor Vent Free See Through",
+            "VLC" => "Outdoor Vent Free Left Corner",
+            "VRC" => "Outdoor Vent Free Right Corner",
+            "VDC" => "Outdoor Vent Free Double Corner",
+            "LC" => "Left Corner",
+            "RC" => "Right Corner",
+            "ST" => "See Through",
+            "RD" => "Room Definer",
+            "DC" => "Double Corner",
+            "TRA" => "Traditional",
+            _ => "Front Facing"
+        };
     }
     private static string NormalizeForUrlVerification(string? value)
     {
@@ -1743,24 +1935,30 @@ public sealed class MainViewModel : ObservableObject
 
     private QuoteRequest BuildQuoteRequest()
     {
-        var request = new QuoteRequest { ProjectName = ProjectName,
-                                         ClientName = ClientName,
-                                         Email = EmailAddressNormalizer.NormalizeSingleOrEmpty(Email),
-                                         Phone = Phone,
-                                         Postal = Postal,
-                                         ProjectAddress = Postal,
-                                         InstallDate = InstallDate,
-                                         Model = ModelForQuotePreservingOdIo(
+        var request = new QuoteRequest
+        {
+            ProjectName = ProjectName,
+            ClientName = ClientName,
+            Email = EmailAddressNormalizer.NormalizeSingleOrEmpty(Email),
+            Phone = Phone,
+            Postal = Postal,
+            ProjectAddress = Postal,
+            InstallDate = InstallDate,
+            Model = ModelForQuotePreservingOdIo(
                                              Model, ForceOutdoorVentFreeType(Model, DetectType(Model, Size)), Size,
                                              EffectiveGlassHeight(GlassHeight, Model)),
-                                         Size = Size,
-                                         GlassHeight = EffectiveGlassHeight(GlassHeight, Model),
-                                         FireplaceLocation = FireplaceLocation };
+            Size = Size,
+            GlassHeight = EffectiveGlassHeight(GlassHeight, Model),
+            FireplaceLocation = FireplaceLocation
+        };
 
         if (ClassicMediaChoice is not null)
-            request.ClassicMedia.Add(new MediaSelection { Key = ClassicMediaChoice.Key,
-                                                          DisplayName = ClassicMediaChoice.DisplayName,
-                                                          IsPremium = false });
+            request.ClassicMedia.Add(new MediaSelection
+            {
+                Key = ClassicMediaChoice.Key,
+                DisplayName = ClassicMediaChoice.DisplayName,
+                IsPremium = false
+            });
 
         foreach (var media in CurrentChargeableMediaSelections())
             request.PremiumMedia.Add(Clone(media));
@@ -1811,7 +2009,7 @@ public sealed class MainViewModel : ObservableObject
         if (IsIndoorOutdoorSeeThroughModelCode(model))
             return FireplaceType.IndoorOutdoorSeeThrough;
         if (HasOutdoorKitSelection(features) && IsSeeThroughForReflectiveBackRules(detected, model) &&
-            detected is not(FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough))
+            detected is not (FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough))
         {
             return FireplaceType.IndoorOutdoorSeeThrough;
         }
@@ -1821,22 +2019,26 @@ public sealed class MainViewModel : ObservableObject
 
     private FireplaceQuote BuildCurrentFireplaceQuote()
     {
-        return new FireplaceQuote { FireplaceLocation = FireplaceLocation,
-                                    Type = ResolveTypeForQuote(Model, Size, SelectedFeatures),
-                                    Model = ModelForQuotePreservingOdIo(
+        return new FireplaceQuote
+        {
+            FireplaceLocation = FireplaceLocation,
+            Type = ResolveTypeForQuote(Model, Size, SelectedFeatures),
+            Model = ModelForQuotePreservingOdIo(
                                         Model, ForceOutdoorVentFreeType(Model, DetectType(Model, Size)), Size,
                                         EffectiveGlassHeight(GlassHeight, Model)),
-                                    Size = Size,
-                                    GlassHeight = EffectiveGlassHeight(GlassHeight, Model),
-                                    LeadTime = string.IsNullOrWhiteSpace(LeadTime) ? "TBD" : LeadTime.Trim(),
-                                    ClassicMediaDisplay = ClassicMediaChoice?.DisplayName ?? string.Empty,
-                                    Features = SelectedFeatures.Select(Clone).ToList(),
-                                    PremiumMedia = CurrentChargeableMediaSelections() };
+            Size = Size,
+            GlassHeight = EffectiveGlassHeight(GlassHeight, Model),
+            LeadTime = string.IsNullOrWhiteSpace(LeadTime) ? "TBD" : LeadTime.Trim(),
+            ClassicMediaDisplay = ClassicMediaChoice?.DisplayName ?? string.Empty,
+            Features = SelectedFeatures.Select(Clone).ToList(),
+            PremiumMedia = CurrentChargeableMediaSelections()
+        };
     }
 
     private static FireplaceQuote BuildFireplaceQuote(FireplaceQuoteDraft fireplace)
     {
-        return new FireplaceQuote {
+        return new FireplaceQuote
+        {
             FireplaceLocation = fireplace.Location,
             ProjectName = fireplace.ProjectName,
             ProjectAddress = fireplace.ProjectAddress,
@@ -1858,7 +2060,8 @@ public sealed class MainViewModel : ObservableObject
     {
         QuotePreviewRows.Clear();
         foreach (var fp in priced.Fireplaces)
-            QuotePreviewRows.Add(new QuotePreviewRow {
+            QuotePreviewRows.Add(new QuotePreviewRow
+            {
                 FireplaceLabel = string.IsNullOrWhiteSpace(fp.ModelNumber) ? fp.FireplaceLabel : fp.ModelNumber,
                 LeadTime = fp.LeadTime,
                 Features = fp.OptionalFeatures.Count == 0
@@ -1872,7 +2075,8 @@ public sealed class MainViewModel : ObservableObject
                                                  x.Feature.Contains("Additional Classic"))
                         ? "Included in optional feature rows"
                         : ChargeableMediaSummary,
-                BasePrice = fp.BaseLine.PriceText, TotalPrice = fp.TotalMsrp.ToString("C0")
+                BasePrice = fp.BaseLine.PriceText,
+                TotalPrice = fp.TotalMsrp.ToString("C0")
             });
     }
 
@@ -2337,8 +2541,12 @@ public sealed class MainViewModel : ObservableObject
             if (SelectedFeatures.Any(x => string.Equals(x.Key, option.Key, StringComparison.OrdinalIgnoreCase)))
                 continue;
 
-            SelectedFeatures.Add(new FeatureSelection { Key = option.Key, DisplayName = option.DisplayName,
-                                                        PdfDescription = option.PdfDescription });
+            SelectedFeatures.Add(new FeatureSelection
+            {
+                Key = option.Key,
+                DisplayName = option.DisplayName,
+                PdfDescription = option.PdfDescription
+            });
         }
 
         OnPropertyChanged(nameof(SelectedFeatureSummary));
@@ -2472,8 +2680,12 @@ public sealed class MainViewModel : ObservableObject
     }
     private List<MediaSelection> BuildAdditionalClassicMediaSelections() =>
         SelectedAdditionalClassicMedia
-            .Select(x => new MediaSelection { Key = $"additional_classic::{x.Key}", DisplayName = x.DisplayName,
-                                              IsPremium = false })
+            .Select(x => new MediaSelection
+            {
+                Key = $"additional_classic::{x.Key}",
+                DisplayName = x.DisplayName,
+                IsPremium = false
+            })
             .ToList();
     private List<MediaSelection> CurrentChargeableMediaSelections()
     {
@@ -2501,7 +2713,8 @@ public sealed class MainViewModel : ObservableObject
         var label = CurrentFireplaceLabel;
         var value = string.IsNullOrWhiteSpace(LeadTime) ? "TBD" : LeadTime.Trim();
 
-        var fireplace = new FireplaceQuoteDraft {
+        var fireplace = new FireplaceQuoteDraft
+        {
             FireplaceLabel = label,
             Model = ModelForQuotePreservingOdIo(Model, ForceOutdoorVentFreeType(Model, DetectType(Model, Size)), Size,
                                                 EffectiveGlassHeight(GlassHeight, Model)),
@@ -2520,14 +2733,32 @@ public sealed class MainViewModel : ObservableObject
             AdditionalClassicMediaKey = AdditionalClassicMediaChoice?.Key ?? string.Empty
         };
 
-        Fireplaces.Add(fireplace);
+        if (_editingFireplace is not null)
+        {
+            var index = Fireplaces.IndexOf(_editingFireplace);
+            if (index >= 0)
+                Fireplaces[index] = fireplace;
+            else
+                Fireplaces.Add(fireplace);
+
+            StatusMessage = $"Updated {label} with lead time {value}.";
+            EndFireplaceEdit();
+        }
+        else
+        {
+            Fireplaces.Add(fireplace);
+            StatusMessage = $"Added {label} with lead time {value}.";
+        }
+
+        InvalidatePricedSnapshot();
         OnPropertyChanged(nameof(FireplaceQuoteSummary));
-        StatusMessage = $"Added {label} with lead time {value}.";
         UpdateStatusCards();
         ClearCurrentFireplaceInputs();
     }
     private void ClearCurrentFireplaceInputs()
     {
+        var canceledEdit = IsEditingFireplace;
+        EndFireplaceEdit();
         Model = Size = GlassHeight = FireplaceLocation = string.Empty;
         LeadTime = "3-5 Business Days";
         CustomLeadTime = string.Empty;
@@ -2542,19 +2773,138 @@ public sealed class MainViewModel : ObservableObject
         SpecLinks.Clear();
         WorkflowStage = QuoteWorkflowStage.Review;
         NotifyFireplaceContextChanged();
+        if (canceledEdit)
+            StatusMessage = "Editing canceled. The original fireplace remains on the quote.";
     }
 
     private void RemoveFireplace(FireplaceQuoteDraft? fireplace)
     {
         if (fireplace is null)
             return;
+
+        var wasEditing = ReferenceEquals(_editingFireplace, fireplace);
         Fireplaces.Remove(fireplace);
+        if (wasEditing)
+        {
+            EndFireplaceEdit();
+            ClearCurrentFireplaceInputs();
+        }
+
+        InvalidatePricedSnapshot();
         OnPropertyChanged(nameof(FireplaceQuoteSummary));
         StatusMessage = "Fireplace removed from the quote.";
-        UpdateStatusCards();
+        NotifyFireplaceContextChanged();
     }
+
+    // Loads an already-added fireplace into the builder while keeping the original
+    // safely on the quote until Save Changes replaces it.
+    private void EditFireplace(FireplaceQuoteDraft? fireplace)
+    {
+        if (fireplace is null)
+            return;
+
+        _editingFireplace = fireplace;
+        OnPropertyChanged(nameof(IsEditingFireplace));
+        OnPropertyChanged(nameof(AddFireplaceButtonText));
+        OnPropertyChanged(nameof(HasPendingNewFireplace));
+        OnPropertyChanged(nameof(CanGeneratePreview));
+        OnPropertyChanged(nameof(ReadinessText));
+        OnPropertyChanged(nameof(ReadyToGenerateDetail));
+
+        Model = fireplace.Model;
+        Size = fireplace.Size;
+        GlassHeight = fireplace.GlassHeight;
+        FireplaceLocation = fireplace.Location;
+        LeadTime = string.IsNullOrWhiteSpace(fireplace.LeadTime) ? "3-5 Business Days" : fireplace.LeadTime;
+        if (!string.IsNullOrWhiteSpace(fireplace.ProjectName))
+            ProjectName = fireplace.ProjectName;
+        if (!string.IsNullOrWhiteSpace(fireplace.ProjectAddress))
+            Postal = fireplace.ProjectAddress;
+
+        RefreshSelectionOptions(preserveSelected: false);
+
+        ClearFeatureSelections();
+        foreach (var feature in fireplace.Features)
+            if (!string.IsNullOrWhiteSpace(feature?.Key))
+                SetFeatureSelected(feature.Key, true);
+
+        ClearPremiumMediaSelections();
+        foreach (var media in fireplace.PremiumMedia)
+        {
+            if (string.IsNullOrWhiteSpace(media?.Key))
+                continue;
+            if (media.Key.StartsWith("additional_classic::", StringComparison.OrdinalIgnoreCase))
+                continue; // additional-classic media is restored via AdditionalClassicMediaChoice below
+            SetPremiumMediaSelected(media.Key, true);
+        }
+
+        ClassicMediaChoice =
+            string.IsNullOrWhiteSpace(fireplace.ClassicMediaKey)
+                ? null
+                : ClassicMediaOptions.FirstOrDefault(
+                      x => string.Equals(x.Key, fireplace.ClassicMediaKey, StringComparison.OrdinalIgnoreCase));
+
+        AdditionalClassicMediaChoice =
+            string.IsNullOrWhiteSpace(fireplace.AdditionalClassicMediaKey)
+                ? null
+                : AdditionalClassicMediaOptions.FirstOrDefault(
+                      x => string.Equals(x.Key, fireplace.AdditionalClassicMediaKey, StringComparison.OrdinalIgnoreCase));
+
+        WorkflowStage = QuoteWorkflowStage.Review;
+        InvalidatePricedSnapshot();
+        NotifyFireplaceContextChanged();
+        StatusMessage =
+            $"Editing {fireplace.FireplaceLabel}. Update the details, then choose Save Changes.";
+    }
+
+    private void EndFireplaceEdit()
+    {
+        if (_editingFireplace is null)
+            return;
+
+        _editingFireplace = null;
+        OnPropertyChanged(nameof(IsEditingFireplace));
+        OnPropertyChanged(nameof(AddFireplaceButtonText));
+        OnPropertyChanged(nameof(HasPendingNewFireplace));
+        OnPropertyChanged(nameof(CanGeneratePreview));
+        OnPropertyChanged(nameof(ReadinessText));
+        OnPropertyChanged(nameof(ReadyToGenerateDetail));
+    }
+
+    private void InvalidatePricedSnapshot()
+    {
+        if (_lastRequest is null && _lastPricedQuote is null && string.IsNullOrWhiteSpace(GeneratedPdfPath))
+            return;
+
+        _lastRequest = null;
+        _lastPricedQuote = null;
+        GeneratedPdfPath = string.Empty;
+        OnPropertyChanged(nameof(EstimatedTotalDisplay));
+    }
+
+    // Readiness / summary values surfaced to the redesigned build workspace.
+    public bool HasFireplacesOnQuote => Fireplaces.Count > 0;
+    public bool HasPendingNewFireplace => !IsEditingFireplace && Fireplaces.Count > 0 &&
+                                                !string.IsNullOrWhiteSpace(Model);
+    public bool CanGeneratePreview => !IsEditingFireplace && !HasPendingNewFireplace &&
+                                      (Fireplaces.Count > 0 || !string.IsNullOrWhiteSpace(Model));
+    public string ReadinessText => IsEditingFireplace
+                                       ? "Save fireplace changes to continue"
+                                       : HasPendingNewFireplace ? "Add the current fireplace to continue"
+                                       : CanGeneratePreview ? "Draft ready to preview"
+                                                            : "Add a fireplace to continue";
+    public string ReadyToGenerateDetail =>
+        IsEditingFireplace ? "Save the fireplace currently being edited"
+        : HasPendingNewFireplace ? "Add the current fireplace to the quote"
+        : Fireplaces.Count == 1 ? "1 fireplace on quote"
+        : Fireplaces.Count > 1 ? $"{Fireplaces.Count} fireplaces on quote"
+                               : "Add at least one fireplace";
+    public string FireplaceCountText => Fireplaces.Count.ToString();
+    public string EstimatedTotalDisplay => _lastPricedQuote is { } priced ? priced.TotalMsrp.ToString("C0") : "—";
     private void UpdateStatusForManualSelection()
     {
+        InvalidatePricedSnapshot();
+        OnPropertyChanged(nameof(EstimatedTotalDisplay));
         var count = SelectedFeatures.Count + SelectedPremiumMedia.Count + SelectedAdditionalClassicMedia.Count +
                     (ClassicMediaChoice is null ? 0 : 1);
 
@@ -2577,7 +2927,7 @@ public sealed class MainViewModel : ObservableObject
         SetStatusCard("Fireplace Glass Height",
                       (!glassRequired || !string.IsNullOrWhiteSpace(GlassHeight)) ? QuoteFlowStepState.Complete
                                                                                   : QuoteFlowStepState.Pending,
-                      !glassRequired                           ? "Not required for this type."
+                      !glassRequired ? "Not required for this type."
                       : string.IsNullOrWhiteSpace(GlassHeight) ? "Glass height missing."
                                                                : GlassHeight);
         SetStatusCard("Additional Features",
@@ -2599,8 +2949,16 @@ public sealed class MainViewModel : ObservableObject
     }
     private void NotifyFireplaceContextChanged()
     {
+        InvalidatePricedSnapshot();
         OnPropertyChanged(nameof(CurrentFireplaceLabel));
         OnPropertyChanged(nameof(CurrentFireplaceLeadTimePreview));
+        OnPropertyChanged(nameof(HasFireplacesOnQuote));
+        OnPropertyChanged(nameof(HasPendingNewFireplace));
+        OnPropertyChanged(nameof(CanGeneratePreview));
+        OnPropertyChanged(nameof(ReadinessText));
+        OnPropertyChanged(nameof(ReadyToGenerateDetail));
+        OnPropertyChanged(nameof(FireplaceCountText));
+        OnPropertyChanged(nameof(EstimatedTotalDisplay));
         UpdateStatusCards();
     }
     private static string CreateFreshQuotePdfPath(QuoteRequest request, PricedQuoteResult priced)
@@ -3013,8 +3371,12 @@ public sealed class MainViewModel : ObservableObject
     {
         var glass = NormalizeGlassHeightAlias(glassHeight);
 
-        return glass switch { "30" => "EH", "24" => "H",
-                              _ => string.Empty };
+        return glass switch
+        {
+            "30" => "EH",
+            "24" => "H",
+            _ => string.Empty
+        };
     }
 
     private static string OutdoorVentFreePrefix(string raw, string compact, FireplaceType type)
@@ -3062,13 +3424,16 @@ public sealed class MainViewModel : ObservableObject
 
         var text = NormalizeModelForRules(raw);
 
-        return type switch { FireplaceType.IndoorSeeThrough or FireplaceType.IndoorOutdoorSeeThrough => "ST",
-                             FireplaceType.Indoor when text.Contains("left corner") => "LC",
-                             FireplaceType.Indoor when text.Contains("right corner") => "RC",
-                             FireplaceType.Indoor when text.Contains("double corner") => "DC",
-                             FireplaceType.Indoor when text.Contains("room definer") => "RD",
-                             FireplaceType.Indoor => "FF",
-                             _ => string.Empty };
+        return type switch
+        {
+            FireplaceType.IndoorSeeThrough or FireplaceType.IndoorOutdoorSeeThrough => "ST",
+            FireplaceType.Indoor when text.Contains("left corner") => "LC",
+            FireplaceType.Indoor when text.Contains("right corner") => "RC",
+            FireplaceType.Indoor when text.Contains("double corner") => "DC",
+            FireplaceType.Indoor when text.Contains("room definer") => "RD",
+            FireplaceType.Indoor => "FF",
+            _ => string.Empty
+        };
     }
     private static FireplaceType DetectType(string model, string size = "")
     {
@@ -3108,12 +3473,22 @@ public sealed class MainViewModel : ObservableObject
             return FireplaceType.IndoorSeeThrough;
         return FireplaceType.Indoor;
     }
-    private static FeatureSelection Clone(FeatureSelection x) => new() { Key = x.Key, DisplayName = x.DisplayName,
-                                                                         PdfDescription = x.PdfDescription,
-                                                                         Msrp = x.Msrp, SourceSku = x.SourceSku };
-    private static MediaSelection Clone(MediaSelection x) => new() { Key = x.Key, DisplayName = x.DisplayName,
-                                                                     IsPremium = x.IsPremium, Msrp = x.Msrp,
-                                                                     Quantity = x.Quantity };
+    private static FeatureSelection Clone(FeatureSelection x) => new()
+    {
+        Key = x.Key,
+        DisplayName = x.DisplayName,
+        PdfDescription = x.PdfDescription,
+        Msrp = x.Msrp,
+        SourceSku = x.SourceSku
+    };
+    private static MediaSelection Clone(MediaSelection x) => new()
+    {
+        Key = x.Key,
+        DisplayName = x.DisplayName,
+        IsPremium = x.IsPremium,
+        Msrp = x.Msrp,
+        Quantity = x.Quantity
+    };
 
     private static FireplaceType ForceOutdoorVentFreeType(string? model, FireplaceType detectedType)
     {
@@ -3143,7 +3518,11 @@ public sealed class MainViewModel : ObservableObject
         new("Recall Quote History");
 
     private static readonly JsonSerializerOptions RecallHistoryJsonOptions =
-        new() { PropertyNameCaseInsensitive = true, WriteIndented = false };
+        new()
+        {
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = false
+        };
 
     private void LoadRecallHistory()
     {
@@ -3207,33 +3586,36 @@ public sealed class MainViewModel : ObservableObject
     }
     private void CaptureLastQuoteForRecall()
     {
-        var snapshot = new LastQuoteSnapshot { CreatedAt = DateTimeOffset.Now,
-                                               RawRequest = RawRequest,
-                                               ProjectName = ProjectName,
-                                               ClientName = ClientName,
-                                               Email = Email,
-                                               Phone = Phone,
-                                               Postal = Postal,
-                                               ProjectAddress = Postal,
-                                               InstallDate = InstallDate,
-                                               Model = Model,
-                                               Size = Size,
-                                               GlassHeight = GlassHeight,
-                                               FireplaceLocation = FireplaceLocation,
-                                               LeadTime = LeadTime,
-                                               ClassicMediaKey = ClassicMediaChoice?.Key ?? string.Empty,
-                                               AdditionalClassicMediaKey =
+        var snapshot = new LastQuoteSnapshot
+        {
+            CreatedAt = DateTimeOffset.Now,
+            RawRequest = RawRequest,
+            ProjectName = ProjectName,
+            ClientName = ClientName,
+            Email = Email,
+            Phone = Phone,
+            Postal = Postal,
+            ProjectAddress = Postal,
+            InstallDate = InstallDate,
+            Model = Model,
+            Size = Size,
+            GlassHeight = GlassHeight,
+            FireplaceLocation = FireplaceLocation,
+            LeadTime = LeadTime,
+            ClassicMediaKey = ClassicMediaChoice?.Key ?? string.Empty,
+            AdditionalClassicMediaKey =
                                                    JoinAdditionalClassicMediaKeys(SelectedAdditionalClassicMedia),
-                                               FeatureKeys = SelectedFeatures.Select(x => x.Key)
+            FeatureKeys = SelectedFeatures.Select(x => x.Key)
                                                                  .Where(x => !string.IsNullOrWhiteSpace(x))
                                                                  .Distinct(StringComparer.OrdinalIgnoreCase)
                                                                  .ToList(),
-                                               PremiumMediaKeys = SelectedPremiumMedia.Select(x => x.Key)
+            PremiumMediaKeys = SelectedPremiumMedia.Select(x => x.Key)
                                                                       .Where(x => !string.IsNullOrWhiteSpace(x))
                                                                       .Distinct(StringComparer.OrdinalIgnoreCase)
                                                                       .ToList(),
-                                               Fireplaces = Fireplaces.Select(CloneFireplaceDraftForRecall).ToList(),
-                                               GeneratedPdfPath = string.Empty };
+            Fireplaces = Fireplaces.Select(CloneFireplaceDraftForRecall).ToList(),
+            GeneratedPdfPath = string.Empty
+        };
 
         AddSnapshotToRecallHistory(snapshot);
     }
@@ -3272,6 +3654,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void ClearQuoteAfterSuccessfulEmail()
     {
+        EndFireplaceEdit();
         RawRequest = ProjectName = ClientName = Email = Phone = Postal = InstallDate = Model = Size = GlassHeight =
             FireplaceLocation = string.Empty;
         LeadTime = "3-5 Business Days";
@@ -3301,6 +3684,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void RecallQuote(object? value)
     {
+        EndFireplaceEdit();
         var snapshot = value as LastQuoteSnapshot ?? _lastCompletedQuoteSnapshot;
 
         if (snapshot is null)
@@ -3367,21 +3751,24 @@ public sealed class MainViewModel : ObservableObject
 
     private static FireplaceQuoteDraft CloneFireplaceDraftForRecall(FireplaceQuoteDraft fireplace)
     {
-        return new FireplaceQuoteDraft { FireplaceLabel = fireplace.FireplaceLabel,
-                                         Model = fireplace.Model,
-                                         Size = fireplace.Size,
-                                         GlassHeight = fireplace.GlassHeight,
-                                         Location = fireplace.Location,
-                                         ProjectName = fireplace.ProjectName,
-                                         ProjectAddress = fireplace.ProjectAddress,
-                                         LeadTime = fireplace.LeadTime,
-                                         FeaturesSummary = fireplace.FeaturesSummary,
-                                         ClassicMediaSummary = fireplace.ClassicMediaSummary,
-                                         PremiumMediaSummary = fireplace.PremiumMediaSummary,
-                                         ClassicMediaKey = fireplace.ClassicMediaKey,
-                                         AdditionalClassicMediaKey = fireplace.AdditionalClassicMediaKey,
-                                         Features = fireplace.Features.Select(Clone).ToList(),
-                                         PremiumMedia = fireplace.PremiumMedia.Select(Clone).ToList() };
+        return new FireplaceQuoteDraft
+        {
+            FireplaceLabel = fireplace.FireplaceLabel,
+            Model = fireplace.Model,
+            Size = fireplace.Size,
+            GlassHeight = fireplace.GlassHeight,
+            Location = fireplace.Location,
+            ProjectName = fireplace.ProjectName,
+            ProjectAddress = fireplace.ProjectAddress,
+            LeadTime = fireplace.LeadTime,
+            FeaturesSummary = fireplace.FeaturesSummary,
+            ClassicMediaSummary = fireplace.ClassicMediaSummary,
+            PremiumMediaSummary = fireplace.PremiumMediaSummary,
+            ClassicMediaKey = fireplace.ClassicMediaKey,
+            AdditionalClassicMediaKey = fireplace.AdditionalClassicMediaKey,
+            Features = fireplace.Features.Select(Clone).ToList(),
+            PremiumMedia = fireplace.PremiumMedia.Select(Clone).ToList()
+        };
     }
 
     public sealed class LastQuoteSnapshot
@@ -3423,9 +3810,18 @@ public sealed class SelectableFeatureOption : ObservableObject
         DisplayName = option.DisplayName;
         PdfDescription = option.PdfDescription;
     }
-    public string Key { get; }
-    public string DisplayName { get; }
-    public string PdfDescription { get; }
+    public string Key
+    {
+        get;
+    }
+    public string DisplayName
+    {
+        get;
+    }
+    public string PdfDescription
+    {
+        get;
+    }
     public bool IsSelected
     {
         get => _isSelected;
@@ -3442,10 +3838,22 @@ public sealed class SelectableMediaOption : ObservableObject
         DisplayName = option.DisplayName;
         CalculationGroup = option.CalculationGroup;
     }
-    public string Key { get; }
-    public string Label { get; }
-    public string DisplayName { get; }
-    public string CalculationGroup { get; }
+    public string Key
+    {
+        get;
+    }
+    public string Label
+    {
+        get;
+    }
+    public string DisplayName
+    {
+        get;
+    }
+    public string CalculationGroup
+    {
+        get;
+    }
     public bool IsSelected
     {
         get => _isSelected;
@@ -3457,7 +3865,10 @@ public sealed class UrlVerificationFireplaceCard : ObservableObject
 {
     private bool _isSelected;
 
-    public int Index { get; init; }
+    public int Index
+    {
+        get; init;
+    }
     public string ModelCode { get; init; } = string.Empty;
     public string StyleKey { get; init; } = "FF";
     public string StyleLabel { get; init; } = "Front Facing";
@@ -3465,7 +3876,10 @@ public sealed class UrlVerificationFireplaceCard : ObservableObject
     public string ImagePath { get; init; } = "pack://application:,,,/Assets/UrlStyleCards/FF.png";
     public string StatusText { get; init; } = "Valid";
     public string StatusGlyph { get; init; } = "✓";
-    public bool IsValid { get; init; }
+    public bool IsValid
+    {
+        get; init;
+    }
     public IReadOnlyList<object> Rows { get; init; } = Array.Empty<object>();
 
     public bool IsSelected
@@ -3481,7 +3895,10 @@ public sealed class UrlVerificationRowVm
     public string Url { get; init; } = string.Empty;
     public string StatusText { get; init; } = string.Empty;
     public string StatusGlyph { get; init; } = string.Empty;
-    public bool IsValid { get; init; }
+    public bool IsValid
+    {
+        get; init;
+    }
     public IReadOnlyList<object> Rows { get; init; } = Array.Empty<object>();
 }
 public sealed class FireplaceQuoteDraft : ObservableObject
@@ -3505,6 +3922,24 @@ public sealed class FireplaceQuoteDraft : ObservableObject
     public string FeaturesLine => $"Features: {FeaturesSummary}";
     public string ClassicMediaLine => $"Classic Media: {ClassicMediaSummary}";
     public string PremiumMediaLine => $"Premium Media: {PremiumMediaSummary}";
+    // Compact "60\" · 14\" glass · Great room" style line for the summary cards.
+    public string DetailLine
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(Size))
+                parts.Add(Size);
+            if (!string.IsNullOrWhiteSpace(GlassHeight))
+                parts.Add($"{GlassHeight} glass");
+            if (!string.IsNullOrWhiteSpace(Location))
+                parts.Add(Location);
+            return string.Join("  ·  ", parts);
+        }
+    }
+    public bool HasClassicMedia => !string.IsNullOrWhiteSpace(ClassicMediaSummary) &&
+                                   !string.Equals(ClassicMediaSummary, "None selected",
+                                                  StringComparison.OrdinalIgnoreCase);
 }
 public sealed class QuotePreviewRow : ObservableObject
 {
@@ -3552,7 +3987,8 @@ public sealed class QuoteStatusCard : ObservableObject
     public QuoteFlowStepState State
     {
         get => _state;
-        set {
+        set
+        {
             if (SetProperty(ref _state, value))
             {
                 OnPropertyChanged(nameof(IndicatorFill));

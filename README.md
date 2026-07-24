@@ -1,10 +1,10 @@
-# Flare Fireplace Quotes v1.5.1
+# Flare Fireplace Quotes v1.6.0
 
 Windows WPF application for turning fireplace quote requests into priced PDFs, verified specification links, and Gmail drafts.
 
 ## Release highlights
 
-v1.5.1 delivers the approved two-pane quote workspace, compact window-safe actions, crisp vector icons, and removes the automatic system-health popup. The quote, pricing, PDF, URL-verification, Gmail, settings, history, and updater behavior remain unchanged. See `RELEASE_NOTES.md` for the complete summary.
+v1.6.0 delivers the audited three-pane quote workspace, safe editable fireplace cards, refreshed visual hierarchy, and the unchanged production pricing, PDF, Gmail, settings, history, security, and updater systems. See `RELEASE_NOTES.md` for the complete summary.
 
 The updater is pinned to the Flare-managed GitHub release lane. Every installer download must match the release version, exact asset path, declared byte size, and SHA-256 hash before launch. Optional RS256 manifest signatures fail closed whenever a signature is present but invalid.
 
@@ -30,7 +30,7 @@ Maintained workflows:
 
 ## Publishing
 
-Merge a clean, passing commit to `main`, then push a tag matching `Directory.Build.props`, such as `v1.5.1`. The release workflow refuses mismatched versions, vulnerable NuGet dependencies, UI render failures, compiler warnings, test failures, or CodeQL failures before publishing updater assets.
+Merge a clean, passing commit to `main`, then push a tag matching `Directory.Build.props`, such as `v1.6.0`. The release workflow refuses mismatched versions, vulnerable NuGet dependencies, UI render failures, compiler warnings, test failures, or CodeQL failures before publishing updater assets.
 
 Required release assets:
 
