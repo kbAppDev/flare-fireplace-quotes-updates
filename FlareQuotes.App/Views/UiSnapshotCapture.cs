@@ -143,12 +143,14 @@ internal static class UiSnapshotCapture
     {
         AssertWithinRoot(window.RequestPane, root, nameof(window.RequestPane));
         AssertWithinRoot(window.QuoteWorkspacePane, root, nameof(window.QuoteWorkspacePane));
+        AssertWithinRoot(window.FireplaceSummaryPane, root, nameof(window.FireplaceSummaryPane));
         AssertWithinRoot(window.GeneratePreviewButton, root, nameof(window.GeneratePreviewButton));
         AssertWithinRoot(window.ThemeToggleButton, root, nameof(window.ThemeToggleButton));
 
-        AssertRange(window.RequestPane.ActualWidth, 380, 430, "Request pane width");
-        AssertRange(window.QuoteWorkspacePane.ActualWidth, 780, 1100, "Quote workspace width");
-        AssertRange(window.GeneratePreviewButton.ActualWidth, 178, 240, "Generate preview width");
+        AssertRange(window.RequestPane.ActualWidth, 355, 365, "Request pane width");
+        AssertRange(window.QuoteWorkspacePane.ActualWidth, 690, 750, "Quote workspace width");
+        AssertRange(window.FireplaceSummaryPane.ActualWidth, 335, 345, "Fireplace summary width");
+        AssertRange(window.GeneratePreviewButton.ActualWidth, 295, 315, "Generate preview width");
         AssertRange(window.GeneratePreviewButton.ActualHeight, 34, 42, "Generate preview height");
         AssertRange(window.ThemeToggleButton.ActualWidth, 36, 40, "Theme button width");
 
@@ -160,6 +162,7 @@ internal static class UiSnapshotCapture
             height = root.ActualHeight,
             requestPaneWidth = window.RequestPane.ActualWidth,
             workspaceWidth = window.QuoteWorkspacePane.ActualWidth,
+            fireplaceSummaryWidth = window.FireplaceSummaryPane.ActualWidth,
             generateButtonWidth = window.GeneratePreviewButton.ActualWidth,
             generateButtonHeight = window.GeneratePreviewButton.ActualHeight,
             themeButtonWidth = window.ThemeToggleButton.ActualWidth
@@ -188,9 +191,11 @@ internal static class UiSnapshotCapture
     {
         AssertWithinRoot(window.RequestPane, root, nameof(window.RequestPane));
         AssertWithinRoot(window.QuoteWorkspacePane, root, nameof(window.QuoteWorkspacePane));
+        AssertWithinRoot(window.FireplaceSummaryPane, root, nameof(window.FireplaceSummaryPane));
         AssertWithinRoot(window.GeneratePreviewButton, root, nameof(window.GeneratePreviewButton));
-        AssertRange(window.RequestPane.ActualWidth, 380, 430, "Minimum request pane width");
-        AssertRange(window.QuoteWorkspacePane.ActualWidth, 680, 760, "Minimum quote workspace width");
+        AssertRange(window.RequestPane.ActualWidth, 355, 365, "Minimum request pane width");
+        AssertRange(window.QuoteWorkspacePane.ActualWidth, 390, 450, "Minimum quote workspace width");
+        AssertRange(window.FireplaceSummaryPane.ActualWidth, 335, 345, "Minimum fireplace summary width");
         AssertRange(window.GeneratePreviewButton.ActualHeight, 34, 42, "Minimum generate preview height");
 
         return new {
@@ -198,6 +203,7 @@ internal static class UiSnapshotCapture
             height = root.ActualHeight,
             requestPaneWidth = window.RequestPane.ActualWidth,
             workspaceWidth = window.QuoteWorkspacePane.ActualWidth,
+            fireplaceSummaryWidth = window.FireplaceSummaryPane.ActualWidth,
             generateButtonWidth = window.GeneratePreviewButton.ActualWidth,
             generateButtonHeight = window.GeneratePreviewButton.ActualHeight
         };

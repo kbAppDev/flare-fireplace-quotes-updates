@@ -1,6 +1,6 @@
 # Flare Fireplace Quotes Source of Truth
 
-Publish-ready version: **1.5.1**
+Publish-ready candidate: **1.6.0**
 
 Repository: `kbAppDev/flare-fireplace-quotes-updates`
 
@@ -18,6 +18,6 @@ flare-quotes-v1-latest.json
 Flare.Fireplace.Quotes-portable.zip
 ```
 
-v1.5.1 implements the approved two-pane WPF presentation, removes automatic system-health interruption, and preserves the audited business behavior and security controls. Its scope is defined in `RELEASE_NOTES.md` and enforced by automated UI rendering, build, test, dependency-vulnerability, CodeQL, installer-integrity, and live-manifest checks.
+v1.6.0 refreshes the WPF presentation and adds safe fireplace-card editing while preserving the audited production business, data, Gmail, PDF, updater, and security layers from v1.5.1. Its scope is defined in `RELEASE_NOTES.md`.
 
-Publication remains fail-closed until the exact tagged commit passes the GitHub release workflow and the live manifest reports version 1.5.1 with the matching installer size and SHA-256 hash.
+Publication remains fail-closed until the exact tagged commit passes UI-contract validation, rendered Windows snapshots, warnings-as-errors builds, automated tests, dependency-vulnerability audit, CodeQL, installer-integrity checks, and live-manifest verification.

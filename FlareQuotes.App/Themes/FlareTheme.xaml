@@ -7,8 +7,8 @@
         MainWindow can switch the existing light/dark preference without replacing
         controls or disturbing workflow state.
     -->
-    <SolidColorBrush x:Key="FlareTextBrush" Color="#F4F7FA" />
-    <SolidColorBrush x:Key="FlareMutedTextBrush" Color="#98A6B5" />
+    <SolidColorBrush x:Key="FlareTextBrush" Color="#F5F8FB" />
+    <SolidColorBrush x:Key="FlareMutedTextBrush" Color="#93A2B2" />
     <SolidColorBrush x:Key="FlareAccentBrush" Color="#A6CE39" />
     <SolidColorBrush x:Key="FlareAccentTextBrush" Color="#172000" />
     <SolidColorBrush x:Key="FlarePrimaryGreenBrush" Color="#A6CE39" />
@@ -16,18 +16,18 @@
     <SolidColorBrush x:Key="FlarePrimaryGreenPressedBrush" Color="#91B72C" />
     <SolidColorBrush x:Key="FlarePrimaryGreenBorderBrush" Color="#A6CE39" />
 
-    <SolidColorBrush x:Key="WindowSurfaceBrush" Color="#0D131B" />
-    <SolidColorBrush x:Key="WindowTitleBarBrush" Color="#0A1017" />
-    <SolidColorBrush x:Key="WindowHeaderBrush" Color="#0F161F" />
-    <SolidColorBrush x:Key="WindowWorkspaceBrush" Color="#0B1118" />
-    <SolidColorBrush x:Key="SurfaceBrush" Color="#121A24" />
-    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#151F2A" />
-    <SolidColorBrush x:Key="SurfaceSubtleBrush" Color="#101923" />
-    <SolidColorBrush x:Key="DividerBrush" Color="#202C38" />
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#30404F" />
-    <SolidColorBrush x:Key="ControlHoverBrush" Color="#1C2834" />
+    <SolidColorBrush x:Key="WindowSurfaceBrush" Color="#0B1017" />
+    <SolidColorBrush x:Key="WindowTitleBarBrush" Color="#080C12" />
+    <SolidColorBrush x:Key="WindowHeaderBrush" Color="#0E151D" />
+    <SolidColorBrush x:Key="WindowWorkspaceBrush" Color="#0A1017" />
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#131C26" />
+    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#18232F" />
+    <SolidColorBrush x:Key="SurfaceSubtleBrush" Color="#0F1720" />
+    <SolidColorBrush x:Key="DividerBrush" Color="#1E2A36" />
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#2A3947" />
+    <SolidColorBrush x:Key="ControlHoverBrush" Color="#1B2734" />
     <SolidColorBrush x:Key="ControlPressedBrush" Color="#22303D" />
-    <SolidColorBrush x:Key="FocusRingBrush" Color="#718A32" />
+    <SolidColorBrush x:Key="FocusRingBrush" Color="#9CC33A" />
     <SolidColorBrush x:Key="SuccessMutedBrush" Color="#A9BD7E" />
     <SolidColorBrush x:Key="WarningBrush" Color="#D7A63C" />
     <SolidColorBrush x:Key="DangerBrush" Color="#C42B1C" />
