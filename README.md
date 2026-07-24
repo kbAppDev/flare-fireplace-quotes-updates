@@ -1,10 +1,10 @@
-# Flare Fireplace Quotes v1.6.0
+# Flare Fireplace Quotes v1.6.2
 
 Windows WPF application for turning fireplace quote requests into priced PDFs, verified specification links, and Gmail drafts.
 
 ## Release highlights
 
-v1.6.0 delivers the audited three-pane quote workspace, safe editable fireplace cards, refreshed visual hierarchy, and the unchanged production pricing, PDF, Gmail, settings, history, security, and updater systems. See `RELEASE_NOTES.md` for the complete summary.
+v1.6.2 keeps the audited three-pane quote workspace and adds the approved real-flame-and-ash fireplace-card removal animation.
 
 The updater is pinned to the Flare-managed GitHub release lane. Every installer download must match the release version, exact asset path, declared byte size, and SHA-256 hash before launch. Optional RS256 manifest signatures fail closed whenever a signature is present but invalid.
 
@@ -37,6 +37,7 @@ Required release assets:
 - `Flare.Fireplace.Quotes.exe`
 - `flare-quotes-v1-latest.json`
 - `Flare.Fireplace.Quotes-portable.zip`
+- `Flare.Fireplace.Quotes-v1.6.2-FULL-BACKUP.zip`
 
 ## Runtime data
 
