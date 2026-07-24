@@ -1,142 +1,199 @@
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
-using System.Windows.Media.Imaging;
-using System.Windows.Threading;
+using System.Windows.Shapes;
 
 namespace FlareQuotes.App.Views;
 
 /// <summary>
-/// Plays a "linear-fireplace burner" burn-to-ash animation over a summary card, then
-/// invokes <paramref name="onComplete"/> to perform the real removal. The animation is
-/// entirely cosmetic and fully guarded: if anything goes wrong the card is removed
-/// immediately so the quote logic is never blocked.
+/// Plays the restrained fireplace-card removal animation, then invokes
+/// <paramref name="onComplete"/> to perform the real removal.
 ///
-/// The flames are a per-pixel fire field (a heat grid mapped through a fire palette and
-/// pushed into a WriteableBitmap each frame) — the same technique used in the design
-/// preview, so the look matches. Burner "ports" are seeded at intervals so the flames
-/// rise as spaced jets over a low ember glow, contained to the card's own width.
+/// The effect is deliberately lightweight: a short vector flame band follows a
+/// bottom-to-top opacity wipe, then the card closes its layout space. It does not
+/// use frame timers, per-pixel rendering, bitmap allocation, or quote-processing state.
 /// </summary>
 internal static class FireplaceBurnAnimation
 {
-    private static readonly byte[][] Palette = BuildPalette();
+    private const double BurnDurationMs = 900;
+    private const double CollapseDurationMs = 160;
+
+    private static readonly HashSet<FrameworkElement> ActiveCards = [];
+    private static readonly Geometry FlameGeometry = CreateFlameGeometry();
+    private static readonly Brush FlameBrush = CreateFlameBrush();
 
     public static void Burn(FrameworkElement card, Panel overlayHost, Action onComplete)
     {
-        var completed = false;
-        void Finish()
+        if (card is null || overlayHost is null)
         {
-            if (completed)
-                return;
-            completed = true;
+            SafeComplete(onComplete);
+            return;
+        }
+
+        // A repeated click while the first animation is running must not start a
+        // second effect or execute the removal command twice.
+        if (ActiveCards.Contains(card))
+            return;
+
+        if (!SystemParameters.ClientAreaAnimation ||
+            card.ActualWidth < 8 ||
+            card.ActualHeight < 8 ||
+            overlayHost is not Canvas overlayCanvas)
+        {
+            SafeComplete(onComplete);
+            return;
+        }
+
+        var originalOpacityMask = card.OpacityMask;
+        var originalOpacity = card.Opacity;
+        var originalHeight = card.Height;
+        var originalHitTestVisible = card.IsHitTestVisible;
+
+        Canvas? burnBand = null;
+        var finished = false;
+
+        void RestoreDetachedCardState()
+        {
             try
             {
-                onComplete?.Invoke();
+                card.BeginAnimation(UIElement.OpacityProperty, null);
+                card.BeginAnimation(FrameworkElement.HeightProperty, null);
+                card.OpacityMask = originalOpacityMask;
+                card.Opacity = originalOpacity;
+                card.IsHitTestVisible = originalHitTestVisible;
+
+                if (double.IsNaN(originalHeight))
+                    card.ClearValue(FrameworkElement.HeightProperty);
+                else
+                    card.Height = originalHeight;
             }
-            catch { /* removal must never throw */ }
+            catch
+            {
+                // The card may already be detached after the collection removal.
+            }
+        }
+
+        void Finish()
+        {
+            if (finished)
+                return;
+
+            finished = true;
+            ActiveCards.Remove(card);
+
+            try
+            {
+                if (burnBand is not null)
+                    overlayCanvas.Children.Remove(burnBand);
+            }
+            catch
+            {
+                // Cosmetic cleanup must never block removal.
+            }
+
+            // The collection change is synchronous. Restore afterward only so a
+            // failed command cannot leave a still-visible card collapsed or disabled.
+            SafeComplete(onComplete);
+            RestoreDetachedCardState();
         }
 
         try
         {
-            if (card is null || overlayHost is null || card.ActualWidth < 8 || card.ActualHeight < 8)
+            ActiveCards.Add(card);
+            card.IsHitTestVisible = false;
+
+            var cardWidth = card.ActualWidth;
+            var cardHeight = card.ActualHeight;
+            var topLeft = card.TransformToVisual(overlayCanvas).Transform(new Point(0, 0));
+
+            var mask = CreateBurnMask(
+                out var transparentStop,
+                out var featherStop,
+                out var visibleStop);
+
+            card.OpacityMask = mask;
+
+            var burnDuration = TimeSpan.FromMilliseconds(BurnDurationMs);
+            AnimateStop(transparentStop, 0.0, 0.92, burnDuration);
+            AnimateStop(featherStop, 0.0, 0.965, burnDuration);
+            AnimateStop(visibleStop, 0.001, 1.0, burnDuration);
+
+            burnBand = CreateBurnBand(cardWidth);
+            Canvas.SetLeft(burnBand, topLeft.X);
+            Canvas.SetTop(burnBand, topLeft.Y + cardHeight - 19);
+            overlayCanvas.Children.Add(burnBand);
+
+            var rise = new DoubleAnimation
             {
-                Finish();
-                return;
-            }
-
-            double cardW = card.ActualWidth, cardH = card.ActualHeight;
-            const double padTop = 60, padBot = 8, cell = 2.6;
-            double cw = cardW, ch = cardH + padTop + padBot;
-
-            int W = Math.Max(48, (int)Math.Round(cw / cell));
-            int H = Math.Max(40, (int)Math.Round(ch / cell));
-
-            Point topLeft = card.TransformToVisual(overlayHost).Transform(new Point(0, 0));
-
-            var wb = new WriteableBitmap(W, H, 96, 96, PixelFormats.Pbgra32, null);
-            var img = new Image
-            {
-                Source = wb,
-                Width = cw,
-                Height = ch,
-                Stretch = Stretch.Fill,
-                IsHitTestVisible = false,
-                Effect = new BlurEffect { Radius = 1.4, KernelType = KernelType.Gaussian }
-            };
-            RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.Linear);
-            Canvas.SetLeft(img, topLeft.X);
-            Canvas.SetTop(img, topLeft.Y - padTop);
-            overlayHost.Children.Add(img);
-
-            var fire = new byte[W * H];
-            var pixels = new byte[W * H * 4];
-            int stride = W * 4;
-
-            const int MARGIN = 3, S = 31;
-            int usable = Math.Max(1, W - MARGIN * 2);
-            int port = Math.Max(7, (int)Math.Round(usable / 8.0));
-            int portWidth = Math.Max(2, (int)Math.Round(port * 0.4));
-            int cardTopCell = (int)Math.Round(padTop / ch * H);
-            int cardBottomCell = (int)Math.Round((padTop + cardH) / ch * H);
-
-            const double totalMs = 1550, fadeMs = 560, collapseAt = 1500;
-            var rnd = new Random();
-            var sw = Stopwatch.StartNew();
-            bool collapsed = false;
-
-            var timer = new DispatcherTimer(DispatcherPriority.Render)
-            {
-                Interval = TimeSpan.FromMilliseconds(1000.0 / 45)
+                From = topLeft.Y + cardHeight - 19,
+                To = topLeft.Y - 22,
+                Duration = burnDuration,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+                FillBehavior = FillBehavior.HoldEnd
             };
 
-            timer.Tick += (_, _) =>
+            rise.Completed += (_, _) =>
             {
                 try
                 {
-                    double el = sw.Elapsed.TotalMilliseconds;
-                    double p = Math.Min(1.0, el / totalMs);
-                    int front = p < 1.0
-                        ? (int)Math.Round(cardBottomCell - p * (cardBottomCell - (cardTopCell - 1)))
-                        : -1;
+                    var measuredHeight = Math.Max(0, card.ActualHeight);
+                    card.Height = measuredHeight;
 
-                    Step(fire, W, H, front, S, MARGIN, port, portWidth, rnd);
-                    RenderFire(fire, pixels, W * H);
-                    wb.WritePixels(new Int32Rect(0, 0, W, H), pixels, stride, 0);
-
-                    if (!collapsed && el >= collapseAt)
+                    var collapse = new DoubleAnimation
                     {
-                        collapsed = true;
-                        BeginCollapse(card, Finish);
-                    }
+                        From = measuredHeight,
+                        To = 0,
+                        Duration = TimeSpan.FromMilliseconds(CollapseDurationMs),
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn },
+                        FillBehavior = FillBehavior.HoldEnd
+                    };
 
-                    if (el >= totalMs + fadeMs)
-                    {
-                        timer.Stop();
-                        try
+                    collapse.Completed += (_, _) => Finish();
+
+                    card.BeginAnimation(
+                        UIElement.OpacityProperty,
+                        new DoubleAnimation
                         {
-                            overlayHost.Children.Remove(img);
-                        }
-                        catch { }
-                        Finish();
+                            From = card.Opacity,
+                            To = 0,
+                            Duration = TimeSpan.FromMilliseconds(CollapseDurationMs * 0.8),
+                            FillBehavior = FillBehavior.HoldEnd
+                        },
+                        HandoffBehavior.SnapshotAndReplace);
+
+                    if (burnBand is not null)
+                    {
+                        burnBand.BeginAnimation(
+                            UIElement.OpacityProperty,
+                            new DoubleAnimation
+                            {
+                                From = burnBand.Opacity,
+                                To = 0,
+                                Duration = TimeSpan.FromMilliseconds(CollapseDurationMs),
+                                FillBehavior = FillBehavior.HoldEnd
+                            },
+                            HandoffBehavior.SnapshotAndReplace);
                     }
+
+                    card.BeginAnimation(
+                        FrameworkElement.HeightProperty,
+                        collapse,
+                        HandoffBehavior.SnapshotAndReplace);
                 }
                 catch
                 {
-                    timer.Stop();
-                    try
-                    {
-                        overlayHost.Children.Remove(img);
-                    }
-                    catch { }
                     Finish();
                 }
             };
 
-            timer.Start();
+            burnBand.BeginAnimation(
+                Canvas.TopProperty,
+                rise,
+                HandoffBehavior.SnapshotAndReplace);
         }
         catch
         {
@@ -144,127 +201,246 @@ internal static class FireplaceBurnAnimation
         }
     }
 
-    private static void BeginCollapse(FrameworkElement card, Action onDone)
+    private static LinearGradientBrush CreateBurnMask(
+        out GradientStop transparentStop,
+        out GradientStop featherStop,
+        out GradientStop visibleStop)
+    {
+        transparentStop = new GradientStop(Colors.Transparent, 0.0);
+        featherStop = new GradientStop(Color.FromArgb(72, 255, 255, 255), 0.0);
+        visibleStop = new GradientStop(Colors.White, 0.001);
+
+        return new LinearGradientBrush
+        {
+            StartPoint = new Point(0.5, 1.0),
+            EndPoint = new Point(0.5, 0.0),
+            MappingMode = BrushMappingMode.RelativeToBoundingBox,
+            GradientStops = new GradientStopCollection
+            {
+                transparentStop,
+                featherStop,
+                visibleStop
+            }
+        };
+    }
+
+    private static void AnimateStop(GradientStop stop, double from, double to, TimeSpan duration)
+    {
+        stop.BeginAnimation(
+            GradientStop.OffsetProperty,
+            new DoubleAnimation
+            {
+                From = from,
+                To = to,
+                Duration = duration,
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+                FillBehavior = FillBehavior.HoldEnd
+            },
+            HandoffBehavior.SnapshotAndReplace);
+    }
+
+    private static Canvas CreateBurnBand(double width)
+    {
+        var band = new Canvas
+        {
+            Width = width,
+            Height = 34,
+            Opacity = 0.64,
+            IsHitTestVisible = false,
+            ClipToBounds = false
+        };
+
+        var glowWidth = Math.Max(1, width - 12);
+
+        var glow = new Border
+        {
+            Width = glowWidth,
+            Height = 8,
+            CornerRadius = new CornerRadius(4),
+            Background = CreateGlowBrush(),
+            Effect = new BlurEffect
+            {
+                Radius = 5,
+                KernelType = KernelType.Gaussian
+            },
+            IsHitTestVisible = false
+        };
+
+        Canvas.SetLeft(glow, 6);
+        Canvas.SetTop(glow, 23);
+        band.Children.Add(glow);
+
+        var emberLine = new Rectangle
+        {
+            Width = glowWidth,
+            Height = 1.5,
+            RadiusX = 0.75,
+            RadiusY = 0.75,
+            Fill = CreateEmberLineBrush(),
+            Opacity = 0.72,
+            IsHitTestVisible = false
+        };
+
+        Canvas.SetLeft(emberLine, 6);
+        Canvas.SetTop(emberLine, 26);
+        band.Children.Add(emberLine);
+
+        var flameCount = Math.Clamp((int)Math.Round(width / 31.0), 6, 11);
+        var spacing = width / (flameCount + 1);
+        var heights = new[] { 13.0, 17.0, 12.0, 18.0, 14.0, 16.0, 11.0, 17.0, 13.0, 15.0, 12.0 };
+        var durations = new[] { 760.0, 690.0, 820.0, 730.0, 790.0, 680.0, 840.0, 710.0, 770.0, 700.0, 810.0 };
+
+        for (var index = 0; index < flameCount; index++)
+        {
+            var flameHeight = heights[index % heights.Length];
+            var flameWidth = Math.Max(6.5, flameHeight * 0.43);
+            var duration = TimeSpan.FromMilliseconds(durations[index % durations.Length]);
+
+            var scale = new ScaleTransform(1.0, 0.82);
+            var rotate = new RotateTransform(index % 2 == 0 ? -0.7 : 0.7);
+            var transforms = new TransformGroup();
+            transforms.Children.Add(scale);
+            transforms.Children.Add(rotate);
+
+            var flame = new Path
+            {
+                Data = FlameGeometry,
+                Fill = FlameBrush,
+                Width = flameWidth,
+                Height = flameHeight,
+                Stretch = Stretch.Fill,
+                Opacity = 0.52,
+                RenderTransformOrigin = new Point(0.5, 1.0),
+                RenderTransform = transforms,
+                IsHitTestVisible = false
+            };
+
+            Canvas.SetLeft(flame, (spacing * (index + 1)) - (flameWidth / 2));
+            Canvas.SetTop(flame, 27 - flameHeight);
+            band.Children.Add(flame);
+
+            scale.BeginAnimation(
+                ScaleTransform.ScaleYProperty,
+                new DoubleAnimation
+                {
+                    From = 0.76,
+                    To = 1.0,
+                    Duration = duration,
+                    AutoReverse = true,
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    BeginTime = TimeSpan.FromMilliseconds(index * 43),
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                });
+
+            rotate.BeginAnimation(
+                RotateTransform.AngleProperty,
+                new DoubleAnimation
+                {
+                    From = index % 2 == 0 ? -1.2 : 1.2,
+                    To = index % 2 == 0 ? 1.0 : -1.0,
+                    Duration = TimeSpan.FromMilliseconds(duration.TotalMilliseconds * 1.12),
+                    AutoReverse = true,
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    BeginTime = TimeSpan.FromMilliseconds(index * 31),
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                });
+
+            flame.BeginAnimation(
+                UIElement.OpacityProperty,
+                new DoubleAnimation
+                {
+                    From = 0.40,
+                    To = 0.58,
+                    Duration = TimeSpan.FromMilliseconds(duration.TotalMilliseconds * 0.94),
+                    AutoReverse = true,
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    BeginTime = TimeSpan.FromMilliseconds(index * 37),
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                });
+        }
+
+        return band;
+    }
+
+    private static Brush CreateGlowBrush()
+    {
+        var brush = new RadialGradientBrush
+        {
+            Center = new Point(0.5, 0.5),
+            GradientOrigin = new Point(0.5, 0.5),
+            RadiusX = 0.5,
+            RadiusY = 0.5,
+            GradientStops = new GradientStopCollection
+            {
+                new(Color.FromArgb(88, 255, 116, 24), 0.0),
+                new(Color.FromArgb(36, 223, 48, 10), 0.58),
+                new(Colors.Transparent, 1.0)
+            }
+        };
+
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Brush CreateEmberLineBrush()
+    {
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new Point(0.0, 0.5),
+            EndPoint = new Point(1.0, 0.5),
+            GradientStops = new GradientStopCollection
+            {
+                new(Colors.Transparent, 0.0),
+                new(Color.FromArgb(170, 238, 72, 14), 0.08),
+                new(Color.FromArgb(205, 255, 180, 58), 0.32),
+                new(Color.FromArgb(180, 255, 101, 20), 0.58),
+                new(Color.FromArgb(195, 255, 166, 48), 0.82),
+                new(Colors.Transparent, 1.0)
+            }
+        };
+
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Brush CreateFlameBrush()
+    {
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new Point(0.5, 1.0),
+            EndPoint = new Point(0.5, 0.0),
+            GradientStops = new GradientStopCollection
+            {
+                new(Color.FromArgb(220, 255, 202, 92), 0.0),
+                new(Color.FromArgb(190, 255, 116, 28), 0.48),
+                new(Color.FromArgb(92, 214, 48, 12), 0.78),
+                new(Colors.Transparent, 1.0)
+            }
+        };
+
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Geometry CreateFlameGeometry()
+    {
+        var geometry = Geometry.Parse(
+            "M 8,24 C 4,21 3,17 5.4,12.8 C 6.8,10.4 8.2,8.2 8,4 " +
+            "C 11.8,7.5 14,11.2 13.2,15.2 C 12.5,19.1 10.7,22.1 8,24 Z");
+
+        geometry.Freeze();
+        return geometry;
+    }
+
+    private static void SafeComplete(Action onComplete)
     {
         try
         {
-            double h = card.ActualHeight;
-            card.Height = h;
-            var shrink = new DoubleAnimation(h, 0, TimeSpan.FromMilliseconds(330))
-            {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
-            };
-            shrink.Completed += (_, _) => onDone();
-            card.BeginAnimation(FrameworkElement.HeightProperty, shrink);
-            card.BeginAnimation(UIElement.OpacityProperty,
-                                new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(300)));
+            onComplete?.Invoke();
         }
         catch
         {
-            onDone();
+            // Removal must never break the quote workflow.
         }
-    }
-
-    private static void Step(byte[] fire, int W, int H, int front, int s, int margin, int port, int portWidth, Random rnd)
-    {
-        if (front >= 0)
-        {
-            for (int y = Math.Min(H - 1, front + 1); y < H; y++)
-            {
-                int yy = y * W;
-                for (int x = 0; x < W; x++)
-                    fire[yy + x] = 0;
-            }
-            for (int band = 0; band < 3; band++)
-            {
-                int yr = front + band;
-                if (yr < 0 || yr >= H)
-                    continue;
-                int yy = yr * W;
-                for (int x = 0; x < W; x++)
-                {
-                    if (x < margin || x >= W - margin)
-                    {
-                        fire[yy + x] = 0;
-                        continue;
-                    }
-                    bool inPort = ((x - margin) % port) < portWidth;
-                    int baseValue = inPort ? s : 6;
-                    int v = baseValue - 3 + rnd.Next(inPort ? 9 : 4);
-                    fire[yy + x] = (byte)(v < 0 ? 0 : (v > 36 ? 36 : v));
-                }
-            }
-        }
-
-        for (int y = 1; y < H; y++)
-        {
-            int yy = y * W;
-            for (int x = 0; x < W; x++)
-            {
-                int from = yy + x;
-                int vdecay = rnd.Next(3);
-                int hoff = rnd.Next(3) - 1;
-                int tx = x + hoff;
-                if (tx < margin)
-                    tx = margin;
-                else if (tx >= W - margin)
-                    tx = W - margin - 1;
-                int to = (y - 1) * W + tx;
-                int nv = fire[from] - vdecay;
-                fire[to] = (byte)(nv < 0 ? 0 : nv);
-            }
-        }
-    }
-
-    private static void RenderFire(byte[] fire, byte[] pixels, int count)
-    {
-        for (int i = 0; i < count; i++)
-        {
-            byte[] c = Palette[fire[i]];
-            int alpha = c[3];
-            int j = i << 2;
-            // Pbgra32 = premultiplied B,G,R,A
-            pixels[j] = (byte)(c[2] * alpha / 255);
-            pixels[j + 1] = (byte)(c[1] * alpha / 255);
-            pixels[j + 2] = (byte)(c[0] * alpha / 255);
-            pixels[j + 3] = (byte)alpha;
-        }
-    }
-
-    private static byte[][] BuildPalette()
-    {
-        int[][] stops =
-        {
-            new[] { 0, 6, 6, 6, 0 },       new[] { 4, 48, 14, 6, 55 },     new[] { 8, 110, 30, 8, 140 },
-            new[] { 12, 172, 54, 10, 200 }, new[] { 16, 224, 94, 18, 232 }, new[] { 20, 250, 132, 28, 246 },
-            new[] { 24, 255, 164, 46, 255 }, new[] { 28, 255, 192, 78, 255 }, new[] { 31, 255, 214, 116, 255 },
-            new[] { 34, 255, 234, 172, 255 }, new[] { 36, 255, 247, 218, 255 }
-        };
-
-        var pal = new byte[37][];
-        for (int i = 0; i <= 36; i++)
-        {
-            int[] a = stops[0], b = stops[^1];
-            for (int sIndex = 0; sIndex < stops.Length - 1; sIndex++)
-            {
-                if (i >= stops[sIndex][0] && i <= stops[sIndex + 1][0])
-                {
-                    a = stops[sIndex];
-                    b = stops[sIndex + 1];
-                    break;
-                }
-            }
-
-            double t = (double)(i - a[0]) / Math.Max(1, b[0] - a[0]);
-            pal[i] = new[]
-            {
-                (byte)Math.Round(a[1] + (b[1] - a[1]) * t),
-                (byte)Math.Round(a[2] + (b[2] - a[2]) * t),
-                (byte)Math.Round(a[3] + (b[3] - a[3]) * t),
-                (byte)Math.Round(a[4] + (b[4] - a[4]) * t)
-            };
-        }
-
-        return pal;
     }
 }
