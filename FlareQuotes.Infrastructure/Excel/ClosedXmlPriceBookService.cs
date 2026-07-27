@@ -721,25 +721,33 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return null;
 
         var expectedSku = $"DV{style}{sizeNum}{suffix}C";
-        var expectedPartName = $"FLARE-{style}-{sizeNum}-C";
         var compactExpectedSku = Compact(expectedSku);
-        var compactExpectedPartName = Compact(expectedPartName);
 
+        // Commercial part names such as FLARE-FF-80-C are shared by Regular,
+        // High, and Extra High rows. Only the complete SKU identifies glass height.
+        var exactSkuRow = Best(
+            rows,
+            row => Compact(row.Sku).Equals(
+                compactExpectedSku,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (exactSkuRow is not null)
+            return exactSkuRow;
+
+        // Permit a text fallback only for legacy rows whose SKU cell is empty.
+        // Never let a shared Commercial part name select the wrong glass height.
         return Best(
             rows,
             row =>
             {
-                var compactSku = Compact(row.Sku);
-                var compactPartName = Compact(row.PartName);
-                var compactText = Compact(Text(row));
+                if (!string.IsNullOrWhiteSpace(Compact(row.Sku)))
+                    return false;
 
-                return compactSku.Equals(compactExpectedSku, StringComparison.OrdinalIgnoreCase) ||
-                       compactPartName.Equals(compactExpectedPartName, StringComparison.OrdinalIgnoreCase) ||
-                       compactText.Contains(compactExpectedSku, StringComparison.OrdinalIgnoreCase) ||
-                       compactText.Contains(compactExpectedPartName, StringComparison.OrdinalIgnoreCase);
+                return Compact(Text(row)).Contains(
+                    compactExpectedSku,
+                    StringComparison.OrdinalIgnoreCase);
             });
     }
-
     private static PriceRow? FindBaseRow(PriceBookWorkbook wb, FireplaceType type, string model, string size,
                                          string glassHeight)
     {

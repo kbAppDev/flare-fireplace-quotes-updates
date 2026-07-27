@@ -16,12 +16,40 @@ public sealed class FireplaceCatalogMatchingRegressionTests
         "DVFF80RC",
         "FF80")]
     [InlineData(
+        FireplaceType.Indoor,
+        "Commercial Front Facing",
+        "80",
+        "24",
+        "DVFF80HC",
+        "FF80H")]
+    [InlineData(
+        FireplaceType.Indoor,
+        "Commercial Front Facing",
+        "80",
+        "30",
+        "DVFF80EC",
+        "FF80EH")]
+    [InlineData(
         FireplaceType.IndoorSeeThrough,
         "Commercial See Through",
         "80",
         "16",
         "DVST80RC",
         "ST80")]
+    [InlineData(
+        FireplaceType.IndoorSeeThrough,
+        "Commercial See Through",
+        "80",
+        "24",
+        "DVST80HC",
+        "ST80H")]
+    [InlineData(
+        FireplaceType.IndoorSeeThrough,
+        "Commercial See Through",
+        "80",
+        "30",
+        "DVST80EC",
+        "ST80EH")]
     [InlineData(
         FireplaceType.Outdoor,
         "Left Corner",
