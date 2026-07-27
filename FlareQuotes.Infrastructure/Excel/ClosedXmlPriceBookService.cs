@@ -656,6 +656,90 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
     private static string Compact(string? value) =>
         Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]+", string.Empty).ToUpperInvariant();
+
+    private static bool IsCommercialModel(string? model)
+    {
+        var normalized = Normalize(model ?? string.Empty);
+        var compact = Compact(model);
+
+        return normalized.Contains("commercial", StringComparison.OrdinalIgnoreCase) ||
+               Regex.IsMatch(normalized, @"\bcomm\b", RegexOptions.IgnoreCase) ||
+               Regex.IsMatch(compact, @"^DV(?:FF|ST)\d{2,3}(?:R|H|E)C$", RegexOptions.IgnoreCase);
+    }
+
+    private static string IndoorSkuGlassSuffix(string? glassHeight, string? model)
+    {
+        var glass = FirstNonBlank(
+            GlassInches(glassHeight ?? string.Empty),
+            GlassInches(ExtractGlassHeightFromModelCode(model)));
+
+        return glass switch
+        {
+            "16" => "R",
+            "24" => "H",
+            "30" => "E",
+            _ => string.Empty
+        };
+    }
+
+    private static string OutdoorPriceBookGlassSuffix(string? glassHeight, string? model)
+    {
+        var glass = FirstNonBlank(
+            GlassInches(glassHeight ?? string.Empty),
+            GlassInches(ExtractGlassHeightFromModelCode(model)));
+
+        // Outdoor regular-height base SKUs omit R: VFLC100, VFDC100, VFFF100, and so on.
+        return glass switch
+        {
+            "24" => "H",
+            "30" => "EH",
+            _ => string.Empty
+        };
+    }
+
+    private static PriceRow? FindExactCommercialBaseRow(
+        IEnumerable<PriceRow> rows,
+        FireplaceType type,
+        string model,
+        string sizeNum,
+        string glassHeight)
+    {
+        if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough or
+            FireplaceType.Large or FireplaceType.Traditional ||
+            !IsCommercialModel(model) ||
+            string.IsNullOrWhiteSpace(sizeNum))
+        {
+            return null;
+        }
+
+        var style = StyleCode(type, model);
+        if (style is not ("FF" or "ST"))
+            return null;
+
+        var suffix = IndoorSkuGlassSuffix(glassHeight, model);
+        if (string.IsNullOrWhiteSpace(suffix))
+            return null;
+
+        var expectedSku = $"DV{style}{sizeNum}{suffix}C";
+        var expectedPartName = $"FLARE-{style}-{sizeNum}-C";
+        var compactExpectedSku = Compact(expectedSku);
+        var compactExpectedPartName = Compact(expectedPartName);
+
+        return Best(
+            rows,
+            row =>
+            {
+                var compactSku = Compact(row.Sku);
+                var compactPartName = Compact(row.PartName);
+                var compactText = Compact(Text(row));
+
+                return compactSku.Equals(compactExpectedSku, StringComparison.OrdinalIgnoreCase) ||
+                       compactPartName.Equals(compactExpectedPartName, StringComparison.OrdinalIgnoreCase) ||
+                       compactText.Contains(compactExpectedSku, StringComparison.OrdinalIgnoreCase) ||
+                       compactText.Contains(compactExpectedPartName, StringComparison.OrdinalIgnoreCase);
+            });
+    }
+
     private static PriceRow? FindBaseRow(PriceBookWorkbook wb, FireplaceType type, string model, string size,
                                          string glassHeight)
     {
@@ -682,10 +766,17 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             if (passageBaseRow is not null)
                 return passageBaseRow;
         }
+
+        if (IsCommercialModel(model))
+        {
+            // Explicit Commercial requests must never silently fall back to a standard residential row.
+            return FindExactCommercialBaseRow(rows, type, model, sizeNum, glassNum);
+        }
+
         if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough)
         {
             var vfCode = VentFreeModelStyleCode(type, model);
-            var suffix = GlassSuffix(glassHeight);
+            var suffix = OutdoorPriceBookGlassSuffix(glassHeight, model);
 
             var part =
                 string.IsNullOrWhiteSpace(suffix) ? $"FLARE-{vfCode}-{sizeNum}" : $"FLARE-{vfCode}-{sizeNum}-{suffix}";
@@ -3282,7 +3373,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough)
         {
             var vfCode = VentFreeModelStyleCode(type, model);
-            return $"{vfCode}-{digits}{(string.IsNullOrWhiteSpace(suffix) ? "" : "-" + suffix)}";
+            var outdoorSuffix = OutdoorPriceBookGlassSuffix(glassHeight, model);
+            return $"{vfCode}-{digits}{(string.IsNullOrWhiteSpace(outdoorSuffix) ? "" : "-" + outdoorSuffix)}";
         }
 
         if (type == FireplaceType.IndoorOutdoorSeeThrough)
@@ -3305,31 +3397,60 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return PassageStyleCode(model);
 
         var value = Normalize(model);
+        var compactStyleModel = Compact(model);
 
-        // manual TR style-code override
-        var compactStyleModel = Regex.Replace(model ?? string.Empty, @"[^A-Za-z0-9]+", string.Empty).ToUpperInvariant();
+        bool StartsWithAny(params string[] prefixes) =>
+            prefixes.Any(prefix => compactStyleModel.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
         if (compactStyleModel.Equals("TR", StringComparison.OrdinalIgnoreCase) ||
             compactStyleModel.Equals("TRA", StringComparison.OrdinalIgnoreCase) ||
-            Regex.IsMatch(compactStyleModel, @"^(TR|TRA)\d{2,3}$"))
+            Regex.IsMatch(compactStyleModel, @"^(TR|TRA)\d{2,3}$") ||
+            type == FireplaceType.Traditional)
+        {
             return "TR";
-        if (type == FireplaceType.IndoorOutdoorSeeThrough)
+        }
+
+        if (type is FireplaceType.IndoorOutdoorSeeThrough or FireplaceType.OutdoorSeeThrough)
             return "ST";
-        if (type == FireplaceType.OutdoorSeeThrough)
-            return "ST";
-        if (type == FireplaceType.Outdoor)
-            return value.Contains("see") ? "ST" : "FF";
-        if (type == FireplaceType.Traditional)
-            return "TR";
-        if (value.Contains("room") || value.Contains("rd"))
+
+        // Match complete style names, standalone style codes, or known SKU prefixes.
+        // Never use loose substring checks such as Contains("rc"): "commercial" contains "rc".
+        if (value.Contains("room definer", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\brd\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVRD", "LDRD", "RD"))
+        {
             return "RD";
-        if (value.Contains("double corner") || value.Contains("dc"))
+        }
+
+        if (value.Contains("double corner", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\bdc\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVDC", "LDVDC", "VFDC", "VDC", "DC"))
+        {
             return "DC";
-        if (value.Contains("left") || value.Contains("lc"))
+        }
+
+        if (value.Contains("left corner", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\blc\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVLC", "LDVLC", "VFLC", "VLC", "LC"))
+        {
             return "LC";
-        if (value.Contains("right") || value.Contains("rc"))
+        }
+
+        if (value.Contains("right corner", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\brc\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVRC", "LDVRC", "VFRC", "VRC", "RC"))
+        {
             return "RC";
-        if (value.Contains("see") || value.Contains("st"))
+        }
+
+        if (value.Contains("see through", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("see-through", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\bst\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVST", "LDVST", "VFST", "VST", "ST"))
+        {
             return "ST";
+        }
+
         return "FF";
     }
 
@@ -3475,7 +3596,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return number;
 
         // Check EH before H so 30\" glass is never accidentally parsed as 24\".
-        if (Regex.IsMatch(text, @"(?i)^\s*EH\s*$"))
+        if (Regex.IsMatch(text, @"(?i)^\s*(?:E|EH)\s*$"))
             return "30";
         if (Regex.IsMatch(text, @"(?i)^\s*H\s*$"))
             return "24";
@@ -3495,7 +3616,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
         // Examples: FF-80-H, FF80H, FF-80-EH, FF80EH, DVDR45R.
         // EH is listed before H so the 30" suffix wins correctly.
-        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|H|R)(?:[-\s]*(OD|IO))?\b");
+        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|E|H|R)(?:C)?(?:[-\s]*(OD|IO))?\b");
         return match.Success ? NormalizeGlassHeightAlias(match.Groups[1].Value) : string.Empty;
     }
 

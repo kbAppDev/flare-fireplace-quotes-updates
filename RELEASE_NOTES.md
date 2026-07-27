@@ -10,3 +10,4 @@ Flare Fireplace Quotes v1.6.4 is a focused correctness, resilience, and safe-cle
 - Keeps the approved interface, pricing workbook, 302-model inventory, model mappings, PDF generation, Gmail drafting, updater behavior, quote history, settings, and real-flame-and-ash removal animation unchanged.
 
 Manifest signing and Authenticode enforcement remain a separate release-infrastructure project; this update does not enable strict signing before signed artifacts and a protected public trust anchor exist.
+- Corrected exact base-SKU, MSRP, and specification matching for Commercial Front Facing, Commercial See Through, Outdoor Left Corner, and Outdoor Double Corner models.
