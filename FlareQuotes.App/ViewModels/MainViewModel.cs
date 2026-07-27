@@ -1197,20 +1197,6 @@ public sealed class MainViewModel : ObservableObject
         return extension is ".jpg" or ".jpeg" or ".png" or ".webp";
     }
 
-    private async Task RefreshGeneratedPdfAttachmentAsync()
-    {
-        if (_lastRequest is null || _lastPricedQuote is null)
-            return;
-
-        await _settingsService.LoadAsync();
-
-        _lastRequest.Tag = _lastPricedQuote;
-        var pdfPath = CreateFreshQuotePdfPath(_lastRequest, _lastPricedQuote);
-        await _quotePdfService.BuildQuotePdfAsync(_lastRequest, pdfPath);
-
-        GeneratedPdfPath = string.Empty;
-        GeneratedPdfPath = pdfPath;
-    }
     private IReadOnlyList<ResourceLinkSet> BuildResourceSetsFromEditableSpecLinks()
     {
         return SpecLinks.GroupBy(x => x.FireplaceCode)
@@ -2452,13 +2438,6 @@ public sealed class MainViewModel : ObservableObject
                              .Where(x => !string.IsNullOrWhiteSpace(x))
                              .Distinct(StringComparer.OrdinalIgnoreCase));
 
-    private static IReadOnlyList<string> SplitAdditionalClassicMediaKeys(string value) =>
-        (value ?? string.Empty)
-            .Split(new[] { '|', ';', ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
     private void SyncAdditionalClassicMediaSelectionIndicator()
     {
         var selectedKeys =
@@ -3034,36 +3013,6 @@ public sealed class MainViewModel : ObservableObject
         return string.Join(", ", modelNames);
     }
 
-    private static string BuildQuoteModelFileNamePart(QuoteRequest request, PricedQuoteResult priced)
-    {
-        var fireplaces = (priced.Fireplaces ?? new List<PricedFireplaceQuote>()).ToList();
-
-        if (fireplaces.Count == 1)
-        {
-            var pricedFireplace = fireplaces[0];
-
-            return FirstNonBlank(pricedFireplace.ModelNumber, pricedFireplace.Model, pricedFireplace.FireplaceLabel,
-                                 pricedFireplace.Description, "Fireplace");
-        }
-
-        if (fireplaces.Count > 1)
-        {
-            var modelNumbers = fireplaces
-                                   .Select(x => SafeFileNamePart(
-                                               FirstNonBlank(x.ModelNumber, x.Model, x.FireplaceLabel, x.Description)))
-                                   .Where(x => !string.IsNullOrWhiteSpace(x))
-                                   .Distinct(StringComparer.OrdinalIgnoreCase)
-                                   .ToList();
-
-            if (modelNumbers.Count > 0 && modelNumbers.Count <= 3)
-                return string.Join(" + ", modelNumbers);
-
-            return "Multiple Fireplaces";
-        }
-
-        return FirstNonBlank(request.Model, "Fireplace");
-    }
-
     private void ApplyPassageDefaultsForModel(string? model)
     {
         if (!IsPassageModel(model))
@@ -3097,9 +3046,6 @@ public sealed class MainViewModel : ObservableObject
     private static string PassageCanonicalModelCode(string? value) => IsSeeThroughPassageModel(value) ? "STPASS"
                                                                                                       : "FFPASS";
 
-    private static string PassageReadableStyle(string? value) => IsSeeThroughPassageModel(value)
-                                                                     ? "See Through Passage"
-                                                                     : "Front Facing Passage";
     private void ApplyModelGlassHeightHint(string? model)
     {
         var hint = IsPassageModel(model) ? "60" : ExtractGlassHeightFromModelCode(model);

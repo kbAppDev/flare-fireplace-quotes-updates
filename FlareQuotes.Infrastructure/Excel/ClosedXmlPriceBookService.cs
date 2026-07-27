@@ -40,38 +40,79 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             return Task.FromResult(new PriceBookWorkbook { SourcePath = path ?? string.Empty });
 
-        using var workbook = new XLWorkbook(path);
-        var result = new PriceBookWorkbook { SourcePath = path };
-        foreach (var worksheet in workbook.Worksheets)
+        PriceBookWorkbook result;
+        try
         {
-            result.SheetNames.Add(worksheet.Name);
-            var headers = worksheet.Row(1)
-                              .CellsUsed()
-                              .Select((cell, index) => new { Name = cell.GetString(), Index = index + 1 })
-                              .ToList();
-            foreach (var row in worksheet.RowsUsed().Skip(1))
+            using var workbookBuffer = new MemoryStream();
+            using (var sourceStream = new FileStream(
+                       path,
+                       FileMode.Open,
+                       FileAccess.Read,
+                       FileShare.ReadWrite | FileShare.Delete))
             {
-                var priceRow = new PriceRow { SheetName = worksheet.Name };
-                var lastColumn = worksheet.LastColumnUsed()?.ColumnNumber() ?? headers.Max(h => h.Index);
-                for (var col = 1; col <= lastColumn; col++)
-                {
-                    priceRow.RawValues[$"Column{col}"] = row.Cell(col).GetFormattedString().Trim();
-                }
-                foreach (var h in headers)
-                {
-                    var header = h.Name.Trim();
-                    if (string.IsNullOrWhiteSpace(header))
-                        continue;
-                    priceRow.RawValues[header] = row.Cell(h.Index).GetFormattedString().Trim();
-                }
-                priceRow.Sku = First(priceRow.RawValues, "SKU", "Sku", "Model #", "Part #", "Item #");
-                priceRow.PartName = First(priceRow.RawValues, "Part Name", "Name", "Model", "Product");
-                priceRow.Description = First(priceRow.RawValues, "Description", "Product Description", "Style");
-                priceRow.Price = ParsePrice(First(priceRow.RawValues, "MSRP", "Price", "List Price"));
-                if (!string.IsNullOrWhiteSpace(priceRow.Sku) || !string.IsNullOrWhiteSpace(priceRow.PartName) ||
-                    !string.IsNullOrWhiteSpace(priceRow.Description) || IsQuantityCalculationSheet(worksheet.Name))
-                    result.Rows.Add(priceRow);
+                sourceStream.CopyTo(workbookBuffer);
             }
+
+            workbookBuffer.Position = 0;
+            using var workbook = new XLWorkbook(workbookBuffer);
+            result = new PriceBookWorkbook { SourcePath = path };
+            foreach (var worksheet in workbook.Worksheets)
+            {
+                result.SheetNames.Add(worksheet.Name);
+                var headers = worksheet.Row(1)
+                                  .CellsUsed()
+                                  .Select((cell, index) => new { Name = cell.GetString(), Index = index + 1 })
+                                  .ToList();
+                foreach (var row in worksheet.RowsUsed().Skip(1))
+                {
+                    var priceRow = new PriceRow { SheetName = worksheet.Name };
+                    var lastColumn = worksheet.LastColumnUsed()?.ColumnNumber() ?? headers.Max(h => h.Index);
+                    for (var col = 1; col <= lastColumn; col++)
+                    {
+                        priceRow.RawValues[$"Column{col}"] = row.Cell(col).GetFormattedString().Trim();
+                    }
+                    foreach (var h in headers)
+                    {
+                        var header = h.Name.Trim();
+                        if (string.IsNullOrWhiteSpace(header))
+                            continue;
+                        priceRow.RawValues[header] = row.Cell(h.Index).GetFormattedString().Trim();
+                    }
+                    priceRow.Sku = First(priceRow.RawValues, "SKU", "Sku", "Model #", "Part #", "Item #");
+                    priceRow.PartName = First(priceRow.RawValues, "Part Name", "Name", "Model", "Product");
+                    priceRow.Description = First(priceRow.RawValues, "Description", "Product Description", "Style");
+                    // Read numeric price cells by value (locale-independent). Only text-typed cells fall
+                    // back to string parsing; avoids mis-parsing currency on non-US Windows locales.
+                    priceRow.Price = null;
+                    foreach (var priceHeader in new[] { "MSRP", "Price", "List Price" })
+                    {
+                        var match = headers.FirstOrDefault(x =>
+                            string.Equals(x.Name.Trim(), priceHeader, StringComparison.OrdinalIgnoreCase));
+                        if (match is null)
+                            continue;
+                        var priceCell = row.Cell(match.Index);
+                        if (priceCell.DataType == XLDataType.Number)
+                        {
+                            priceRow.Price = priceCell.GetValue<decimal>();
+                            break;
+                        }
+                        var parsedPrice = ParsePrice(priceCell.GetString());
+                        if (parsedPrice.HasValue)
+                        {
+                            priceRow.Price = parsedPrice;
+                            break;
+                        }
+                    }
+                    if (!string.IsNullOrWhiteSpace(priceRow.Sku) || !string.IsNullOrWhiteSpace(priceRow.PartName) ||
+                        !string.IsNullOrWhiteSpace(priceRow.Description) || IsQuantityCalculationSheet(worksheet.Name))
+                        result.Rows.Add(priceRow);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Corrupt, locked, or partially-synced workbook: fail soft instead of crashing the quote flow.
+            return Task.FromResult(new PriceBookWorkbook { SourcePath = path });
         }
 
         _cached = result;
@@ -1128,10 +1169,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         return "VFF";
     }
 
-    private static string NormalizeResourceKey(string? value)
-    {
-        return Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
-    }
+    private static string NormalizeResourceKey(string? value) => Compact(value);
 
     private static PriceRow? FindOutdoorSafetyScreenRow(IReadOnlyList<PriceRow> rows, FireplaceType type, string model,
                                                         string sizeNum, string glassHeight)
@@ -1305,34 +1343,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return "50";
         if (sizeInt is 60 or 70)
             return "70";
-        return "100";
-    }
-
-    private static string RecommendedLouverSize(FireplaceType type, string sizeNum, string model)
-    {
-        var normalizedModel = Normalize(model);
-        if (type == FireplaceType.Traditional || normalizedModel.Contains("traditional"))
-            return "100";
-
-        if (!int.TryParse(sizeNum, out var sizeInt))
-            sizeInt = 0;
-
-        if (normalizedModel.Contains("passage") || sizeInt <= 30)
-            return "70";
-        if (sizeInt is 42 or 45 or 46 or 50)
-            return "100";
-        if (sizeInt is 60 or 70)
-            return "120";
-        if (sizeInt is 80 or 100)
-            return "180";
-        if (sizeInt >= 200)
-            return "200";
-        if (sizeInt >= 180)
-            return "180";
-        if (sizeInt >= 140)
-            return "140";
-        if (sizeInt >= 120)
-            return "120";
         return "100";
     }
 
@@ -1723,10 +1733,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         yield return $"{skuStyle}{digits}";
     }
 
-    private static string NormalizeOutdoorResourceKey(string? value)
-    {
-        return Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
-    }
+    private static string NormalizeOutdoorResourceKey(string? value) => Compact(value);
 
     private static PriceRow? TryGetLargeResourceRow(FireplaceType type, string model, string size, string glassHeight)
     {

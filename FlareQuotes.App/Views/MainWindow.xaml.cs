@@ -963,14 +963,6 @@ public partial class MainWindow : Window
 
     private static Point GetRectCenter(Rect rect) => new(rect.Left + rect.Width / 2, rect.Top + rect.Height / 2);
 
-    private static double DistanceToRectCenter(Point point, Rect rect)
-    {
-        var center = GetRectCenter(rect);
-        var dx = point.X - center.X;
-        var dy = point.Y - center.Y;
-        return Math.Sqrt((dx * dx) + (dy * dy));
-    }
-
     private static Rect InflateRect(Rect rect, double x, double y)
     {
         rect.Inflate(x, y);
@@ -1449,9 +1441,17 @@ public partial class MainWindow : Window
     private static string SafeForUser(string message)
     {
         var value = (message ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ').Trim();
+
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (!string.IsNullOrWhiteSpace(userProfile))
             value = value.Replace(userProfile, "%USERPROFILE%", StringComparison.OrdinalIgnoreCase);
+
+        // Redact absolute paths and emails so update errors never leak PII (matches MainViewModel.SafeForUser).
+        value = System.Text.RegularExpressions.Regex.Replace(value, @"[A-Z]:\\[^\s""]+", "%LOCAL_PATH%",
+                                                             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        value = System.Text.RegularExpressions.Regex.Replace(value, @"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", "[email]",
+                                                             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
         return string.IsNullOrWhiteSpace(value) ? "Unexpected error." : value;
     }
 

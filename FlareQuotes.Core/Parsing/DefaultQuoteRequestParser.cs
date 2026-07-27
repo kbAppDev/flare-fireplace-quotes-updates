@@ -99,22 +99,6 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
         return m.Success ? m.Value : text;
     }
 
-    private static string InferGlassHeightFromModelCode(string rawText, string model)
-    {
-        var source = $"{model}`n{rawText}".ToUpperInvariant();
-
-        // Order matters: EH before H.
-        if (Regex.IsMatch(source, @"\b(?:DV)?(?:FF|ST|LC|RC|DC|RD|VFF|VST|VLC|VRC|VDC|VF)[-\s]?\d{2,3}[-\s]?EH\b"))
-            return "30";
-
-        if (Regex.IsMatch(source, @"\b(?:DV)?(?:FF|ST|LC|RC|DC|RD|VFF|VST|VLC|VRC|VDC|VF)[-\s]?\d{2,3}[-\s]?H\b"))
-            return "24";
-
-        if (Regex.IsMatch(source, @"\b(?:DV)?(?:FF|ST|LC|RC|DC|RD|VFF|VST|VLC|VRC|VDC|VF)[-\s]?\d{2,3}[-\s]?R\b"))
-            return "16";
-
-        return string.Empty;
-    }
     private static string NormalizePhone(string? value)
     {
         var digits = Regex.Replace(value ?? string.Empty, @"\D", "");

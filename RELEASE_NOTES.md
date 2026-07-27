@@ -1,10 +1,12 @@
-Flare Fireplace Quotes v1.6.3 is a professional source-hygiene and release-reliability update. The approved v1.6.2 interface and application behavior are intentionally preserved.
+Flare Fireplace Quotes v1.6.4 is a focused correctness, resilience, and safe-cleanup release based on the approved v1.6.3 application.
 
-- Normalizes the complete C# source tree with one repository-wide formatting standard.
-- Adds EditorConfig and Git attributes so line endings, final newlines, and whitespace remain consistent.
-- Adds a solution-level formatting command and makes formatting verification non-mutating.
-- Adds pull-request and main-branch quality checks before code can reach a release.
-- Updates the rendered-snapshot artifact action to the current Node.js 24-compatible release.
-- Moves full-backup creation into the official tagged GitHub release workflow.
-- Verifies backup source, release assets, SHA-256 hashes, sizes, tag, and commit before accepting the backup.
-- Keeps the pricing, workbooks, 302-model inventory, quote workflow, PDF generation, Gmail drafts, update trust, security behavior, and approved real-flame-and-ash animation unchanged.
+- Reads numeric workbook prices by numeric value instead of locale-formatted display text.
+- Preserves the en-US text-price fallback while preventing locale formatting from changing numeric prices.
+- Returns a safe empty workbook when a pricing file is corrupt, locked, or partially synchronized instead of crashing the quote workflow.
+- Redacts absolute Windows paths and email addresses from update-error messages shown to users.
+- Removes seven verified unreferenced members, including a parser method containing a copied PowerShell newline artifact.
+- Consolidates two identical resource-key normalizers into the existing shared compact normalizer.
+- Adds regression coverage for numeric price loading under a non-US process culture, en-US text-price fallback, and corrupt-workbook handling.
+- Keeps the approved interface, pricing workbook, 302-model inventory, model mappings, PDF generation, Gmail drafting, updater behavior, quote history, settings, and real-flame-and-ash removal animation unchanged.
+
+Manifest signing and Authenticode enforcement remain a separate release-infrastructure project; this update does not enable strict signing before signed artifacts and a protected public trust anchor exist.
