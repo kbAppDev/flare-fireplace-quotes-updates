@@ -100,7 +100,7 @@ jobs:
           retention-days: 30
 
       - name: Analyze with CodeQL
-        uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4
+        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
 
       - name: Build installer and publish GitHub release
         shell: pwsh
