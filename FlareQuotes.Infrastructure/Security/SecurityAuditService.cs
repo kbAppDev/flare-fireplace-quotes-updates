@@ -22,7 +22,8 @@ public sealed class SecurityAuditService : ISecurityAuditService
 
         if (tokenDirectories.Length == 0)
         {
-            items.Add(new SystemHealthItem {
+            items.Add(new SystemHealthItem
+            {
                 Name = "Gmail token store",
                 Detail = "No Gmail token store found yet. It will be created after Gmail is connected.",
                 State = SystemHealthState.Warning
@@ -38,7 +39,8 @@ public sealed class SecurityAuditService : ISecurityAuditService
             var plaintextTokens = tokenFiles.Where(path =>
                 !path.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase) && LooksLikePlaintextToken(path)).ToArray();
 
-            items.Add(new SystemHealthItem {
+            items.Add(new SystemHealthItem
+            {
                 Name = "Gmail token store",
                 Detail =
                     plaintextTokens.Length == 0
@@ -79,15 +81,20 @@ public sealed class SecurityAuditService : ISecurityAuditService
     {
         if (!File.Exists(settingsPath))
         {
-            return new SystemHealthItem { Name = "Settings storage", Detail = "Settings file has not been created yet.",
-                                          State = SystemHealthState.Warning };
+            return new SystemHealthItem
+            {
+                Name = "Settings storage",
+                Detail = "Settings file has not been created yet.",
+                State = SystemHealthState.Warning
+            };
         }
 
         try
         {
             if (new FileInfo(settingsPath).Length > 1024 * 1024)
             {
-                return new SystemHealthItem {
+                return new SystemHealthItem
+                {
                     Name = "Settings storage",
                     Detail = "Settings file exceeds the maximum allowed size and will be ignored.",
                     State = SystemHealthState.Error
@@ -102,7 +109,8 @@ public sealed class SecurityAuditService : ISecurityAuditService
             var hasSensitiveValue =
                 sensitiveMarkers.Any(marker => text.Contains(marker, StringComparison.OrdinalIgnoreCase));
 
-            return new SystemHealthItem {
+            return new SystemHealthItem
+            {
                 Name = "Settings storage",
                 Detail = hasSensitiveValue
                              ? "Settings file contains sensitive token-like data. Move secrets to secure storage."
@@ -112,7 +120,8 @@ public sealed class SecurityAuditService : ISecurityAuditService
         }
         catch
         {
-            return new SystemHealthItem {
+            return new SystemHealthItem
+            {
                 Name = "Settings storage",
                 Detail = "Settings file exists but could not be parsed. The app will rebuild defaults if needed.",
                 State = SystemHealthState.Warning

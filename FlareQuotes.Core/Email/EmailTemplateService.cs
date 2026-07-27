@@ -11,7 +11,8 @@ public sealed class EmailTemplateService
     {
         var firstFireplace = priced.Fireplaces.FirstOrDefault();
         var firstType = firstFireplace?.Type ?? FireplaceType.Indoor;
-        var baseSubject = firstType switch {
+        var baseSubject = firstType switch
+        {
             FireplaceType.IndoorOutdoorSeeThrough => "Your Flare Indoor-Outdoor See Through Fireplace Quote",
             FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough => "Your Flare Outdoor Fireplace Quote",
             FireplaceType.Large => "Your Large Flare Fireplace Quote",

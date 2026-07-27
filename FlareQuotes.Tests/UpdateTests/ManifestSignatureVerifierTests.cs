@@ -48,7 +48,8 @@ public sealed class ManifestSignatureVerifierTests
         Assert.False(ManifestSignatureVerifier.Validate(manifest, "not-a-key", strict: false, out _));
     }
 
-    private static UpdateManifest CreateManifest() => new() {
+    private static UpdateManifest CreateManifest() => new()
+    {
         Version = "1.4.11",
         Url =
             "https://github.com/kbAppDev/flare-fireplace-quotes-updates/releases/download/v1.4.11/Flare.Fireplace.Quotes.exe",

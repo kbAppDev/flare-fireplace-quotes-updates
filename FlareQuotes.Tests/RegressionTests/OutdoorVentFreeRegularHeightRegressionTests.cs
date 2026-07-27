@@ -15,13 +15,15 @@ public sealed class OutdoorVentFreeRegularHeightRegressionTests
         var pricingPath = Path.Combine(root, "LocalData", "pricing.xlsx");
         Assert.True(File.Exists(pricingPath), $"Pricing workbook missing: {pricingPath}");
 
-        var reflectiveSides = new FeatureSelection {
+        var reflectiveSides = new FeatureSelection
+        {
             Key = "reflective_black_sides",
             DisplayName = "Reflective Black Sides",
             PdfDescription = "Black Glass Sides That Reflects the Flame and Media"
         };
 
-        var fireplace = new FireplaceQuote {
+        var fireplace = new FireplaceQuote
+        {
             Type = FireplaceType.OutdoorSeeThrough,
             Model = model,
             Size = "70",
@@ -30,7 +32,8 @@ public sealed class OutdoorVentFreeRegularHeightRegressionTests
             Features = [reflectiveSides]
         };
 
-        var request = new QuoteRequest {
+        var request = new QuoteRequest
+        {
             ProjectName = "VFST70 Regression",
             ClientName = "Flare QA",
             Email = "test@example.com",
