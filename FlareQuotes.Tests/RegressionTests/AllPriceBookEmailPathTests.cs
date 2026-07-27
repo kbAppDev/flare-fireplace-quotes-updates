@@ -58,15 +58,23 @@ public sealed class AllPriceBookEmailPathTests
 
     internal static QuoteRequest BuildRequest(PriceRow row, FireplaceType type, string email)
     {
-        return new QuoteRequest { ProjectName = "Automated Model Test", ClientName = "Flare QA", Email = email,
-                                  Model = row.Sku, Fireplaces = [new FireplaceQuote { Type = type, Model = row.Sku,
-                                                                                      LeadTime = "TEST" }] };
+        return new QuoteRequest
+        {
+            ProjectName = "Automated Model Test",
+            ClientName = "Flare QA",
+            Email = email,
+            Model = row.Sku,
+            Fireplaces = [new FireplaceQuote { Type = type, Model = row.Sku,
+                                                                                      LeadTime = "TEST" }]
+        };
     }
 
     internal static PricedQuoteResult BuildPricedResult(PriceRow row, FireplaceType type, QuoteRequest request)
     {
-        return new PricedQuoteResult {
-            Success = true, Request = request,
+        return new PricedQuoteResult
+        {
+            Success = true,
+            Request = request,
             Fireplaces = [new PricedFireplaceQuote {
                 Type = type, Model = row.Sku, ModelNumber = row.Sku, Description = row.Description,
                 BaseLine = new PriceLine { Sku = row.Sku, Description = row.Description, Price = row.Price }
@@ -81,7 +89,7 @@ public sealed class AllPriceBookEmailPathTests
 
         var expected = File.ReadLines(inventoryPath)
                            .Skip(1)
-                           .Select(line => line.Split(',') [0].Trim())
+                           .Select(line => line.Split(',')[0].Trim())
                            .Where(model => !string.IsNullOrWhiteSpace(model))
                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var actual = models.Select(row => row.Sku).ToHashSet(StringComparer.OrdinalIgnoreCase);

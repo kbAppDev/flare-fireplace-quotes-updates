@@ -35,25 +35,32 @@ public sealed class SystemHealthService : ISystemHealthService
         var securityItems = await _securityAuditService.AuditAsync(cancellationToken).ConfigureAwait(false);
         items.AddRange(securityItems);
 
-        items.Add(new SystemHealthItem { Name = "Redacted app logging",
-                                         Detail = $"Active. Log file: {_logger.LogFilePath}",
-                                         State = SystemHealthState.Ok });
+        items.Add(new SystemHealthItem
+        {
+            Name = "Redacted app logging",
+            Detail = $"Active. Log file: {_logger.LogFilePath}",
+            State = SystemHealthState.Ok
+        });
 
         return items;
     }
 
     private static SystemHealthItem CheckFile(string name, string path)
     {
-        return new SystemHealthItem { Name = name,
-                                      Detail =
+        return new SystemHealthItem
+        {
+            Name = name,
+            Detail =
                                           File.Exists(path) ? $"Found: {Path.GetFileName(path)}" : $"Missing: {path}",
-                                      State = File.Exists(path) ? SystemHealthState.Ok : SystemHealthState.Error };
+            State = File.Exists(path) ? SystemHealthState.Ok : SystemHealthState.Error
+        };
     }
 
     private static SystemHealthItem CheckUpdateFeed(string updateManifestUrl)
     {
         var trusted = UpdateTrustPolicy.TryGetTrustedManifestUri(updateManifestUrl, out _);
-        return new SystemHealthItem {
+        return new SystemHealthItem
+        {
             Name = "Update feed",
             Detail = trusted
                          ? "Pinned Flare GitHub update manifest configured."
@@ -71,7 +78,8 @@ public sealed class SystemHealthService : ISystemHealthService
 
         if (string.IsNullOrWhiteSpace(runtimeConfig))
         {
-            return new SystemHealthItem {
+            return new SystemHealthItem
+            {
                 Name = "Runtime packaging",
                 Detail = "runtimeconfig.json not found. This is normal only for some single-file builds.",
                 State = SystemHealthState.Warning
@@ -81,7 +89,8 @@ public sealed class SystemHealthService : ISystemHealthService
         var text = File.ReadAllText(runtimeConfig);
         var hasSharedFrameworkDependency = text.Contains("\"frameworks\"", StringComparison.OrdinalIgnoreCase);
 
-        return new SystemHealthItem {
+        return new SystemHealthItem
+        {
             Name = "Runtime packaging",
             Detail = hasSharedFrameworkDependency
                          ? "Framework-dependent runtime config detected. Release builds should be self-contained."

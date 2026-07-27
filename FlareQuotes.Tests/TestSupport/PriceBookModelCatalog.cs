@@ -39,7 +39,8 @@ internal static partial class PriceBookModelCatalog
         return FireplaceType.Indoor;
     }
 
-    public static string Category(string? sku) => Type(sku) switch {
+    public static string Category(string? sku) => Type(sku) switch
+    {
         FireplaceType.OutdoorSeeThrough => "Outdoor See Through",
         FireplaceType.Outdoor => "Outdoor",
         FireplaceType.Large => "Large",

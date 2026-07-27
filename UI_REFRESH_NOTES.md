@@ -1,4 +1,4 @@
-# Flare Quotes v1.6.2 — Audited UI Refresh
+# Flare Quotes v1.6.3 — Audited UI Refresh
 
 This candidate applies the three-pane visual redesign while keeping the official v1.5.1 pricing, PDF, Gmail, updater, security, parsing, feature/media, workbook, and release-pipeline files byte-equivalent after line-ending normalization.
 

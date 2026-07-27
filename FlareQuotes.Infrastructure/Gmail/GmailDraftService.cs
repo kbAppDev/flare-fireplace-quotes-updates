@@ -97,15 +97,22 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
             if (string.IsNullOrWhiteSpace(created.Id))
             {
                 _logger.Warning("Gmail API returned without a draft ID.");
-                return new EmailDraftResult { Success = false, OpenedGmail = false,
-                                              Message = "Gmail did not confirm the draft was created." };
+                return new EmailDraftResult
+                {
+                    Success = false,
+                    OpenedGmail = false,
+                    Message = "Gmail did not confirm the draft was created."
+                };
             }
 
             var opened = request.OpenBrowserAfterCreate && OpenGmailDrafts();
             _logger.Info("Gmail API created draft. DraftIdPresent=True; " + $"BrowserOpened={opened}.");
 
-            return new EmailDraftResult {
-                Success = true, DraftId = created.Id, OpenedGmail = opened,
+            return new EmailDraftResult
+            {
+                Success = true,
+                DraftId = created.Id,
+                OpenedGmail = opened,
                 Message = request.OpenBrowserAfterCreate
                               ? (opened ? "Gmail draft created."
                                         : "Gmail draft created, but the browser could not be opened automatically.")
@@ -115,24 +122,33 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.Warning("Gmail draft creation timed out.");
-            return new EmailDraftResult { Success = false,
-                                          Message =
-                                              "Gmail draft creation timed out. Check the connection and try again." };
+            return new EmailDraftResult
+            {
+                Success = false,
+                Message =
+                                              "Gmail draft creation timed out. Check the connection and try again."
+            };
         }
         catch (Google.GoogleApiException ex)
         {
             _logger.Error(ex,
                           $"Gmail API rejected draft. HttpStatus={(int)ex.HttpStatusCode}; Service={ex.ServiceName}.");
-            return new EmailDraftResult {
-                Success = false, OpenedGmail = false,
+            return new EmailDraftResult
+            {
+                Success = false,
+                OpenedGmail = false,
                 Message = $"Gmail rejected the draft (HTTP {(int)ex.HttpStatusCode}). {SafeForUser(ex.Message)}"
             };
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Gmail draft service failed before confirmation.");
-            return new EmailDraftResult { Success = false, OpenedGmail = false,
-                                          Message = $"Gmail draft could not be created. {SafeForUser(ex.Message)}" };
+            return new EmailDraftResult
+            {
+                Success = false,
+                OpenedGmail = false,
+                Message = $"Gmail draft could not be created. {SafeForUser(ex.Message)}"
+            };
         }
     }
 
@@ -155,8 +171,11 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
                                              cancellationToken, new ProtectedFileDataStore(tokenDir))
                              .ConfigureAwait(false);
 
-        _service = new GmailService(new BaseClientService.Initializer { HttpClientInitializer = credential,
-                                                                        ApplicationName = AppPaths.ProductFolderName });
+        _service = new GmailService(new BaseClientService.Initializer
+        {
+            HttpClientInitializer = credential,
+            ApplicationName = AppPaths.ProductFolderName
+        });
 
         return _service;
     }
@@ -303,8 +322,13 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
 
     private static string GetImageContentType(string extension)
     {
-        return extension switch { ".jpg" or ".jpeg" => "image/jpeg", ".png" => "image/png", ".webp" => "image/webp",
-                                  _ => "application/octet-stream" };
+        return extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
     }
 
     private static string SanitizeAttachmentFileName(string value)

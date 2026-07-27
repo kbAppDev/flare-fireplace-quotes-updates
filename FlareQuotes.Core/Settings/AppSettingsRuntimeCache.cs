@@ -9,7 +9,8 @@ public static class AppSettingsRuntimeCache
 
     public static AppSettings? Current
     {
-        get {
+        get
+        {
             lock (Sync)
             {
                 return _current;

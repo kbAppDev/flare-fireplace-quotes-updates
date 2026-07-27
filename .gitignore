@@ -50,3 +50,27 @@ installer/*.log
 # WebView2 runtime cache
 **/*.WebView2/
 **/EBWebView/
+# Build and test output
+**/bin/
+**/obj/
+**/TestResults/
+artifacts/
+installer/*.exe
+installer/*.json
+installer/*.zip
+installer/*.log
+
+# Local application data and credentials
+gmail_credentials.json
+**/*access-token*.json
+**/*refresh-token*.json
+**/Credentials/
+**/Tokens/
+*.user
+*.suo
+
+# Local release and backup scratch
+*.tmp
+*.bak
+*.backup.*
+Backups/

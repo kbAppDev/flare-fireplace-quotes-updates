@@ -20,15 +20,9 @@ function Assert-NativeSuccess([int]$ExitCode, [string]$Message) {
 
 Start-Transcript -Path $log -Force
 try {
-    Write-Host "1/8 Formatting source and verifying a clean format..."
-    dotnet format .\FlareQuotes.App\FlareQuotes.App.csproj --verbosity minimal
-    Assert-NativeSuccess $LASTEXITCODE "App source formatting failed."
-    dotnet format .\FlareQuotes.Tests\FlareQuotes.Tests.csproj --verbosity minimal
-    Assert-NativeSuccess $LASTEXITCODE "Test source formatting failed."
-    dotnet format .\FlareQuotes.App\FlareQuotes.App.csproj --verify-no-changes --verbosity minimal
-    Assert-NativeSuccess $LASTEXITCODE "App source is not format-clean."
-    dotnet format .\FlareQuotes.Tests\FlareQuotes.Tests.csproj --verify-no-changes --verbosity minimal
-    Assert-NativeSuccess $LASTEXITCODE "Test source is not format-clean."
+    Write-Host "1/8 Verifying repository-wide source formatting..."
+    dotnet format .\FlareQuotes.sln --verify-no-changes --verbosity minimal
+    Assert-NativeSuccess $LASTEXITCODE "Repository source is not format-clean."
 
     Write-Host "2/8 Clean Release build with every warning treated as an error..."
     dotnet clean .\FlareQuotes.App\FlareQuotes.App.csproj -c Release

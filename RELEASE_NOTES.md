@@ -1,10 +1,10 @@
-Flare Fireplace Quotes v1.6.2 replaces the fireplace-card removal effect with the approved real-flame-and-ash v2 animation while preserving the audited quote workflow and production systems.
+Flare Fireplace Quotes v1.6.3 is a professional source-hygiene and release-reliability update. The approved v1.6.2 interface and application behavior are intentionally preserved.
 
-- Burns only the fireplace summary card selected with its remove X.
-- Captures the actual card and consumes it from the bottom upward with an irregular burn front.
-- Adds layered flame, char, ember glow, sparks, and drifting ash before the card closes its layout space.
-- Prevents duplicate removal clicks while the animation is active.
-- Honors the Windows client-area animation preference and falls back to immediate removal when animation is disabled.
-- Keeps the removal command fail-safe so a visual error cannot block the quote workflow.
-- Leaves pricing, model mappings, feature and media selection, PDF generation, Gmail drafts, quote history, settings, update trust, and the 302-model inventory unchanged.
-- Publishes the verified installer, updater manifest, portable build, and a clean full-backup ZIP containing tracked source plus matching release assets.
+- Normalizes the complete C# source tree with one repository-wide formatting standard.
+- Adds EditorConfig and Git attributes so line endings, final newlines, and whitespace remain consistent.
+- Adds a solution-level formatting command and makes formatting verification non-mutating.
+- Adds pull-request and main-branch quality checks before code can reach a release.
+- Updates the rendered-snapshot artifact action to the current Node.js 24-compatible release.
+- Moves full-backup creation into the official tagged GitHub release workflow.
+- Verifies backup source, release assets, SHA-256 hashes, sizes, tag, and commit before accepting the backup.
+- Keeps the pricing, workbooks, 302-model inventory, quote workflow, PDF generation, Gmail drafts, update trust, security behavior, and approved real-flame-and-ash animation unchanged.
