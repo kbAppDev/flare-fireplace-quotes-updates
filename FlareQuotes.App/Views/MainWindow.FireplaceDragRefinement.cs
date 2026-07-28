@@ -380,9 +380,7 @@ public partial class MainWindow
                 if (string.Equals(element.Tag?.ToString(), "FireplaceSummaryCard", StringComparison.OrdinalIgnoreCase))
                     return null;
 
-                if (element.Cursor == Cursors.SizeNS &&
-                    string.Equals(element.ToolTip?.ToString(), "Click and drag to reorder this fireplace",
-                                  StringComparison.Ordinal))
+                if (string.Equals(element.Tag?.ToString(), "FireplaceDragHandle", StringComparison.Ordinal))
                 {
                     return element;
                 }
@@ -473,6 +471,7 @@ public partial class MainWindow
             double width,
             double height) : base(adornedElement)
         {
+            _visuals = new VisualCollection(this);
             IsHitTestVisible = false;
             _preview = new Border
             {
@@ -493,7 +492,7 @@ public partial class MainWindow
                     Opacity = 0.34
                 }
             };
-            _visuals = new VisualCollection(this) { _preview };
+            _visuals.Add(_preview);
         }
 
         public void SetPosition(double left, double top)

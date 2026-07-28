@@ -1057,7 +1057,8 @@
                                                             <Border Grid.Column="0"
                                                                     Width="20"
                                                                     Margin="-3,0,7,0"
-                                                                    Cursor="SizeNS"
+                                                                    Tag="FireplaceDragHandle"
+                                                                    Cursor="Arrow"
                                                                     Background="Transparent"
                                                                     ToolTip="Click and drag to reorder this fireplace"
                                                                     PreviewMouseLeftButtonDown="FireplaceDragHandle_PreviewMouseLeftButtonDown">
