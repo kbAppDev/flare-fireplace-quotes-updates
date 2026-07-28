@@ -12,3 +12,7 @@ Flare Fireplace Quotes v1.6.4 is a focused correctness, resilience, and safe-cle
 Manifest signing and Authenticode enforcement remain a separate release-infrastructure project; this update does not enable strict signing before signed artifacts and a protected public trust anchor exist.
 - Corrected exact base-SKU, MSRP, and specification matching for Commercial Front Facing, Commercial See Through, Outdoor Left Corner, and Outdoor Double Corner models.
 - Corrected Commercial High and Extra High pricing so shared Commercial part names cannot fall back to the Regular-height SKU.
+- Added complete-SKU Auto-fill support for Commercial, Outdoor Vent Free, Large, Traditional, and Passage fireplace codes.
+- Corrected VFDC/VFLC/VFRC/VFST model normalization so specific Outdoor Vent Free styles cannot fall back to Front Facing.
+- Corrected Verify URLs grouping so each quoted fireplace produces exactly one card, including duplicate model instances.
+- Added visible Gmail recipient validation and progress/status feedback on the Verify URLs page.

@@ -2,6 +2,7 @@ using FlareQuotes.App.Services;
 using FlareQuotes.App.ViewModels;
 using FlareQuotes.Core.Email;
 using FlareQuotes.Core.Models;
+using FlareQuotes.Core.Parsing;
 using FlareQuotes.Core.Services;
 using Xunit;
 
@@ -60,12 +61,109 @@ public sealed class MainViewModelUiRefreshTests
         Assert.Equal("Add the current fireplace to continue", viewModel.ReadinessText);
     }
 
-    private static MainViewModel CreateViewModel()
+
+
+    [Fact]
+    public async Task CompleteCommercialCodeAutoFillPopulatesSeparateFields()
+    {
+        var viewModel = CreateViewModel(new DefaultQuoteRequestParser());
+        viewModel.RawRequest = "DVFF50HC";
+
+        await viewModel.AutoFillCommand.ExecuteAsync(null);
+
+        Assert.Equal("Commercial Front Facing", viewModel.Model);
+        Assert.Equal("50", viewModel.Size);
+        Assert.Equal("24", viewModel.GlassHeight);
+    }
+
+    [Fact]
+    public void CompleteVentFreeDoubleCornerCodeRemainsDoubleCorner()
+    {
+        var viewModel = CreateViewModel(new DefaultQuoteRequestParser());
+
+        viewModel.Model = "VFDC50H";
+
+        Assert.Equal("Outdoor Vent Free Double Corner", viewModel.Model);
+        Assert.Equal("50", viewModel.Size);
+        Assert.Equal("24", viewModel.GlassHeight);
+
+        viewModel.AddFireplaceCommand.Execute(null);
+
+        var fireplace = Assert.Single(viewModel.Fireplaces);
+        Assert.Equal("VDC50H", fireplace.Model);
+    }
+
+    [Fact]
+    public void UrlVerificationCreatesOneCardPerResourceSetInstance()
+    {
+        var viewModel = CreateViewModel();
+
+        viewModel.SpecLinks.Add(
+            new SpecLinkDraft
+            {
+                FireplaceGroupId = "001:VDC50H",
+                FireplaceCode = "VDC50H",
+                Label = "3-Part Spec",
+                Url = "https://example.com/vdc-3-part.docx",
+                Status = "specific"
+            });
+        viewModel.SpecLinks.Add(
+            new SpecLinkDraft
+            {
+                FireplaceGroupId = "001:VDC50H",
+                FireplaceCode = "VDC50H",
+                Label = "Product Sheet",
+                Url = "https://example.com/vdc-product.pdf",
+                Status = "specific"
+            });
+        viewModel.SpecLinks.Add(
+            new SpecLinkDraft
+            {
+                FireplaceGroupId = "002:FF140H",
+                FireplaceCode = "FF140H",
+                Label = "3-Part Spec",
+                Url = "https://example.com/ff140-3-part.docx",
+                Status = "specific"
+            });
+        viewModel.SpecLinks.Add(
+            new SpecLinkDraft
+            {
+                FireplaceGroupId = "002:FF140H",
+                FireplaceCode = "FF140H",
+                Label = "Product Sheet",
+                Url = "https://example.com/ff140-product.pdf",
+                Status = "specific"
+            });
+
+        Assert.Equal(2, viewModel.UrlVerificationFireplaces.Count);
+        Assert.Equal("VDC50H", viewModel.UrlVerificationFireplaces[0].ModelCode);
+        Assert.Equal("FF140H", viewModel.UrlVerificationFireplaces[1].ModelCode);
+        Assert.Equal(2, viewModel.UrlVerificationFireplaces[0].Rows.Count);
+        Assert.Equal(2, viewModel.UrlVerificationFireplaces[1].Rows.Count);
+    }
+
+    [Fact]
+    public void GmailDraftButtonRequiresOneValidRecipient()
+    {
+        var viewModel = CreateViewModel();
+
+        Assert.False(viewModel.CanCreateGmailDraft);
+        Assert.False(viewModel.CreateDraftCommand.CanExecute(null));
+        Assert.Contains("valid customer email", viewModel.GmailDraftRequirementText, StringComparison.OrdinalIgnoreCase);
+
+        viewModel.Email = "dealer@example.com";
+
+        Assert.True(viewModel.CanCreateGmailDraft);
+        Assert.True(viewModel.CreateDraftCommand.CanExecute(null));
+        Assert.Contains("dealer@example.com", viewModel.GmailDraftRequirementText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static MainViewModel CreateViewModel(IQuoteRequestParser? parser = null)
     {
         var logger = new NullLogger();
         var draftWorkflow = new DraftWorkflowService(new NullGmailDraftService(), new EmailTemplateService(), logger);
 
-        return new MainViewModel(new EmptyParser(), new EmptyFeatureService(), new EmptyMediaService(),
+        return new MainViewModel(parser ?? new EmptyParser(), new EmptyFeatureService(), new EmptyMediaService(),
                                  new EmptyPriceBookService(), new EmptyPdfService(), new MemorySettingsService(),
                                  draftWorkflow, logger);
     }

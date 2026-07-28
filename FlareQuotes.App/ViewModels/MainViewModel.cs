@@ -120,7 +120,7 @@ public sealed class MainViewModel : ObservableObject
         BackToReviewCommand = new RelayCommand(() => WorkflowStage = QuoteWorkflowStage.Review);
         NextToSpecLinksCommand = new AsyncRelayCommand(NextToSpecLinksAsync);
         BackToPreviewCommand = new RelayCommand(() => WorkflowStage = QuoteWorkflowStage.PdfPreview);
-        CreateDraftCommand = new AsyncRelayCommand(CreateDraftAsync);
+        CreateDraftCommand = new AsyncRelayCommand(CreateDraftAsync, () => CanCreateGmailDraft);
         ChooseFireplacePhotoCommand = new RelayCommand(ChooseFireplacePhoto);
         ClearFireplacePhotoCommand = new RelayCommand(ClearFireplacePhoto);
         OpenGeneratedPdfCommand = new RelayCommand(OpenGeneratedPdf);
@@ -197,7 +197,15 @@ public sealed class MainViewModel : ObservableObject
     public string Email
     {
         get => _email;
-        set => SetProperty(ref _email, value);
+        set
+        {
+            if (!SetProperty(ref _email, value))
+                return;
+
+            OnPropertyChanged(nameof(CanCreateGmailDraft));
+            OnPropertyChanged(nameof(GmailDraftRequirementText));
+            CreateDraftCommand.NotifyCanExecuteChanged();
+        }
     }
     public string Phone
     {
@@ -220,10 +228,27 @@ public sealed class MainViewModel : ObservableObject
         get => _model;
         set
         {
-            if (SetProperty(ref _model, value))
+            var finalModel = value ?? string.Empty;
+            var decodedSize = string.Empty;
+            var decodedGlassHeight = string.Empty;
+
+            if (LooksLikeCompleteFireplaceCode(finalModel))
             {
-                ApplyPassageDefaultsForModel(value);
-                ApplyModelGlassHeightHint(value);
+                var decoded = _parser.Parse($"Model: {finalModel}");
+                finalModel = FirstNonBlank(decoded.Model, finalModel);
+                decodedSize = decoded.Size;
+                decodedGlassHeight = decoded.GlassHeight;
+            }
+
+            if (SetProperty(ref _model, finalModel))
+            {
+                if (!string.IsNullOrWhiteSpace(decodedSize))
+                    Size = decodedSize;
+                if (!string.IsNullOrWhiteSpace(decodedGlassHeight))
+                    GlassHeight = decodedGlassHeight;
+
+                ApplyPassageDefaultsForModel(finalModel);
+                ApplyModelGlassHeightHint(finalModel);
                 RefreshSelectionOptions(preserveSelected: true);
                 NotifyFireplaceContextChanged();
             }
@@ -282,6 +307,14 @@ public sealed class MainViewModel : ObservableObject
         get => _gmailStatusText;
         set => SetProperty(ref _gmailStatusText, value);
     }
+
+    public bool CanCreateGmailDraft =>
+        EmailAddressNormalizer.TryNormalizeSingle(Email, out _);
+
+    public string GmailDraftRequirementText =>
+        CanCreateGmailDraft
+            ? $"Gmail draft recipient: {EmailAddressNormalizer.NormalizeSingleOrEmpty(Email)}"
+            : "Add one valid customer email in Step 1 to enable Gmail draft creation.";
     public string GeneratedPdfPath
     {
         get => _generatedPdfPath;
@@ -976,16 +1009,25 @@ public sealed class MainViewModel : ObservableObject
             var request = _lastRequest ?? BuildQuoteRequest();
             var links = await _priceBookService.ResolveResourceLinksAsync(request, PricingPath());
             SpecLinks.Clear();
-            foreach (var set in links)
+
+            for (var setIndex = 0; setIndex < links.Count; setIndex++)
+            {
+                var set = links[setIndex];
+                var groupId = $"{setIndex + 1:D3}:{FirstNonBlank(set.ModelNumber, "Fireplace")}";
+
                 foreach (var link in set.Links)
+                {
                     SpecLinks.Add(
                         new SpecLinkDraft
                         {
+                            FireplaceGroupId = groupId,
                             FireplaceCode = set.ModelNumber,
                             Label = link.Key,
                             Url = link.Value,
                             Status = set.Sources.TryGetValue(link.Key, out var s) ? s : "specific"
                         });
+                }
+            }
             WorkflowStage = QuoteWorkflowStage.SpecLinks;
             StatusMessage = $"Spec link review ready with {SpecLinks.Count} URL(s).";
         }
@@ -1199,15 +1241,23 @@ public sealed class MainViewModel : ObservableObject
 
     private IReadOnlyList<ResourceLinkSet> BuildResourceSetsFromEditableSpecLinks()
     {
-        return SpecLinks.GroupBy(x => x.FireplaceCode)
-            .Select(g =>
+        return SpecLinks
+            .GroupBy(
+                x => FirstNonBlank(x.FireplaceGroupId, x.FireplaceCode),
+                StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
                     {
-                        var set = new ResourceLinkSet { ModelNumber = g.Key };
-                        foreach (var item in g)
+                        var modelNumber = group.Select(x => x.FireplaceCode)
+                                               .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ??
+                                          group.Key;
+                        var set = new ResourceLinkSet { ModelNumber = modelNumber };
+
+                        foreach (var item in group)
                         {
                             set.Links[item.Label] = item.Url;
                             set.Sources[item.Label] = item.Status;
                         }
+
                         return set;
                     })
             .ToList();
@@ -1235,58 +1285,64 @@ public sealed class MainViewModel : ObservableObject
     }
     private List<List<object>> BuildUrlVerificationRowGroups(List<object> rows)
     {
-        var groups = new List<List<object>>();
-        var current = new List<object>();
-
-        foreach (var row in rows)
-        {
-            if (current.Count > 0 && IsStartOfUrlVerificationFireplace(row))
+        var instanceGroups =
+            rows.Select((row, index) => new
             {
-                groups.Add(current);
-                current = new List<object>();
-            }
+                Row = row,
+                Index = index,
+                GroupId = GetUrlVerificationExplicitGroupId(row)
+            })
+                .Where(item => !string.IsNullOrWhiteSpace(item.GroupId))
+                .GroupBy(item => item.GroupId!, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(group => group.Min(item => item.Index))
+                .Select(group => group.OrderBy(item => item.Index).Select(item => item.Row).ToList())
+                .ToList();
 
-            current.Add(row);
-        }
+        if (instanceGroups.Count > 0)
+            return instanceGroups;
 
-        if (current.Count > 0)
-            groups.Add(current);
+        var explicitCodeGroups =
+            rows.Select((row, index) => new
+            {
+                Row = row,
+                Index = index,
+                Code = NormalizeUrlVerificationExplicitGroupCode(
+                        GetUrlVerificationExplicitFireplaceCode(row))
+            })
+                .Where(item => !string.IsNullOrWhiteSpace(item.Code))
+                .GroupBy(item => item.Code!, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(group => group.Min(item => item.Index))
+                .Select(group => group.OrderBy(item => item.Index).Select(item => item.Row).ToList())
+                .ToList();
 
-        if (groups.Count == 1)
-        {
-            // Prefer the explicit quote/resource-set code. SpecLinkDraft carries
-            // FireplaceCode from ResolveResourceLinksAsync. This prevents one
-            // quoted unit from splitting just because a URL filename says ST60
-            // while another filename says ST60R.
-            var explicitGroups =
-                rows.Select(row => new
-                {
-                    Row = row,
-                    Code = NormalizeUrlVerificationExplicitGroupCode(
-                                                        GetUrlVerificationExplicitFireplaceCode(row))
-                })
-                    .Where(item => !string.IsNullOrWhiteSpace(item.Code))
-                    .GroupBy(item => item.Code!, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+        if (explicitCodeGroups.Count > 0)
+            return explicitCodeGroups;
 
-            if (explicitGroups.Count > 1)
-                return explicitGroups.Select(group => group.Select(item => item.Row).ToList()).ToList();
+        var parsedGroups =
+            rows.Select((row, index) => new
+            {
+                Row = row,
+                Index = index,
+                Code = TryParseUrlVerificationModelCode(row)
+            })
+                .Where(item => !string.IsNullOrWhiteSpace(item.Code))
+                .GroupBy(item => item.Code!, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(group => group.Min(item => item.Index))
+                .Select(group => group.OrderBy(item => item.Index).Select(item => item.Row).ToList())
+                .ToList();
 
-            if (explicitGroups.Count == 1)
-                return groups;
+        if (parsedGroups.Count > 0)
+            return parsedGroups;
 
-            // Only fall back to filename parsing when no explicit fireplace code
-            // exists. This keeps older/non-SpecLink row sources working.
-            var parsedGroups = rows.Select(row => new { Row = row, Code = TryParseUrlVerificationModelCode(row) })
-                                   .Where(item => !string.IsNullOrWhiteSpace(item.Code))
-                                   .GroupBy(item => item.Code!, StringComparer.OrdinalIgnoreCase)
-                                   .ToList();
+        if (rows.Count == 0)
+            return [];
 
-            if (parsedGroups.Count > 1)
-                return parsedGroups.Select(group => group.Select(item => item.Row).ToList()).ToList();
-        }
+        return [rows];
+    }
 
-        return groups;
+    private static string? GetUrlVerificationExplicitGroupId(object row)
+    {
+        return GetObjectStringValue(row, "FireplaceGroupId", "ResourceSetId", "GroupId", "InstanceId");
     }
 
     private static string? GetUrlVerificationExplicitFireplaceCode(object row)
@@ -1359,12 +1415,21 @@ public sealed class MainViewModel : ObservableObject
         }
 
         var fireplaceCode = FirstNonBlank(SelectedUrlVerificationFireplace.ModelCode, "Manual");
-        var draft = new SpecLinkDraft { FireplaceCode = fireplaceCode, Label = toolName, Url = url, Status = "manual" };
+        var fireplaceGroupId =
+            FirstNonBlank(SelectedUrlVerificationFireplace.GroupId, $"manual:{SelectedUrlVerificationFireplace.Index}");
+        var draft = new SpecLinkDraft
+        {
+            FireplaceGroupId = fireplaceGroupId,
+            FireplaceCode = fireplaceCode,
+            Label = toolName,
+            Url = url,
+            Status = "manual"
+        };
 
         var insertIndex = -1;
         for (var i = 0; i < SpecLinks.Count; i++)
         {
-            if (string.Equals(SpecLinks[i].FireplaceCode, fireplaceCode, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(SpecLinks[i].FireplaceGroupId, fireplaceGroupId, StringComparison.OrdinalIgnoreCase))
                 insertIndex = i;
         }
 
@@ -1414,6 +1479,9 @@ public sealed class MainViewModel : ObservableObject
             UrlVerificationFireplaces.Add(new UrlVerificationFireplaceCard
             {
                 Index = i + 1,
+                GroupId = groupRows.Select(GetUrlVerificationExplicitGroupId)
+                                   .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ??
+                          $"legacy:{i + 1:D3}:{modelCode}",
                 ModelCode = modelCode,
                 StyleKey = styleKey,
                 StyleLabel = ResolveUrlVerificationStyleLabel(styleKey, modelCode, groupRows),
@@ -3024,6 +3092,17 @@ public sealed class MainViewModel : ObservableObject
         if (!string.Equals(NormalizeGlassHeightAlias(GlassHeight), "60", StringComparison.OrdinalIgnoreCase))
             GlassHeight = "60";
     }
+    private static bool LooksLikeCompleteFireplaceCode(string? value)
+    {
+        var compact = Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
+
+        return Regex.IsMatch(compact, @"^DV(?:FF|ST|LC|RC|DC|RD)\d{2,3}(?:EH|E|H|R)C?$") ||
+               Regex.IsMatch(compact, @"^(?:VFFF|VFST|VFLC|VFRC|VFDC|VFF|VST|VLC|VRC|VDC)\d{2,3}(?:EH|H|R)?$") ||
+               Regex.IsMatch(compact, @"^LDV(?:FF|LC|RC|DC)\d{3}H?$") ||
+               Regex.IsMatch(compact, @"^DVTRA\d{2,3}$") ||
+               compact is "DVPAFF" or "DVPAST";
+    }
+
     private static bool IsPassageModel(string? value)
     {
         var compact = Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]+", string.Empty).ToUpperInvariant();
@@ -3284,15 +3363,22 @@ public sealed class MainViewModel : ObservableObject
         var suffix = GlassSuffixForCanonicalModel(glassHeight);
 
         // Outdoor vent-free full codes must remain outdoor vent-free.
-        var existingVentFree = Regex.Match(compact, @"^(VFF|VST|VLC|VRC|VDC|VF)(\d{2,3})(EH|H|R)?$");
+        var existingVentFree = Regex.Match(
+            compact,
+            @"^(VFFF|VFST|VFLC|VFRC|VFDC|VFF|VST|VLC|VRC|VDC|VF)(\d{2,3})(EH|H|R)?$");
         if (existingVentFree.Success)
         {
-            var prefix = existingVentFree.Groups[1].Value;
+            var prefix = existingVentFree.Groups[1].Value switch
+            {
+                "VFST" => "VST",
+                "VFLC" => "VLC",
+                "VFRC" => "VRC",
+                "VFDC" => "VDC",
+                "VFFF" or "VF" => "VFF",
+                var value => value
+            };
             var existingSize = existingVentFree.Groups[2].Value;
             var existingSuffix = existingVentFree.Groups[3].Value;
-
-            if (prefix.Equals("VF", StringComparison.OrdinalIgnoreCase))
-                prefix = "VFF";
 
             return prefix + existingSize + FirstNonBlank(suffix, existingSuffix);
         }
@@ -3327,16 +3413,17 @@ public sealed class MainViewModel : ObservableObject
 
     private static string OutdoorVentFreePrefix(string raw, string compact, FireplaceType type)
     {
-        if (compact.StartsWith("VST") || compact.StartsWith("VFST"))
+        // Specific Vent Free styles must win before the generic VF/VFF fallback.
+        if (compact.StartsWith("VFST") || compact.StartsWith("VST"))
             return "VST";
-        if (compact.StartsWith("VFF") || compact.StartsWith("VF"))
-            return "VFF";
-        if (compact.StartsWith("VLC"))
+        if (compact.StartsWith("VFLC") || compact.StartsWith("VLC"))
             return "VLC";
-        if (compact.StartsWith("VRC"))
+        if (compact.StartsWith("VFRC") || compact.StartsWith("VRC"))
             return "VRC";
-        if (compact.StartsWith("VDC"))
+        if (compact.StartsWith("VFDC") || compact.StartsWith("VDC"))
             return "VDC";
+        if (compact.StartsWith("VFFF") || compact.StartsWith("VFF") || compact.StartsWith("VF"))
+            return "VFF";
 
         var text = NormalizeModelForRules(raw);
 
@@ -3815,6 +3902,7 @@ public sealed class UrlVerificationFireplaceCard : ObservableObject
     {
         get; init;
     }
+    public string GroupId { get; init; } = string.Empty;
     public string ModelCode { get; init; } = string.Empty;
     public string StyleKey { get; init; } = "FF";
     public string StyleLabel { get; init; } = "Front Facing";
@@ -3900,6 +3988,7 @@ public sealed class QuotePreviewRow : ObservableObject
 public sealed class SpecLinkDraft : ObservableObject
 {
     private string _url = string.Empty;
+    public string FireplaceGroupId { get; set; } = string.Empty;
     public string FireplaceCode { get; set; } = string.Empty;
     public string Label { get; set; } = string.Empty;
     public string Url

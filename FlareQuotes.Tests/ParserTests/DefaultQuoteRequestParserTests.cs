@@ -45,4 +45,39 @@ public sealed class DefaultQuoteRequestParserTests
 
         Assert.Equal("phildaloisio@gmail.com", result.Email);
     }
+
+    [Theory]
+    [InlineData("DVFF50HC", "Commercial Front Facing", "50", "24")]
+    [InlineData("DVST80EC", "Commercial See Through", "80", "30")]
+    [InlineData("VFDC50H", "Outdoor Vent Free Double Corner", "50", "24")]
+    [InlineData("VFLC100", "Outdoor Vent Free Left Corner", "100", "16")]
+    [InlineData("VFFF80H", "Outdoor Vent Free Front Facing", "80", "24")]
+    [InlineData("LDVFF140H", "Large Front Facing", "140", "24")]
+    public void DecodesStandaloneCompleteFireplaceCodes(
+        string rawCode,
+        string expectedModel,
+        string expectedSize,
+        string expectedGlassHeight)
+    {
+        var parser = new DefaultQuoteRequestParser();
+
+        var result = parser.Parse(rawCode);
+
+        Assert.Equal(expectedModel, result.Model);
+        Assert.Equal(expectedSize, result.Size);
+        Assert.Equal(expectedGlassHeight, result.GlassHeight);
+    }
+
+    [Fact]
+    public void DecodesLabeledCommercialCodeWithoutLosingHeight()
+    {
+        var parser = new DefaultQuoteRequestParser();
+
+        var result = parser.Parse("Model: DVFF50HC");
+
+        Assert.Equal("Commercial Front Facing", result.Model);
+        Assert.Equal("50", result.Size);
+        Assert.Equal("24", result.GlassHeight);
+    }
+
 }
