@@ -225,7 +225,43 @@
                                         <TextBox x:Name="GmailCredentialsPathBox" />
                                         <Button Grid.Column="2" Content="Browse" Click="BrowseGmailCredentials_Click" />
                                     </Grid>
-                                    <CheckBox x:Name="UseGmailSignatureCheckBox" Content="Use the Gmail account signature in generated drafts" />
+                                    <CheckBox x:Name="UseGmailSignatureCheckBox"
+                                              Content="Use the Gmail account signature in generated drafts"
+                                              Margin="0,0,0,14" />
+
+                                    <Border Padding="12"
+                                            CornerRadius="10"
+                                            Background="{DynamicResource SurfaceRaisedBrush}"
+                                            BorderBrush="{DynamicResource ControlBorderBrush}"
+                                            BorderThickness="1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Gmail authorization"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="12.5" />
+                                                <TextBlock x:Name="GmailConnectionStatusText"
+                                                           Text="Reconnect if Google access has expired or the Gmail account changed."
+                                                           Style="{StaticResource MutedText}"
+                                                           FontSize="11.5"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            <Button x:Name="ReconnectGmailButton"
+                                                    Grid.Column="2"
+                                                    Content="Reconnect Gmail"
+                                                    Click="ReconnectGmail_Click"
+                                                    Style="{StaticResource PrimaryButton}"
+                                                    Height="34"
+                                                    MinWidth="142"
+                                                    Padding="14,0"
+                                                    VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

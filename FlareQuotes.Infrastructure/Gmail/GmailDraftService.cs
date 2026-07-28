@@ -40,6 +40,27 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
         return profile.EmailAddress ?? "Connected";
     }
 
+    public async Task<string> ReconnectAsync(CancellationToken cancellationToken = default)
+    {
+        ResetCachedService();
+
+        var tokenDirectory = Path.Combine(AppPaths.Root, "GmailToken");
+        var archivedTokenDirectory = ArchiveExistingTokenStore(tokenDirectory);
+
+        try
+        {
+            var emailAddress = await ConnectAsync(cancellationToken).ConfigureAwait(false);
+            _logger.Info(
+                $"Gmail authorization reconnected. PreviousTokenArchived={archivedTokenDirectory is not null}.");
+            return emailAddress;
+        }
+        catch
+        {
+            ResetCachedService();
+            throw;
+        }
+    }
+
     public async Task<string> GetSenderDisplayAsync(CancellationToken cancellationToken = default)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -180,10 +201,45 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
         return _service;
     }
 
+    internal static string? ArchiveExistingTokenStore(string tokenDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(tokenDirectory))
+            throw new ArgumentException("Gmail token directory is required.", nameof(tokenDirectory));
+
+        var fullTokenDirectory = Path.GetFullPath(tokenDirectory);
+        if (!Directory.Exists(fullTokenDirectory))
+            return null;
+
+        if (!Directory.EnumerateFileSystemEntries(fullTokenDirectory).Any())
+        {
+            Directory.Delete(fullTokenDirectory, recursive: false);
+            return null;
+        }
+
+        var parentDirectory = Directory.GetParent(fullTokenDirectory)?.FullName ??
+                              throw new InvalidOperationException("The Gmail token directory has no parent folder.");
+        var tokenFolderName =
+            Path.GetFileName(fullTokenDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+        var archiveDirectory = Path.Combine(parentDirectory, $"{tokenFolderName}.reconnect-{timestamp}");
+
+        for (var suffix = 1; Directory.Exists(archiveDirectory) || File.Exists(archiveDirectory); suffix++)
+            archiveDirectory = Path.Combine(parentDirectory, $"{tokenFolderName}.reconnect-{timestamp}-{suffix}");
+
+        Directory.Move(fullTokenDirectory, archiveDirectory);
+        return archiveDirectory;
+    }
+
+    private void ResetCachedService()
+    {
+        var service = _service;
+        _service = null;
+        service?.Dispose();
+    }
+
     public void Dispose()
     {
-        _service?.Dispose();
-        _service = null;
+        ResetCachedService();
     }
 
     internal static string BuildRawMessage(EmailDraftRequest request)

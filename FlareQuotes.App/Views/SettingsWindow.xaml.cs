@@ -14,15 +14,23 @@ namespace FlareQuotes.App.Views
     public partial class SettingsWindow : Window
     {
         private readonly ISettingsService _settingsService;
+        private readonly IGmailDraftService? _gmailDraftService;
         private AppSettings _settings = new();
 
-        public SettingsWindow() : this(App.Services.GetRequiredService<ISettingsService>())
+        public SettingsWindow() : this(
+            App.Services.GetRequiredService<ISettingsService>(),
+            App.Services.GetRequiredService<IGmailDraftService>())
         {
         }
 
-        internal SettingsWindow(ISettingsService settingsService)
+        internal SettingsWindow(ISettingsService settingsService) : this(settingsService, null)
+        {
+        }
+
+        internal SettingsWindow(ISettingsService settingsService, IGmailDraftService? gmailDraftService)
         {
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+            _gmailDraftService = gmailDraftService;
             InitializeComponent();
             Loaded += async (_, _) => await LoadSettingsIntoFormAsync();
         }
@@ -159,6 +167,49 @@ namespace FlareQuotes.App.Views
             }
         }
 
+        private async void ReconnectGmail_Click(object sender, RoutedEventArgs e)
+        {
+            if (!ReconnectGmailButton.IsEnabled)
+                return;
+
+            var gmailService = _gmailDraftService ?? App.Services.GetService<IGmailDraftService>();
+            if (gmailService is null)
+            {
+                GmailConnectionStatusText.Text = "Gmail service is unavailable on this machine.";
+                return;
+            }
+
+            ReconnectGmailButton.IsEnabled = false;
+            SettingsSaveButton.IsEnabled = false;
+
+            try
+            {
+                GmailConnectionStatusText.Text = "Saving Gmail settings...";
+                await SaveFormToSettingsAsync();
+
+                GmailConnectionStatusText.Text = "Waiting for Google authorization in your browser...";
+                var emailAddress = await gmailService.ReconnectAsync();
+
+                GmailConnectionStatusText.Text = $"Connected as {emailAddress}.";
+                SettingsStatusText.Text = "Gmail reconnected successfully.";
+            }
+            catch (OperationCanceledException)
+            {
+                GmailConnectionStatusText.Text = "Gmail reconnection was canceled.";
+                SettingsStatusText.Text = "Gmail settings were saved, but authorization was not completed.";
+            }
+            catch
+            {
+                GmailConnectionStatusText.Text =
+                    "Gmail could not reconnect. Confirm the credentials file, then try again.";
+                SettingsStatusText.Text = "Gmail reconnection failed.";
+            }
+            finally
+            {
+                ReconnectGmailButton.IsEnabled = true;
+                SettingsSaveButton.IsEnabled = true;
+            }
+        }
         private async void CheckForUpdatesNow_Click(object sender, RoutedEventArgs e)
         {
             try

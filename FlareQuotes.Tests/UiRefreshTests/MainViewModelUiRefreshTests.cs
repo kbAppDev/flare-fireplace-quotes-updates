@@ -285,6 +285,9 @@ public sealed class MainViewModelUiRefreshTests
         public Task<string> ConnectAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(string.Empty);
 
+        public Task<string> ReconnectAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(string.Empty);
+
         public Task<string> GetSenderDisplayAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(string.Empty);
 

@@ -19,3 +19,4 @@ Manifest signing and Authenticode enforcement remain a separate release-infrastr
 - Makes VFDC and VDC use the same Outdoor Vent Free Double Corner optional-feature rules.
 - Adds click-and-drag vertical reordering for fireplace cards and preserves that order through PDF, URL verification, and Gmail draft creation.
 - Preserves one resource-link set for every quoted fireplace instance, including repeated models.
+- Adds a Reconnect Gmail action in Settings that safely archives expired OAuth tokens and starts fresh Google authorization.
