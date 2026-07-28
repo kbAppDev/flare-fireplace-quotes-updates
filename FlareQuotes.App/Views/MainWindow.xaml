@@ -941,9 +941,50 @@
                                     <ColumnDefinition Width="180" />
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="Specific matched URLs are preferred. Yellow/fallback URLs should be checked before drafting." Style="{StaticResource MutedText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,12,0" />
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock Text="Specific matched URLs are preferred. Yellow/fallback URLs should be checked before drafting."
+                                               Style="{StaticResource MutedText}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding GmailDraftRequirementText}"
+                                               FontSize="11.5"
+                                               Margin="0,3,0,0"
+                                               TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding CanCreateGmailDraft}" Value="False">
+                                                        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding StatusMessage}"
+                                               Style="{StaticResource MutedText}"
+                                               FontSize="11"
+                                               Margin="0,2,0,0"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
                                 <Button Grid.Column="1" Content="Back to Preview" Command="{Binding BackToPreviewCommand}" Height="40" />
-                                <Button Grid.Column="3" Content="Create Gmail Draft" Command="{Binding CreateDraftCommand}" Style="{StaticResource PrimaryButton}" Height="40" />
+                                <Button Grid.Column="3"
+                                        Command="{Binding CreateDraftCommand}"
+                                        IsEnabled="{Binding CanCreateGmailDraft}"
+                                        Height="40">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                                            <Setter Property="Content" Value="Create Gmail Draft" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CanCreateGmailDraft}" Value="False">
+                                                    <Setter Property="Opacity" Value="0.55" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding CreateDraftCommand.IsRunning}" Value="True">
+                                                    <Setter Property="Content" Value="Creating Draft..." />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </Grid>
                         </Grid>
                     </Grid>
@@ -996,12 +1037,40 @@
                                                         <ContentPresenter HorizontalAlignment="Stretch" />
                                                     </ControlTemplate>
                                                 </Button.Template>
-                                                <Border Tag="FireplaceSummaryCard" Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="11" Padding="12,11" SnapsToDevicePixels="True">
+                                                <Border Tag="FireplaceSummaryCard"
+                                                        Background="{DynamicResource SurfaceSubtleBrush}"
+                                                        BorderBrush="{DynamicResource DividerBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="11"
+                                                        Padding="12,11"
+                                                        SnapsToDevicePixels="True">
                                                     <StackPanel>
                                                         <Grid>
-                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{Binding FireplaceLabel}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                                            <Button Grid.Column="1" Content="×" Style="{StaticResource ChipRemoveButton}"
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Border Grid.Column="0"
+                                                                    Width="20"
+                                                                    Margin="-3,0,7,0"
+                                                                    Tag="FireplaceDragHandle"
+                                                                    Cursor="Arrow"
+                                                                    Background="Transparent"
+                                                                    ToolTip="Click and drag to reorder this fireplace">
+                                                                <TextBlock Text="⋮⋮"
+                                                                           FontSize="15"
+                                                                           Foreground="{DynamicResource FlareMutedTextBrush}"
+                                                                           HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding FireplaceLabel}"
+                                                                       FontWeight="SemiBold"
+                                                                       FontSize="13"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center" />
+                                                            <Button Grid.Column="2" Content="×" Style="{StaticResource ChipRemoveButton}"
                                                                     PreviewMouseLeftButtonDown="FireplaceRemove_PreviewMouseLeftButtonDown"
                                                                     Command="{Binding DataContext.RemoveFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                     CommandParameter="{Binding}" Margin="8,0,0,0" ToolTip="Remove — burns away" />

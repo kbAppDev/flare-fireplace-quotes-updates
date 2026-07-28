@@ -45,4 +45,43 @@ public sealed class DefaultQuoteRequestParserTests
 
         Assert.Equal("phildaloisio@gmail.com", result.Email);
     }
+
+    [Theory]
+    [InlineData("VFDC50H", "Outdoor Vent Free Double Corner", "50", "24")]
+    [InlineData("VFLC100", "Outdoor Vent Free Left Corner", "100", "16")]
+    [InlineData("VFFF80H", "Outdoor Vent Free Front Facing", "80", "24")]
+    [InlineData("LDVFF140H", "Large Front Facing", "140", "24")]
+    public void DecodesStandaloneCompleteFireplaceCodes(
+        string rawCode,
+        string expectedModel,
+        string expectedSize,
+        string expectedGlassHeight)
+    {
+        var parser = new DefaultQuoteRequestParser();
+
+        var result = parser.Parse(rawCode);
+
+        Assert.Equal(expectedModel, result.Model);
+        Assert.Equal(expectedSize, result.Size);
+        Assert.Equal(expectedGlassHeight, result.GlassHeight);
+    }
+
+    [Theory]
+    [InlineData("DVFF50HC")]
+    [InlineData("DVST80EC")]
+    public void DoesNotDecodeDiscontinuedCommercialCodes(string commercialCode)
+    {
+        var parser = new DefaultQuoteRequestParser();
+
+        var standalone = parser.Parse(commercialCode);
+        var labeled = parser.Parse($"Model: {commercialCode}");
+
+        Assert.True(string.IsNullOrWhiteSpace(standalone.Model));
+        Assert.True(string.IsNullOrWhiteSpace(standalone.Size));
+        Assert.True(string.IsNullOrWhiteSpace(standalone.GlassHeight));
+        Assert.Equal(commercialCode, labeled.Model);
+        Assert.True(string.IsNullOrWhiteSpace(labeled.Size));
+        Assert.True(string.IsNullOrWhiteSpace(labeled.GlassHeight));
+    }
+
 }

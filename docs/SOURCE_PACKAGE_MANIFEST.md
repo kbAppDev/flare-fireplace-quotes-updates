@@ -1,8 +1,8 @@
-# v1.6.3 Source Package Manifest
+# v1.6.4 Source Package Manifest
 
 The full backup contains:
 
-- The exact tracked source exported from tag `v1.6.3`.
+- The exact tracked source exported from tag `v1.6.4`.
 - WPF App, Core, Infrastructure, and Tests projects.
 - Bundled company pricing and resource workbooks.
 - Maintained local and GitHub release workflows.

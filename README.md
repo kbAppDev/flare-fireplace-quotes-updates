@@ -1,10 +1,10 @@
-# Flare Fireplace Quotes v1.6.3
+# Flare Fireplace Quotes v1.6.4
 
 Windows WPF application for turning fireplace quote requests into priced PDFs, verified specification links, and Gmail drafts.
 
 ## Release highlights
 
-v1.6.3 preserves the approved interface and behavior while professionalizing source formatting, CI enforcement, release tooling, and full-version backups.
+v1.6.4 fixes locale-sensitive price loading, makes damaged pricing workbooks fail safely, aligns user-facing error redaction, and removes verified dead code without changing the approved interface or quote workflow.
 
 The updater is pinned to the Flare-managed GitHub release lane. Every installer download must match the release version, exact asset path, declared byte size, and SHA-256 hash before launch. Optional RS256 manifest signatures fail closed whenever a signature is present but invalid.
 
@@ -37,7 +37,7 @@ Required release assets:
 - `Flare.Fireplace.Quotes.exe`
 - `flare-quotes-v1-latest.json`
 - `Flare.Fireplace.Quotes-portable.zip`
-- `Flare.Fireplace.Quotes-v1.6.3-FULL-BACKUP.zip`
+- `Flare.Fireplace.Quotes-v1.6.4-FULL-BACKUP.zip`
 
 ## Runtime data
 

@@ -40,43 +40,94 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             return Task.FromResult(new PriceBookWorkbook { SourcePath = path ?? string.Empty });
 
-        using var workbook = new XLWorkbook(path);
-        var result = new PriceBookWorkbook { SourcePath = path };
-        foreach (var worksheet in workbook.Worksheets)
+        PriceBookWorkbook result;
+        try
         {
-            result.SheetNames.Add(worksheet.Name);
-            var headers = worksheet.Row(1)
-                              .CellsUsed()
-                              .Select((cell, index) => new { Name = cell.GetString(), Index = index + 1 })
-                              .ToList();
-            foreach (var row in worksheet.RowsUsed().Skip(1))
+            using var workbookBuffer = new MemoryStream();
+            using (var sourceStream = new FileStream(
+                       path,
+                       FileMode.Open,
+                       FileAccess.Read,
+                       FileShare.ReadWrite | FileShare.Delete))
             {
-                var priceRow = new PriceRow { SheetName = worksheet.Name };
-                var lastColumn = worksheet.LastColumnUsed()?.ColumnNumber() ?? headers.Max(h => h.Index);
-                for (var col = 1; col <= lastColumn; col++)
+                sourceStream.CopyTo(workbookBuffer);
+            }
+
+            workbookBuffer.Position = 0;
+            using var workbook = new XLWorkbook(workbookBuffer);
+            result = new PriceBookWorkbook { SourcePath = path };
+            foreach (var worksheet in workbook.Worksheets)
+            {
+                result.SheetNames.Add(worksheet.Name);
+                var headers = worksheet.Row(1)
+                                  .CellsUsed()
+                                  .Select((cell, index) => new { Name = cell.GetString(), Index = index + 1 })
+                                  .ToList();
+                foreach (var row in worksheet.RowsUsed().Skip(1))
                 {
-                    priceRow.RawValues[$"Column{col}"] = row.Cell(col).GetFormattedString().Trim();
+                    var priceRow = new PriceRow { SheetName = worksheet.Name };
+                    var lastColumn = worksheet.LastColumnUsed()?.ColumnNumber() ?? headers.Max(h => h.Index);
+                    for (var col = 1; col <= lastColumn; col++)
+                    {
+                        priceRow.RawValues[$"Column{col}"] = row.Cell(col).GetFormattedString().Trim();
+                    }
+                    foreach (var h in headers)
+                    {
+                        var header = h.Name.Trim();
+                        if (string.IsNullOrWhiteSpace(header))
+                            continue;
+                        priceRow.RawValues[header] = row.Cell(h.Index).GetFormattedString().Trim();
+                    }
+                    priceRow.Sku = First(priceRow.RawValues, "SKU", "Sku", "Model #", "Part #", "Item #");
+                    priceRow.PartName = First(priceRow.RawValues, "Part Name", "Name", "Model", "Product");
+                    priceRow.Description = First(priceRow.RawValues, "Description", "Product Description", "Style");
+                    // Read numeric price cells by value (locale-independent). Only text-typed cells fall
+                    // back to string parsing; avoids mis-parsing currency on non-US Windows locales.
+                    priceRow.Price = null;
+                    foreach (var priceHeader in new[] { "MSRP", "Price", "List Price" })
+                    {
+                        var match = headers.FirstOrDefault(x =>
+                            string.Equals(x.Name.Trim(), priceHeader, StringComparison.OrdinalIgnoreCase));
+                        if (match is null)
+                            continue;
+                        var priceCell = row.Cell(match.Index);
+                        if (priceCell.DataType == XLDataType.Number)
+                        {
+                            priceRow.Price = priceCell.GetValue<decimal>();
+                            break;
+                        }
+                        var parsedPrice = ParsePrice(priceCell.GetString());
+                        if (parsedPrice.HasValue)
+                        {
+                            priceRow.Price = parsedPrice;
+                            break;
+                        }
+                    }
+                    if (!string.IsNullOrWhiteSpace(priceRow.Sku) || !string.IsNullOrWhiteSpace(priceRow.PartName) ||
+                        !string.IsNullOrWhiteSpace(priceRow.Description) || IsQuantityCalculationSheet(worksheet.Name))
+                        result.Rows.Add(priceRow);
                 }
-                foreach (var h in headers)
-                {
-                    var header = h.Name.Trim();
-                    if (string.IsNullOrWhiteSpace(header))
-                        continue;
-                    priceRow.RawValues[header] = row.Cell(h.Index).GetFormattedString().Trim();
-                }
-                priceRow.Sku = First(priceRow.RawValues, "SKU", "Sku", "Model #", "Part #", "Item #");
-                priceRow.PartName = First(priceRow.RawValues, "Part Name", "Name", "Model", "Product");
-                priceRow.Description = First(priceRow.RawValues, "Description", "Product Description", "Style");
-                priceRow.Price = ParsePrice(First(priceRow.RawValues, "MSRP", "Price", "List Price"));
-                if (!string.IsNullOrWhiteSpace(priceRow.Sku) || !string.IsNullOrWhiteSpace(priceRow.PartName) ||
-                    !string.IsNullOrWhiteSpace(priceRow.Description) || IsQuantityCalculationSheet(worksheet.Name))
-                    result.Rows.Add(priceRow);
             }
         }
+        catch (Exception)
+        {
+            // Corrupt, locked, or partially-synced workbook: fail soft instead of crashing the quote flow.
+            return Task.FromResult(new PriceBookWorkbook { SourcePath = path });
+        }
+
+        result.Rows.RemoveAll(row => IsDiscontinuedCommercialSku(row.Sku));
 
         _cached = result;
         _loadedPath = path;
         return Task.FromResult(result);
+    }
+
+    private static bool IsDiscontinuedCommercialSku(string? sku)
+    {
+        var compact = Regex.Replace(sku ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
+
+        return Regex.IsMatch(compact, @"^DV(?:FF|ST)\d{2,3}(?:R|H|E)C$",
+                             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     private static bool IsQuantityCalculationSheet(string sheetName)
@@ -276,7 +327,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         IEnumerable<FireplaceQuote> fireplaceInputs =
             request.Fireplaces.Count > 0 ? request.Fireplaces : new List<FireplaceQuote> { ToFireplace(request) };
         var results = new List<ResourceLinkSet>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var input in fireplaceInputs)
         {
@@ -308,8 +358,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             // Passage resource model-number override
             if (IsPassageModel(inputModel))
                 modelNumber = PassageModelCode(inputModel);
-            if (!seen.Add(modelNumber))
-                continue;
 
             var set = new ResourceLinkSet { ModelNumber = modelNumber };
             var columns = ResourceColumns(type);
@@ -615,6 +663,24 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
     private static string Compact(string? value) =>
         Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]+", string.Empty).ToUpperInvariant();
+
+
+    private static string OutdoorPriceBookGlassSuffix(string? glassHeight, string? model)
+    {
+        var glass = FirstNonBlank(
+            GlassInches(glassHeight ?? string.Empty),
+            GlassInches(ExtractGlassHeightFromModelCode(model)));
+
+        // Outdoor regular-height base SKUs omit R: VFLC100, VFDC100, VFFF100, and so on.
+        return glass switch
+        {
+            "24" => "H",
+            "30" => "EH",
+            _ => string.Empty
+        };
+    }
+
+
     private static PriceRow? FindBaseRow(PriceBookWorkbook wb, FireplaceType type, string model, string size,
                                          string glassHeight)
     {
@@ -641,10 +707,11 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             if (passageBaseRow is not null)
                 return passageBaseRow;
         }
+
         if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough)
         {
             var vfCode = VentFreeModelStyleCode(type, model);
-            var suffix = GlassSuffix(glassHeight);
+            var suffix = OutdoorPriceBookGlassSuffix(glassHeight, model);
 
             var part =
                 string.IsNullOrWhiteSpace(suffix) ? $"FLARE-{vfCode}-{sizeNum}" : $"FLARE-{vfCode}-{sizeNum}-{suffix}";
@@ -1128,10 +1195,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         return "VFF";
     }
 
-    private static string NormalizeResourceKey(string? value)
-    {
-        return Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
-    }
+    private static string NormalizeResourceKey(string? value) => Compact(value);
 
     private static PriceRow? FindOutdoorSafetyScreenRow(IReadOnlyList<PriceRow> rows, FireplaceType type, string model,
                                                         string sizeNum, string glassHeight)
@@ -1305,34 +1369,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return "50";
         if (sizeInt is 60 or 70)
             return "70";
-        return "100";
-    }
-
-    private static string RecommendedLouverSize(FireplaceType type, string sizeNum, string model)
-    {
-        var normalizedModel = Normalize(model);
-        if (type == FireplaceType.Traditional || normalizedModel.Contains("traditional"))
-            return "100";
-
-        if (!int.TryParse(sizeNum, out var sizeInt))
-            sizeInt = 0;
-
-        if (normalizedModel.Contains("passage") || sizeInt <= 30)
-            return "70";
-        if (sizeInt is 42 or 45 or 46 or 50)
-            return "100";
-        if (sizeInt is 60 or 70)
-            return "120";
-        if (sizeInt is 80 or 100)
-            return "180";
-        if (sizeInt >= 200)
-            return "200";
-        if (sizeInt >= 180)
-            return "180";
-        if (sizeInt >= 140)
-            return "140";
-        if (sizeInt >= 120)
-            return "120";
         return "100";
     }
 
@@ -1723,10 +1759,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         yield return $"{skuStyle}{digits}";
     }
 
-    private static string NormalizeOutdoorResourceKey(string? value)
-    {
-        return Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
-    }
+    private static string NormalizeOutdoorResourceKey(string? value) => Compact(value);
 
     private static PriceRow? TryGetLargeResourceRow(FireplaceType type, string model, string size, string glassHeight)
     {
@@ -3275,7 +3308,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough)
         {
             var vfCode = VentFreeModelStyleCode(type, model);
-            return $"{vfCode}-{digits}{(string.IsNullOrWhiteSpace(suffix) ? "" : "-" + suffix)}";
+            var outdoorSuffix = OutdoorPriceBookGlassSuffix(glassHeight, model);
+            return $"{vfCode}-{digits}{(string.IsNullOrWhiteSpace(outdoorSuffix) ? "" : "-" + outdoorSuffix)}";
         }
 
         if (type == FireplaceType.IndoorOutdoorSeeThrough)
@@ -3298,31 +3332,60 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return PassageStyleCode(model);
 
         var value = Normalize(model);
+        var compactStyleModel = Compact(model);
 
-        // manual TR style-code override
-        var compactStyleModel = Regex.Replace(model ?? string.Empty, @"[^A-Za-z0-9]+", string.Empty).ToUpperInvariant();
+        bool StartsWithAny(params string[] prefixes) =>
+            prefixes.Any(prefix => compactStyleModel.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
         if (compactStyleModel.Equals("TR", StringComparison.OrdinalIgnoreCase) ||
             compactStyleModel.Equals("TRA", StringComparison.OrdinalIgnoreCase) ||
-            Regex.IsMatch(compactStyleModel, @"^(TR|TRA)\d{2,3}$"))
+            Regex.IsMatch(compactStyleModel, @"^(TR|TRA)\d{2,3}$") ||
+            type == FireplaceType.Traditional)
+        {
             return "TR";
-        if (type == FireplaceType.IndoorOutdoorSeeThrough)
+        }
+
+        if (type is FireplaceType.IndoorOutdoorSeeThrough or FireplaceType.OutdoorSeeThrough)
             return "ST";
-        if (type == FireplaceType.OutdoorSeeThrough)
-            return "ST";
-        if (type == FireplaceType.Outdoor)
-            return value.Contains("see") ? "ST" : "FF";
-        if (type == FireplaceType.Traditional)
-            return "TR";
-        if (value.Contains("room") || value.Contains("rd"))
+
+        // Match complete style names, standalone style codes, or known SKU prefixes.
+        // Never use loose substring checks such as Contains("rc"): "commercial" contains "rc".
+        if (value.Contains("room definer", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\brd\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVRD", "LDRD", "RD"))
+        {
             return "RD";
-        if (value.Contains("double corner") || value.Contains("dc"))
+        }
+
+        if (value.Contains("double corner", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\bdc\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVDC", "LDVDC", "VFDC", "VDC", "DC"))
+        {
             return "DC";
-        if (value.Contains("left") || value.Contains("lc"))
+        }
+
+        if (value.Contains("left corner", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\blc\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVLC", "LDVLC", "VFLC", "VLC", "LC"))
+        {
             return "LC";
-        if (value.Contains("right") || value.Contains("rc"))
+        }
+
+        if (value.Contains("right corner", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\brc\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVRC", "LDVRC", "VFRC", "VRC", "RC"))
+        {
             return "RC";
-        if (value.Contains("see") || value.Contains("st"))
+        }
+
+        if (value.Contains("see through", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("see-through", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\bst\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVST", "LDVST", "VFST", "VST", "ST"))
+        {
             return "ST";
+        }
+
         return "FF";
     }
 
@@ -3468,7 +3531,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return number;
 
         // Check EH before H so 30\" glass is never accidentally parsed as 24\".
-        if (Regex.IsMatch(text, @"(?i)^\s*EH\s*$"))
+        if (Regex.IsMatch(text, @"(?i)^\s*(?:E|EH)\s*$"))
             return "30";
         if (Regex.IsMatch(text, @"(?i)^\s*H\s*$"))
             return "24";
@@ -3488,7 +3551,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
         // Examples: FF-80-H, FF80H, FF-80-EH, FF80EH, DVDR45R.
         // EH is listed before H so the 30" suffix wins correctly.
-        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|H|R)(?:[-\s]*(OD|IO))?\b");
+        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|E|H|R)(?:[-\s]*(OD|IO))?\b");
         return match.Success ? NormalizeGlassHeightAlias(match.Groups[1].Value) : string.Empty;
     }
 

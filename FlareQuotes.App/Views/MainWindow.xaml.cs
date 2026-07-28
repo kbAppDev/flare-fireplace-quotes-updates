@@ -375,6 +375,8 @@ public partial class MainWindow : Window
         element.CaptureMouse();
         e.Handled = true;
     }
+
+
     private void SelectedChip_PreviewMouseMove(object sender, MouseEventArgs e)
     {
         if (_selectedChipDragElement is null || _selectedChipDragItem is null ||
@@ -520,6 +522,7 @@ public partial class MainWindow : Window
         {
             moved = viewModel.MoveSelectedAdditionalClassicMedia(sourceAdditionalClassic, targetAdditionalClassic);
         }
+
         else
         {
             moved = false;
@@ -679,6 +682,7 @@ public partial class MainWindow : Window
                 if (kind == "SelectedAdditionalClassicMediaChip" &&
                     element.DataContext is MediaSelection additionalClassicMedia)
                     return additionalClassicMedia;
+
             }
 
             current = GetSafeParent(current);
@@ -846,7 +850,7 @@ public partial class MainWindow : Window
 
         var type = item.GetType();
 
-        foreach (var propertyName in new[] { "DisplayName", "Label", "Name", "Key" })
+        foreach (var propertyName in new[] { "FireplaceLabel", "DisplayName", "Label", "Name", "Key" })
         {
             var property = type.GetProperty(propertyName);
             var value = property?.GetValue(item)?.ToString();
@@ -963,14 +967,6 @@ public partial class MainWindow : Window
 
     private static Point GetRectCenter(Rect rect) => new(rect.Left + rect.Width / 2, rect.Top + rect.Height / 2);
 
-    private static double DistanceToRectCenter(Point point, Rect rect)
-    {
-        var center = GetRectCenter(rect);
-        var dx = point.X - center.X;
-        var dy = point.Y - center.Y;
-        return Math.Sqrt((dx * dx) + (dy * dy));
-    }
-
     private static Rect InflateRect(Rect rect, double x, double y)
     {
         rect.Inflate(x, y);
@@ -1076,6 +1072,7 @@ public partial class MainWindow : Window
             return null;
         }
     }
+
 
     private static T? FindAncestor<T>(DependencyObject? source)
         where T : DependencyObject
@@ -1449,9 +1446,17 @@ public partial class MainWindow : Window
     private static string SafeForUser(string message)
     {
         var value = (message ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ').Trim();
+
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (!string.IsNullOrWhiteSpace(userProfile))
             value = value.Replace(userProfile, "%USERPROFILE%", StringComparison.OrdinalIgnoreCase);
+
+        // Redact absolute paths and emails so update errors never leak PII (matches MainViewModel.SafeForUser).
+        value = System.Text.RegularExpressions.Regex.Replace(value, @"[A-Z]:\\[^\s""]+", "%LOCAL_PATH%",
+                                                             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        value = System.Text.RegularExpressions.Regex.Replace(value, @"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", "[email]",
+                                                             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
         return string.IsNullOrWhiteSpace(value) ? "Unexpected error." : value;
     }
 

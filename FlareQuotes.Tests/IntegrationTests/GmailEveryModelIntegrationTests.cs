@@ -151,7 +151,7 @@ public sealed class GmailEveryModelIntegrationTests
                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var actual = models.Select(row => row.Sku).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Assert.Equal(302, expected.Count);
+        Assert.Equal(266, expected.Count);
         Assert.Equal(expected.Count, actual.Count);
         Assert.Empty(expected.Except(actual, StringComparer.OrdinalIgnoreCase));
         Assert.Empty(actual.Except(expected, StringComparer.OrdinalIgnoreCase));
