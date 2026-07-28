@@ -216,7 +216,10 @@ public partial class MainWindow
     {
         var entries = new List<RefinedFireplaceCardEntry>();
 
-        foreach (var card in FindSelectedChipElements("FireplaceSummaryCard"))
+        foreach (var card in FindVisualDescendants<FrameworkElement>(this).Where(
+                     element => element.Tag is string tag &&
+                                string.Equals(tag, "FireplaceSummaryCard", StringComparison.OrdinalIgnoreCase) &&
+                                element.DataContext is FireplaceQuoteDraft))
         {
             if (card.DataContext is not FireplaceQuoteDraft item)
                 continue;

@@ -1043,10 +1043,7 @@
                                                         BorderThickness="1"
                                                         CornerRadius="11"
                                                         Padding="12,11"
-                                                        SnapsToDevicePixels="True"
-                                                        PreviewMouseMove="SelectedChip_PreviewMouseMove"
-                                                        PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp"
-                                                        LostMouseCapture="SelectedChip_LostMouseCapture">
+                                                        SnapsToDevicePixels="True">
                                                     <StackPanel>
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
@@ -1060,8 +1057,7 @@
                                                                     Tag="FireplaceDragHandle"
                                                                     Cursor="Arrow"
                                                                     Background="Transparent"
-                                                                    ToolTip="Click and drag to reorder this fireplace"
-                                                                    PreviewMouseLeftButtonDown="FireplaceDragHandle_PreviewMouseLeftButtonDown">
+                                                                    ToolTip="Click and drag to reorder this fireplace">
                                                                 <TextBlock Text="⋮⋮"
                                                                            FontSize="15"
                                                                            Foreground="{DynamicResource FlareMutedTextBrush}"

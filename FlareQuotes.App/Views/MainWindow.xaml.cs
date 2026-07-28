@@ -376,24 +376,6 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void FireplaceDragHandle_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is not DependencyObject handle)
-            return;
-
-        var card = FindAncestorWithTag(handle, "FireplaceSummaryCard");
-        if (card?.DataContext is not FireplaceQuoteDraft fireplace)
-            return;
-
-        _selectedChipDragElement = card;
-        _selectedChipDragItem = fireplace;
-        _selectedChipDragKind = "FireplaceSummaryCard";
-        _selectedChipDragStart = e.GetPosition(this);
-        _selectedChipIsDragging = false;
-
-        card.CaptureMouse();
-        e.Handled = true;
-    }
 
     private void SelectedChip_PreviewMouseMove(object sender, MouseEventArgs e)
     {
@@ -540,12 +522,7 @@ public partial class MainWindow : Window
         {
             moved = viewModel.MoveSelectedAdditionalClassicMedia(sourceAdditionalClassic, targetAdditionalClassic);
         }
-        else if (_selectedChipDragKind == "FireplaceSummaryCard" &&
-                 _selectedChipDragItem is FireplaceQuoteDraft sourceFireplace &&
-                 target is FireplaceQuoteDraft targetFireplace)
-        {
-            moved = viewModel.MoveFireplace(sourceFireplace, targetFireplace);
-        }
+
         else
         {
             moved = false;
@@ -685,8 +662,7 @@ public partial class MainWindow : Window
     {
         return (kind == "SelectedFeatureChip" && item is FeatureSelection) ||
                (kind == "SelectedPremiumMediaChip" && item is MediaSelection) ||
-               (kind == "SelectedAdditionalClassicMediaChip" && item is MediaSelection) ||
-               (kind == "FireplaceSummaryCard" && item is FireplaceQuoteDraft);
+               (kind == "SelectedAdditionalClassicMediaChip" && item is MediaSelection);
     }
     private static object? FindSelectedChipDataContext(DependencyObject? source, string kind)
     {
@@ -707,8 +683,6 @@ public partial class MainWindow : Window
                     element.DataContext is MediaSelection additionalClassicMedia)
                     return additionalClassicMedia;
 
-                if (kind == "FireplaceSummaryCard" && element.DataContext is FireplaceQuoteDraft fireplace)
-                    return fireplace;
             }
 
             current = GetSafeParent(current);
@@ -1099,23 +1073,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private static FrameworkElement? FindAncestorWithTag(DependencyObject? source, string tag)
-    {
-        var current = source;
-
-        while (current is not null)
-        {
-            if (current is FrameworkElement element &&
-                string.Equals(element.Tag?.ToString(), tag, StringComparison.OrdinalIgnoreCase))
-            {
-                return element;
-            }
-
-            current = GetSafeParent(current);
-        }
-
-        return null;
-    }
 
     private static T? FindAncestor<T>(DependencyObject? source)
         where T : DependencyObject
