@@ -73,9 +73,9 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
         if (string.IsNullOrWhiteSpace(text))
             return string.Empty;
 
-        // Examples: FF-80-H, FF80H, FF-80-EH, FF80EH, DVFF50HC.
+        // Examples: FF-80-H, FF80H, FF-80-EH, FF80EH.
         // EH is listed before E/H so the 30\" suffix wins correctly.
-        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|E|H|R)(?:C)?\b");
+        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|E|H|R)\b");
         return match.Success ? NormalizeGlassHeight(match.Groups[1].Value) : string.Empty;
     }
 
@@ -85,7 +85,7 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
 
         foreach (var pattern in new[]
                  {
-                     @"(?i)\bDV[-\s]*(?:FF|ST|LC|RC|DC|RD)[-\s]*\d{2,3}[-\s]*(?:EH|E|H|R)C?\b",
+                     @"(?i)\bDV[-\s]*(?:FF|ST|LC|RC|DC|RD)[-\s]*\d{2,3}[-\s]*(?:EH|E|H|R)\b",
                      @"(?i)\b(?:VFFF|VFST|VFLC|VFRC|VFDC|VFF|VST|VLC|VRC|VDC)[-\s]*\d{2,3}(?:[-\s]*(?:EH|H|R))?\b",
                      @"(?i)\bLDV[-\s]*(?:FF|LC|RC|DC)[-\s]*\d{3}(?:[-\s]*H)?\b",
                      @"(?i)\bDVTRA[-\s]*\d{2,3}\b",
@@ -125,15 +125,12 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
 
         var indoor = Regex.Match(
             compact,
-            @"^DV(?<style>FF|ST|LC|RC|DC|RD)(?<size>\d{2,3})(?<height>EH|E|H|R)(?<commercial>C)?$");
+            @"^DV(?<style>FF|ST|LC|RC|DC|RD)(?<size>\d{2,3})(?<height>EH|E|H|R)$");
 
         if (indoor.Success)
         {
-            var style = ReadableStyle(indoor.Groups["style"].Value);
-            var model = indoor.Groups["commercial"].Success ? $"Commercial {style}" : style;
-
             return new DecodedFireplaceCode(
-                model,
+                ReadableStyle(indoor.Groups["style"].Value),
                 indoor.Groups["size"].Value,
                 NormalizeGlassHeight(indoor.Groups["height"].Value));
         }

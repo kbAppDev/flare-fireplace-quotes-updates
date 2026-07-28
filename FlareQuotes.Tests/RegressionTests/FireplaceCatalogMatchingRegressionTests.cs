@@ -9,48 +9,6 @@ public sealed class FireplaceCatalogMatchingRegressionTests
 {
     [Theory]
     [InlineData(
-        FireplaceType.Indoor,
-        "Commercial Front Facing",
-        "80",
-        "16",
-        "DVFF80RC",
-        "FF80")]
-    [InlineData(
-        FireplaceType.Indoor,
-        "Commercial Front Facing",
-        "80",
-        "24",
-        "DVFF80HC",
-        "FF80H")]
-    [InlineData(
-        FireplaceType.Indoor,
-        "Commercial Front Facing",
-        "80",
-        "30",
-        "DVFF80EC",
-        "FF80EH")]
-    [InlineData(
-        FireplaceType.IndoorSeeThrough,
-        "Commercial See Through",
-        "80",
-        "16",
-        "DVST80RC",
-        "ST80")]
-    [InlineData(
-        FireplaceType.IndoorSeeThrough,
-        "Commercial See Through",
-        "80",
-        "24",
-        "DVST80HC",
-        "ST80H")]
-    [InlineData(
-        FireplaceType.IndoorSeeThrough,
-        "Commercial See Through",
-        "80",
-        "30",
-        "DVST80EC",
-        "ST80EH")]
-    [InlineData(
         FireplaceType.Outdoor,
         "Left Corner",
         "100",
@@ -64,7 +22,7 @@ public sealed class FireplaceCatalogMatchingRegressionTests
         "16",
         "VFDC100",
         "VDC100")]
-    public async Task BasePricingAndSpecificationsUseTheExactCatalogFamily(
+    public async Task BasePricingAndSpecificationsUseTheExactActiveCatalogFamily(
         FireplaceType type,
         string model,
         string size,
@@ -124,6 +82,23 @@ public sealed class FireplaceCatalogMatchingRegressionTests
             Assert.True(Uri.TryCreate(url, UriKind.Absolute, out var uri), $"Invalid resource URL: {url}");
             Assert.Equal(Uri.UriSchemeHttps, uri!.Scheme);
         }
+    }
+
+    [Fact]
+    public async Task LoadedPriceBookExcludesAllDiscontinuedCommercialProducts()
+    {
+        var root = FindRepoRoot();
+        var pricingPath = Path.Combine(root, "LocalData", "pricing.xlsx");
+        var service = new ClosedXmlPriceBookService();
+
+        var workbook = await service.LoadAsync(pricingPath);
+
+        Assert.DoesNotContain(
+            workbook.Rows,
+            row => Regex.IsMatch(
+                row.Sku ?? string.Empty,
+                @"^DV(?:FF|ST)\d{2,3}(?:R|H|E)C$",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant));
     }
 
     private static string NormalizeKey(string? value) =>

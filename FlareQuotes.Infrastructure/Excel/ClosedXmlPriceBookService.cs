@@ -115,9 +115,19 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return Task.FromResult(new PriceBookWorkbook { SourcePath = path });
         }
 
+        result.Rows.RemoveAll(row => IsDiscontinuedCommercialSku(row.Sku));
+
         _cached = result;
         _loadedPath = path;
         return Task.FromResult(result);
+    }
+
+    private static bool IsDiscontinuedCommercialSku(string? sku)
+    {
+        var compact = Regex.Replace(sku ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
+
+        return Regex.IsMatch(compact, @"^DV(?:FF|ST)\d{2,3}(?:R|H|E)C$",
+                             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     private static bool IsQuantityCalculationSheet(string sheetName)
@@ -317,7 +327,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         IEnumerable<FireplaceQuote> fireplaceInputs =
             request.Fireplaces.Count > 0 ? request.Fireplaces : new List<FireplaceQuote> { ToFireplace(request) };
         var results = new List<ResourceLinkSet>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var input in fireplaceInputs)
         {
@@ -349,8 +358,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             // Passage resource model-number override
             if (IsPassageModel(inputModel))
                 modelNumber = PassageModelCode(inputModel);
-            if (!seen.Add(modelNumber))
-                continue;
 
             var set = new ResourceLinkSet { ModelNumber = modelNumber };
             var columns = ResourceColumns(type);
@@ -657,30 +664,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     private static string Compact(string? value) =>
         Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]+", string.Empty).ToUpperInvariant();
 
-    private static bool IsCommercialModel(string? model)
-    {
-        var normalized = Normalize(model ?? string.Empty);
-        var compact = Compact(model);
-
-        return normalized.Contains("commercial", StringComparison.OrdinalIgnoreCase) ||
-               Regex.IsMatch(normalized, @"\bcomm\b", RegexOptions.IgnoreCase) ||
-               Regex.IsMatch(compact, @"^DV(?:FF|ST)\d{2,3}(?:R|H|E)C$", RegexOptions.IgnoreCase);
-    }
-
-    private static string IndoorSkuGlassSuffix(string? glassHeight, string? model)
-    {
-        var glass = FirstNonBlank(
-            GlassInches(glassHeight ?? string.Empty),
-            GlassInches(ExtractGlassHeightFromModelCode(model)));
-
-        return glass switch
-        {
-            "16" => "R",
-            "24" => "H",
-            "30" => "E",
-            _ => string.Empty
-        };
-    }
 
     private static string OutdoorPriceBookGlassSuffix(string? glassHeight, string? model)
     {
@@ -697,57 +680,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         };
     }
 
-    private static PriceRow? FindExactCommercialBaseRow(
-        IEnumerable<PriceRow> rows,
-        FireplaceType type,
-        string model,
-        string sizeNum,
-        string glassHeight)
-    {
-        if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough or
-            FireplaceType.Large or FireplaceType.Traditional ||
-            !IsCommercialModel(model) ||
-            string.IsNullOrWhiteSpace(sizeNum))
-        {
-            return null;
-        }
 
-        var style = StyleCode(type, model);
-        if (style is not ("FF" or "ST"))
-            return null;
-
-        var suffix = IndoorSkuGlassSuffix(glassHeight, model);
-        if (string.IsNullOrWhiteSpace(suffix))
-            return null;
-
-        var expectedSku = $"DV{style}{sizeNum}{suffix}C";
-        var compactExpectedSku = Compact(expectedSku);
-
-        // Commercial part names such as FLARE-FF-80-C are shared by Regular,
-        // High, and Extra High rows. Only the complete SKU identifies glass height.
-        var exactSkuRow = Best(
-            rows,
-            row => Compact(row.Sku).Equals(
-                compactExpectedSku,
-                StringComparison.OrdinalIgnoreCase));
-
-        if (exactSkuRow is not null)
-            return exactSkuRow;
-
-        // Permit a text fallback only for legacy rows whose SKU cell is empty.
-        // Never let a shared Commercial part name select the wrong glass height.
-        return Best(
-            rows,
-            row =>
-            {
-                if (!string.IsNullOrWhiteSpace(Compact(row.Sku)))
-                    return false;
-
-                return Compact(Text(row)).Contains(
-                    compactExpectedSku,
-                    StringComparison.OrdinalIgnoreCase);
-            });
-    }
     private static PriceRow? FindBaseRow(PriceBookWorkbook wb, FireplaceType type, string model, string size,
                                          string glassHeight)
     {
@@ -773,12 +706,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             var passageBaseRow = FindPassageBaseRow(rows, model);
             if (passageBaseRow is not null)
                 return passageBaseRow;
-        }
-
-        if (IsCommercialModel(model))
-        {
-            // Explicit Commercial requests must never silently fall back to a standard residential row.
-            return FindExactCommercialBaseRow(rows, type, model, sizeNum, glassNum);
         }
 
         if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough)
@@ -3624,7 +3551,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
         // Examples: FF-80-H, FF80H, FF-80-EH, FF80EH, DVDR45R.
         // EH is listed before H so the 30" suffix wins correctly.
-        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|E|H|R)(?:C)?(?:[-\s]*(OD|IO))?\b");
+        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|E|H|R)(?:[-\s]*(OD|IO))?\b");
         return match.Success ? NormalizeGlassHeightAlias(match.Groups[1].Value) : string.Empty;
     }
 

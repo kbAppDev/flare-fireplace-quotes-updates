@@ -1037,12 +1037,43 @@
                                                         <ContentPresenter HorizontalAlignment="Stretch" />
                                                     </ControlTemplate>
                                                 </Button.Template>
-                                                <Border Tag="FireplaceSummaryCard" Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="11" Padding="12,11" SnapsToDevicePixels="True">
+                                                <Border Tag="FireplaceSummaryCard"
+                                                        Background="{DynamicResource SurfaceSubtleBrush}"
+                                                        BorderBrush="{DynamicResource DividerBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="11"
+                                                        Padding="12,11"
+                                                        SnapsToDevicePixels="True"
+                                                        PreviewMouseMove="SelectedChip_PreviewMouseMove"
+                                                        PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp"
+                                                        LostMouseCapture="SelectedChip_LostMouseCapture">
                                                     <StackPanel>
                                                         <Grid>
-                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{Binding FireplaceLabel}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
-                                                            <Button Grid.Column="1" Content="×" Style="{StaticResource ChipRemoveButton}"
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Border Grid.Column="0"
+                                                                    Width="20"
+                                                                    Margin="-3,0,7,0"
+                                                                    Cursor="SizeNS"
+                                                                    Background="Transparent"
+                                                                    ToolTip="Click and drag to reorder this fireplace"
+                                                                    PreviewMouseLeftButtonDown="FireplaceDragHandle_PreviewMouseLeftButtonDown">
+                                                                <TextBlock Text="⋮⋮"
+                                                                           FontSize="15"
+                                                                           Foreground="{DynamicResource FlareMutedTextBrush}"
+                                                                           HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding FireplaceLabel}"
+                                                                       FontWeight="SemiBold"
+                                                                       FontSize="13"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center" />
+                                                            <Button Grid.Column="2" Content="×" Style="{StaticResource ChipRemoveButton}"
                                                                     PreviewMouseLeftButtonDown="FireplaceRemove_PreviewMouseLeftButtonDown"
                                                                     Command="{Binding DataContext.RemoveFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                     CommandParameter="{Binding}" Margin="8,0,0,0" ToolTip="Remove — burns away" />

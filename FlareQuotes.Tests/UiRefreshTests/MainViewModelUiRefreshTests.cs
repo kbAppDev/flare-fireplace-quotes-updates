@@ -1,6 +1,7 @@
 using FlareQuotes.App.Services;
 using FlareQuotes.App.ViewModels;
 using FlareQuotes.Core.Email;
+using FlareQuotes.Core.Features;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Parsing;
 using FlareQuotes.Core.Services;
@@ -63,17 +64,22 @@ public sealed class MainViewModelUiRefreshTests
 
 
 
-    [Fact]
-    public async Task CompleteCommercialCodeAutoFillPopulatesSeparateFields()
+    [Theory]
+    [InlineData("DVFF50HC")]
+    [InlineData("DVST80EC")]
+    public async Task DiscontinuedCommercialCodeAutoFillIsBlocked(string commercialCode)
     {
         var viewModel = CreateViewModel(new DefaultQuoteRequestParser());
-        viewModel.RawRequest = "DVFF50HC";
+        viewModel.RawRequest = commercialCode;
 
         await viewModel.AutoFillCommand.ExecuteAsync(null);
 
-        Assert.Equal("Commercial Front Facing", viewModel.Model);
-        Assert.Equal("50", viewModel.Size);
-        Assert.Equal("24", viewModel.GlassHeight);
+        Assert.True(string.IsNullOrWhiteSpace(viewModel.Model));
+        Assert.True(string.IsNullOrWhiteSpace(viewModel.Size));
+        Assert.True(string.IsNullOrWhiteSpace(viewModel.GlassHeight));
+        Assert.Empty(viewModel.Fireplaces);
+        Assert.False(viewModel.CanGeneratePreview);
+        Assert.Contains("discontinued", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -91,6 +97,49 @@ public sealed class MainViewModelUiRefreshTests
 
         var fireplace = Assert.Single(viewModel.Fireplaces);
         Assert.Equal("VDC50H", fireplace.Model);
+    }
+
+    [Fact]
+    public void VfdcAndVdcExposeTheSameDoubleCornerOptionalFeatures()
+    {
+        var vdc = CreateViewModel(featureService: new FeatureSelectionService());
+        vdc.Model = "VDC50H";
+        vdc.Size = "50";
+        vdc.GlassHeight = "24";
+
+        var vfdc = CreateViewModel(featureService: new FeatureSelectionService());
+        vfdc.Model = "VFDC50H";
+        vfdc.Size = "50";
+        vfdc.GlassHeight = "24";
+
+        var vdcFeatures = vdc.AllFeatureOptions.Select(option => option.Key).OrderBy(key => key).ToList();
+        var vfdcFeatures = vfdc.AllFeatureOptions.Select(option => option.Key).OrderBy(key => key).ToList();
+
+        Assert.Equal(vdcFeatures, vfdcFeatures);
+        Assert.DoesNotContain(vfdcFeatures,
+                              key => string.Equals(key, "reflective_black_sides",
+                                                   StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void FireplaceCardsCanBeReorderedWithoutChangingTheirContents()
+    {
+        var viewModel = CreateViewModel();
+        var first = new FireplaceQuoteDraft { FireplaceLabel = "First", Model = "FF50", Size = "50" };
+        var second = new FireplaceQuoteDraft { FireplaceLabel = "Second", Model = "ST60", Size = "60" };
+        var third = new FireplaceQuoteDraft { FireplaceLabel = "Third", Model = "VDC70", Size = "70" };
+
+        viewModel.Fireplaces.Add(first);
+        viewModel.Fireplaces.Add(second);
+        viewModel.Fireplaces.Add(third);
+
+        Assert.True(viewModel.MoveFireplace(third, first));
+
+        Assert.Same(third, viewModel.Fireplaces[0]);
+        Assert.Same(first, viewModel.Fireplaces[1]);
+        Assert.Same(second, viewModel.Fireplaces[2]);
+        Assert.Equal("Third", viewModel.Fireplaces[0].FireplaceLabel);
+        Assert.Contains("position 1", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -158,14 +207,16 @@ public sealed class MainViewModelUiRefreshTests
         Assert.Contains("dealer@example.com", viewModel.GmailDraftRequirementText, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static MainViewModel CreateViewModel(IQuoteRequestParser? parser = null)
+    private static MainViewModel CreateViewModel(
+        IQuoteRequestParser? parser = null,
+        IFeatureSelectionService? featureService = null)
     {
         var logger = new NullLogger();
         var draftWorkflow = new DraftWorkflowService(new NullGmailDraftService(), new EmailTemplateService(), logger);
 
-        return new MainViewModel(parser ?? new EmptyParser(), new EmptyFeatureService(), new EmptyMediaService(),
-                                 new EmptyPriceBookService(), new EmptyPdfService(), new MemorySettingsService(),
-                                 draftWorkflow, logger);
+        return new MainViewModel(parser ?? new EmptyParser(), featureService ?? new EmptyFeatureService(),
+                                 new EmptyMediaService(), new EmptyPriceBookService(), new EmptyPdfService(),
+                                 new MemorySettingsService(), draftWorkflow, logger);
     }
 
     private sealed class EmptyParser : IQuoteRequestParser

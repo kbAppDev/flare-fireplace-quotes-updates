@@ -830,6 +830,20 @@ public sealed class MainViewModel : ObservableObject
         Phone = parsed.Phone;
         Postal = await ResolveProjectAddressForQuoteAsync(parsed.Postal, RawRequest);
         InstallDate = parsed.InstallDate;
+
+        if (IsDiscontinuedCommercialModel(RawRequest) || IsDiscontinuedCommercialModel(parsed.Model))
+        {
+            Model = Size = GlassHeight = FireplaceLocation = string.Empty;
+            LeadTime = "3-5 Business Days";
+            ClearFeatureSelections();
+            ClearPremiumMediaSelections();
+            ClearAdditionalClassicMedia();
+            ClassicMediaChoice = null;
+            StatusMessage = "Commercial fireplace models are discontinued and cannot be quoted.";
+            UpdateStatusCards();
+            return;
+        }
+
         Model = FirstNonBlank(ExtractIndoorOutdoorSeeThroughModelCode(RawRequest), parsed.Model);
         Size = parsed.Size;
         GlassHeight =
@@ -981,6 +995,13 @@ public sealed class MainViewModel : ObservableObject
                 StatusMessage = "Add at least one fireplace before previewing.";
                 return;
             }
+
+            if (RequestContainsDiscontinuedCommercialModel(request))
+            {
+                StatusMessage = "Commercial fireplace models are discontinued and cannot be quoted.";
+                return;
+            }
+
             var priced = await _priceBookService.BuildPricedQuoteAsync(request, PricingPath());
             request.Tag = priced;
             var pdfPath = CreateFreshQuotePdfPath(request, priced);
@@ -2336,6 +2357,7 @@ public sealed class MainViewModel : ObservableObject
                compact.Contains("DOUBLECORNER", StringComparison.OrdinalIgnoreCase) ||
                compact.Contains("LDVDC", StringComparison.OrdinalIgnoreCase) ||
                compact.Contains("DVDC", StringComparison.OrdinalIgnoreCase) ||
+               compact.Contains("VFDC", StringComparison.OrdinalIgnoreCase) ||
                compact.Contains("VDC", StringComparison.OrdinalIgnoreCase) || normalized.Contains("double corner");
     }
 
@@ -2356,6 +2378,20 @@ public sealed class MainViewModel : ObservableObject
                compact.Contains("ROOMDEFINER", StringComparison.OrdinalIgnoreCase) || normalized.Contains("dvdrd") ||
                normalized.Contains(" rd ") || normalized.EndsWith(" rd") || normalized.StartsWith("rd ");
     }
+    public bool MoveFireplace(FireplaceQuoteDraft? source, FireplaceQuoteDraft? target)
+    {
+        var moved = MoveSelectionItem(Fireplaces, source, target);
+
+        if (!moved || source is null)
+            return false;
+
+        InvalidatePricedSnapshot();
+        OnPropertyChanged(nameof(FireplaceQuoteSummary));
+        NotifyFireplaceContextChanged();
+        StatusMessage = $"Moved {source.FireplaceLabel} to position {Fireplaces.IndexOf(source) + 1}.";
+        return true;
+    }
+
     public bool MoveSelectedFeature(FeatureSelection? source, FeatureSelection? target)
     {
         var moved = MoveSelectionItem(SelectedFeatures, source, target);
@@ -2757,6 +2793,12 @@ public sealed class MainViewModel : ObservableObject
     }
     private void AddFireplaceToQuote()
     {
+        if (IsDiscontinuedCommercialModel(Model))
+        {
+            StatusMessage = "Commercial fireplace models are discontinued and cannot be added to a quote.";
+            return;
+        }
+
         var label = CurrentFireplaceLabel;
         var value = string.IsNullOrWhiteSpace(LeadTime) ? "TBD" : LeadTime.Trim();
 
@@ -2854,6 +2896,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsEditingFireplace));
         OnPropertyChanged(nameof(AddFireplaceButtonText));
         OnPropertyChanged(nameof(HasPendingNewFireplace));
+        OnPropertyChanged(nameof(HasDiscontinuedCommercialSelection));
         OnPropertyChanged(nameof(CanGeneratePreview));
         OnPropertyChanged(nameof(ReadinessText));
         OnPropertyChanged(nameof(ReadyToGenerateDetail));
@@ -2913,6 +2956,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsEditingFireplace));
         OnPropertyChanged(nameof(AddFireplaceButtonText));
         OnPropertyChanged(nameof(HasPendingNewFireplace));
+        OnPropertyChanged(nameof(HasDiscontinuedCommercialSelection));
         OnPropertyChanged(nameof(CanGeneratePreview));
         OnPropertyChanged(nameof(ReadinessText));
         OnPropertyChanged(nameof(ReadyToGenerateDetail));
@@ -2933,15 +2977,21 @@ public sealed class MainViewModel : ObservableObject
     public bool HasFireplacesOnQuote => Fireplaces.Count > 0;
     public bool HasPendingNewFireplace => !IsEditingFireplace && Fireplaces.Count > 0 &&
                                                 !string.IsNullOrWhiteSpace(Model);
+    public bool HasDiscontinuedCommercialSelection =>
+        IsDiscontinuedCommercialModel(Model) ||
+        Fireplaces.Any(fireplace => IsDiscontinuedCommercialModel(fireplace.Model));
     public bool CanGeneratePreview => !IsEditingFireplace && !HasPendingNewFireplace &&
+                                      !HasDiscontinuedCommercialSelection &&
                                       (Fireplaces.Count > 0 || !string.IsNullOrWhiteSpace(Model));
-    public string ReadinessText => IsEditingFireplace
-                                       ? "Save fireplace changes to continue"
+    public string ReadinessText => HasDiscontinuedCommercialSelection
+                                       ? "Commercial fireplace models are discontinued"
+                                       : IsEditingFireplace ? "Save fireplace changes to continue"
                                        : HasPendingNewFireplace ? "Add the current fireplace to continue"
                                        : CanGeneratePreview ? "Draft ready to preview"
                                                             : "Add a fireplace to continue";
     public string ReadyToGenerateDetail =>
-        IsEditingFireplace ? "Save the fireplace currently being edited"
+        HasDiscontinuedCommercialSelection ? "Remove the discontinued Commercial fireplace"
+        : IsEditingFireplace ? "Save the fireplace currently being edited"
         : HasPendingNewFireplace ? "Add the current fireplace to the quote"
         : Fireplaces.Count == 1 ? "1 fireplace on quote"
         : Fireplaces.Count > 1 ? $"{Fireplaces.Count} fireplaces on quote"
@@ -3001,6 +3051,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CurrentFireplaceLeadTimePreview));
         OnPropertyChanged(nameof(HasFireplacesOnQuote));
         OnPropertyChanged(nameof(HasPendingNewFireplace));
+        OnPropertyChanged(nameof(HasDiscontinuedCommercialSelection));
         OnPropertyChanged(nameof(CanGeneratePreview));
         OnPropertyChanged(nameof(ReadinessText));
         OnPropertyChanged(nameof(ReadyToGenerateDetail));
@@ -3092,11 +3143,27 @@ public sealed class MainViewModel : ObservableObject
         if (!string.Equals(NormalizeGlassHeightAlias(GlassHeight), "60", StringComparison.OrdinalIgnoreCase))
             GlassHeight = "60";
     }
+    private static bool IsDiscontinuedCommercialModel(string? value)
+    {
+        var text = NormalizeModelForRules(value ?? string.Empty);
+        var compact = Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
+
+        return text.Contains("commercial", StringComparison.OrdinalIgnoreCase) ||
+               Regex.IsMatch(compact, @"^DV(?:FF|ST)\d{2,3}(?:R|H|E)C$",
+                             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
+    private static bool RequestContainsDiscontinuedCommercialModel(QuoteRequest request)
+    {
+        return IsDiscontinuedCommercialModel(request.Model) ||
+               request.Fireplaces.Any(fireplace => IsDiscontinuedCommercialModel(fireplace.Model));
+    }
+
     private static bool LooksLikeCompleteFireplaceCode(string? value)
     {
         var compact = Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
 
-        return Regex.IsMatch(compact, @"^DV(?:FF|ST|LC|RC|DC|RD)\d{2,3}(?:EH|E|H|R)C?$") ||
+        return Regex.IsMatch(compact, @"^DV(?:FF|ST|LC|RC|DC|RD)\d{2,3}(?:EH|E|H|R)$") ||
                Regex.IsMatch(compact, @"^(?:VFFF|VFST|VFLC|VFRC|VFDC|VFF|VST|VLC|VRC|VDC)\d{2,3}(?:EH|H|R)?$") ||
                Regex.IsMatch(compact, @"^LDV(?:FF|LC|RC|DC)\d{3}H?$") ||
                Regex.IsMatch(compact, @"^DVTRA\d{2,3}$") ||

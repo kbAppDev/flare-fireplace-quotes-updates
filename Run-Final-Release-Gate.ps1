@@ -186,8 +186,8 @@ try {
         }
 
         $inventoryRows = @(Import-Csv $inventoryPath)
-        if ($inventoryRows.Count -ne 302) {
-            throw "Expected 302 fireplace models in the canonical inventory, but found $($inventoryRows.Count)."
+        if ($inventoryRows.Count -ne 266) {
+            throw "Expected 266 active fireplace models in the canonical inventory, but found $($inventoryRows.Count)."
         }
         $expectedModels = @($inventoryRows | Select-Object -ExpandProperty Model | Sort-Object -Unique)
         $reportedModels = @($gmailRows | Select-Object -ExpandProperty Model | Sort-Object -Unique)

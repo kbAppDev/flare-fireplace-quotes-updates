@@ -47,8 +47,6 @@ public sealed class DefaultQuoteRequestParserTests
     }
 
     [Theory]
-    [InlineData("DVFF50HC", "Commercial Front Facing", "50", "24")]
-    [InlineData("DVST80EC", "Commercial See Through", "80", "30")]
     [InlineData("VFDC50H", "Outdoor Vent Free Double Corner", "50", "24")]
     [InlineData("VFLC100", "Outdoor Vent Free Left Corner", "100", "16")]
     [InlineData("VFFF80H", "Outdoor Vent Free Front Facing", "80", "24")]
@@ -68,16 +66,22 @@ public sealed class DefaultQuoteRequestParserTests
         Assert.Equal(expectedGlassHeight, result.GlassHeight);
     }
 
-    [Fact]
-    public void DecodesLabeledCommercialCodeWithoutLosingHeight()
+    [Theory]
+    [InlineData("DVFF50HC")]
+    [InlineData("DVST80EC")]
+    public void DoesNotDecodeDiscontinuedCommercialCodes(string commercialCode)
     {
         var parser = new DefaultQuoteRequestParser();
 
-        var result = parser.Parse("Model: DVFF50HC");
+        var standalone = parser.Parse(commercialCode);
+        var labeled = parser.Parse($"Model: {commercialCode}");
 
-        Assert.Equal("Commercial Front Facing", result.Model);
-        Assert.Equal("50", result.Size);
-        Assert.Equal("24", result.GlassHeight);
+        Assert.True(string.IsNullOrWhiteSpace(standalone.Model));
+        Assert.True(string.IsNullOrWhiteSpace(standalone.Size));
+        Assert.True(string.IsNullOrWhiteSpace(standalone.GlassHeight));
+        Assert.Equal(commercialCode, labeled.Model);
+        Assert.True(string.IsNullOrWhiteSpace(labeled.Size));
+        Assert.True(string.IsNullOrWhiteSpace(labeled.GlassHeight));
     }
 
 }
