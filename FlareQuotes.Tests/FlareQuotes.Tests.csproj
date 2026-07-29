@@ -6,6 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FlareQuotes.Core\FlareQuotes.Core.csproj" />
     <ProjectReference Include="..\FlareQuotes.Infrastructure\FlareQuotes.Infrastructure.csproj" />
+    <ProjectReference Include="..\FlareQuotes.App\FlareQuotes.App.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

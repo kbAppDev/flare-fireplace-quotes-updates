@@ -40,6 +40,27 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
         return profile.EmailAddress ?? "Connected";
     }
 
+    public async Task<string> ReconnectAsync(CancellationToken cancellationToken = default)
+    {
+        ResetCachedService();
+
+        var tokenDirectory = Path.Combine(AppPaths.Root, "GmailToken");
+        var archivedTokenDirectory = ArchiveExistingTokenStore(tokenDirectory);
+
+        try
+        {
+            var emailAddress = await ConnectAsync(cancellationToken).ConfigureAwait(false);
+            _logger.Info(
+                $"Gmail authorization reconnected. PreviousTokenArchived={archivedTokenDirectory is not null}.");
+            return emailAddress;
+        }
+        catch
+        {
+            ResetCachedService();
+            throw;
+        }
+    }
+
     public async Task<string> GetSenderDisplayAsync(CancellationToken cancellationToken = default)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -97,15 +118,22 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
             if (string.IsNullOrWhiteSpace(created.Id))
             {
                 _logger.Warning("Gmail API returned without a draft ID.");
-                return new EmailDraftResult { Success = false, OpenedGmail = false,
-                                              Message = "Gmail did not confirm the draft was created." };
+                return new EmailDraftResult
+                {
+                    Success = false,
+                    OpenedGmail = false,
+                    Message = "Gmail did not confirm the draft was created."
+                };
             }
 
             var opened = request.OpenBrowserAfterCreate && OpenGmailDrafts();
             _logger.Info("Gmail API created draft. DraftIdPresent=True; " + $"BrowserOpened={opened}.");
 
-            return new EmailDraftResult {
-                Success = true, DraftId = created.Id, OpenedGmail = opened,
+            return new EmailDraftResult
+            {
+                Success = true,
+                DraftId = created.Id,
+                OpenedGmail = opened,
                 Message = request.OpenBrowserAfterCreate
                               ? (opened ? "Gmail draft created."
                                         : "Gmail draft created, but the browser could not be opened automatically.")
@@ -115,24 +143,33 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.Warning("Gmail draft creation timed out.");
-            return new EmailDraftResult { Success = false,
-                                          Message =
-                                              "Gmail draft creation timed out. Check the connection and try again." };
+            return new EmailDraftResult
+            {
+                Success = false,
+                Message =
+                                              "Gmail draft creation timed out. Check the connection and try again."
+            };
         }
         catch (Google.GoogleApiException ex)
         {
             _logger.Error(ex,
                           $"Gmail API rejected draft. HttpStatus={(int)ex.HttpStatusCode}; Service={ex.ServiceName}.");
-            return new EmailDraftResult {
-                Success = false, OpenedGmail = false,
+            return new EmailDraftResult
+            {
+                Success = false,
+                OpenedGmail = false,
                 Message = $"Gmail rejected the draft (HTTP {(int)ex.HttpStatusCode}). {SafeForUser(ex.Message)}"
             };
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Gmail draft service failed before confirmation.");
-            return new EmailDraftResult { Success = false, OpenedGmail = false,
-                                          Message = $"Gmail draft could not be created. {SafeForUser(ex.Message)}" };
+            return new EmailDraftResult
+            {
+                Success = false,
+                OpenedGmail = false,
+                Message = $"Gmail draft could not be created. {SafeForUser(ex.Message)}"
+            };
         }
     }
 
@@ -155,16 +192,54 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
                                              cancellationToken, new ProtectedFileDataStore(tokenDir))
                              .ConfigureAwait(false);
 
-        _service = new GmailService(new BaseClientService.Initializer { HttpClientInitializer = credential,
-                                                                        ApplicationName = AppPaths.ProductFolderName });
+        _service = new GmailService(new BaseClientService.Initializer
+        {
+            HttpClientInitializer = credential,
+            ApplicationName = AppPaths.ProductFolderName
+        });
 
         return _service;
     }
 
+    internal static string? ArchiveExistingTokenStore(string tokenDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(tokenDirectory))
+            throw new ArgumentException("Gmail token directory is required.", nameof(tokenDirectory));
+
+        var fullTokenDirectory = Path.GetFullPath(tokenDirectory);
+        if (!Directory.Exists(fullTokenDirectory))
+            return null;
+
+        if (!Directory.EnumerateFileSystemEntries(fullTokenDirectory).Any())
+        {
+            Directory.Delete(fullTokenDirectory, recursive: false);
+            return null;
+        }
+
+        var parentDirectory = Directory.GetParent(fullTokenDirectory)?.FullName ??
+                              throw new InvalidOperationException("The Gmail token directory has no parent folder.");
+        var tokenFolderName =
+            Path.GetFileName(fullTokenDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+        var archiveDirectory = Path.Combine(parentDirectory, $"{tokenFolderName}.reconnect-{timestamp}");
+
+        for (var suffix = 1; Directory.Exists(archiveDirectory) || File.Exists(archiveDirectory); suffix++)
+            archiveDirectory = Path.Combine(parentDirectory, $"{tokenFolderName}.reconnect-{timestamp}-{suffix}");
+
+        Directory.Move(fullTokenDirectory, archiveDirectory);
+        return archiveDirectory;
+    }
+
+    private void ResetCachedService()
+    {
+        var service = _service;
+        _service = null;
+        service?.Dispose();
+    }
+
     public void Dispose()
     {
-        _service?.Dispose();
-        _service = null;
+        ResetCachedService();
     }
 
     internal static string BuildRawMessage(EmailDraftRequest request)
@@ -303,8 +378,13 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
 
     private static string GetImageContentType(string extension)
     {
-        return extension switch { ".jpg" or ".jpeg" => "image/jpeg", ".png" => "image/png", ".webp" => "image/webp",
-                                  _ => "application/octet-stream" };
+        return extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream"
+        };
     }
 
     private static string SanitizeAttachmentFileName(string value)

@@ -50,7 +50,6 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        SourceInitialized += (_, _) => WindowPresentationService.Apply(this, !string.Equals(LoadThemePreference(), LightThemeName, StringComparison.OrdinalIgnoreCase));
         AttachDropdownScrollResetHooks();
         SetAppVersionText();
 
@@ -125,8 +124,16 @@ public partial class MainWindow : Window
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
     {
-        WindowState = WindowState.Minimized;
+        var anim = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(150));
+        anim.Completed += (s, ev) =>
+        {
+            this.WindowState = WindowState.Minimized;
+            this.BeginAnimation(Window.OpacityProperty, null);
+            this.Opacity = 1;
+        };
+        this.BeginAnimation(Window.OpacityProperty, anim);
     }
+
     private void MaximizeButton_Click(object sender, RoutedEventArgs e)
     {
         this.WindowState = this.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
@@ -134,8 +141,11 @@ public partial class MainWindow : Window
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
-        Close();
+        var anim = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
+        anim.Completed += (s, ev) => this.Close();
+        this.BeginAnimation(Window.OpacityProperty, anim);
     }
+
     private void DropdownPopup_Opened(object sender, EventArgs e)
     {
         // Whenever a feature/media popup opens, force its internal
@@ -365,6 +375,8 @@ public partial class MainWindow : Window
         element.CaptureMouse();
         e.Handled = true;
     }
+
+
     private void SelectedChip_PreviewMouseMove(object sender, MouseEventArgs e)
     {
         if (_selectedChipDragElement is null || _selectedChipDragItem is null ||
@@ -407,7 +419,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (targetElement.DataContext is not {} target || ReferenceEquals(target, _selectedChipDragItem))
+        if (targetElement.DataContext is not { } target || ReferenceEquals(target, _selectedChipDragItem))
         {
             SetSelectedChipDropTarget(null);
             e.Handled = true;
@@ -463,7 +475,7 @@ public partial class MainWindow : Window
     }
     private void CommitSelectedChipDrop()
     {
-        if (_selectedChipDropTargetElement?.DataContext is not {} target ||
+        if (_selectedChipDropTargetElement?.DataContext is not { } target ||
             ReferenceEquals(target, _selectedChipDragItem) ||
             ReferenceEquals(target, _selectedChipLastLiveReorderTarget))
         {
@@ -510,6 +522,7 @@ public partial class MainWindow : Window
         {
             moved = viewModel.MoveSelectedAdditionalClassicMedia(sourceAdditionalClassic, targetAdditionalClassic);
         }
+
         else
         {
             moved = false;
@@ -572,12 +585,18 @@ public partial class MainWindow : Window
                                translate.X += dx;
                                translate.Y += dy;
 
-                               translate.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation {
-                                   To = 0, Duration = TimeSpan.FromMilliseconds(210), EasingFunction = ease
+                               translate.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation
+                               {
+                                   To = 0,
+                                   Duration = TimeSpan.FromMilliseconds(210),
+                                   EasingFunction = ease
                                });
 
-                               translate.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation {
-                                   To = 0, Duration = TimeSpan.FromMilliseconds(210), EasingFunction = ease
+                               translate.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation
+                               {
+                                   To = 0,
+                                   Duration = TimeSpan.FromMilliseconds(210),
+                                   EasingFunction = ease
                                });
                            }
                        }),
@@ -623,8 +642,13 @@ public partial class MainWindow : Window
         {
             Panel.SetZIndex(element, 500);
             element.Opacity = 0.92;
-            element.Effect = new DropShadowEffect { Color = Color.FromRgb(153, 204, 0), BlurRadius = 16,
-                                                    ShadowDepth = 0, Opacity = 0.42 };
+            element.Effect = new DropShadowEffect
+            {
+                Color = Color.FromRgb(153, 204, 0),
+                BlurRadius = 16,
+                ShadowDepth = 0,
+                Opacity = 0.42
+            };
         }
         else
         {
@@ -658,6 +682,7 @@ public partial class MainWindow : Window
                 if (kind == "SelectedAdditionalClassicMediaChip" &&
                     element.DataContext is MediaSelection additionalClassicMedia)
                     return additionalClassicMedia;
+
             }
 
             current = GetSafeParent(current);
@@ -725,37 +750,61 @@ public partial class MainWindow : Window
         var width = Math.Max(110, Math.Min(260, sourceElement.ActualWidth > 0 ? sourceElement.ActualWidth : 150));
         var height = Math.Max(32, sourceElement.ActualHeight > 0 ? sourceElement.ActualHeight : 34);
 
-        var root = new Border { Width = width,
-                                Height = height,
-                                CornerRadius = new CornerRadius(14),
-                                Padding = new Thickness(10, 5, 10, 5),
-                                Background = new SolidColorBrush(Color.FromRgb(41, 54, 69)),
-                                BorderBrush = new SolidColorBrush(Color.FromRgb(153, 204, 0)),
-                                BorderThickness = new Thickness(1.25),
-                                Opacity = 0.98,
-                                IsHitTestVisible = false,
-                                Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 26, ShadowDepth = 8,
-                                                                Direction = 270, Opacity = 0.36 } };
+        var root = new Border
+        {
+            Width = width,
+            Height = height,
+            CornerRadius = new CornerRadius(14),
+            Padding = new Thickness(10, 5, 10, 5),
+            Background = new SolidColorBrush(Color.FromRgb(41, 54, 69)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(153, 204, 0)),
+            BorderThickness = new Thickness(1.25),
+            Opacity = 0.98,
+            IsHitTestVisible = false,
+            Effect = new DropShadowEffect
+            {
+                Color = Colors.Black,
+                BlurRadius = 26,
+                ShadowDepth = 8,
+                Direction = 270,
+                Opacity = 0.36
+            }
+        };
 
         var stack =
             new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
-        stack.Children.Add(new System.Windows.Shapes.Ellipse { Width = 8, Height = 8,
-                                                               Fill = new SolidColorBrush(Color.FromRgb(153, 204, 0)),
-                                                               VerticalAlignment = VerticalAlignment.Center,
-                                                               Margin = new Thickness(0, 0, 8, 0) });
+        stack.Children.Add(new System.Windows.Shapes.Ellipse
+        {
+            Width = 8,
+            Height = 8,
+            Fill = new SolidColorBrush(Color.FromRgb(153, 204, 0)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        });
 
-        stack.Children.Add(new TextBlock { Text = label, Foreground = new SolidColorBrush(Color.FromRgb(244, 247, 250)),
-                                           FontWeight = FontWeights.SemiBold, FontSize = 12,
-                                           TextTrimming = TextTrimming.CharacterEllipsis,
-                                           VerticalAlignment = VerticalAlignment.Center });
+        stack.Children.Add(new TextBlock
+        {
+            Text = label,
+            Foreground = new SolidColorBrush(Color.FromRgb(244, 247, 250)),
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 12,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center
+        });
 
         root.Child = stack;
 
         _selectedChipDragGhostRoot = root;
-        _selectedChipDragGhostPopup = new Popup { PlacementTarget = this,    Placement = PlacementMode.Relative,
-                                                  AllowsTransparency = true, IsHitTestVisible = false,
-                                                  StaysOpen = true,          Child = root };
+        _selectedChipDragGhostPopup = new Popup
+        {
+            PlacementTarget = this,
+            Placement = PlacementMode.Relative,
+            AllowsTransparency = true,
+            IsHitTestVisible = false,
+            StaysOpen = true,
+            Child = root
+        };
 
         UpdateSelectedChipDragGhost(current);
         _selectedChipDragGhostPopup.IsOpen = true;
@@ -801,7 +850,7 @@ public partial class MainWindow : Window
 
         var type = item.GetType();
 
-        foreach (var propertyName in new[] { "DisplayName", "Label", "Name", "Key" })
+        foreach (var propertyName in new[] { "FireplaceLabel", "DisplayName", "Label", "Name", "Key" })
         {
             var property = type.GetProperty(propertyName);
             var value = property?.GetValue(item)?.ToString();
@@ -825,8 +874,13 @@ public partial class MainWindow : Window
             return null;
 
         var rowBand = candidates
-                          .Select(x => new { x.Element, x.Bounds, Center = GetRectCenter(x.Bounds),
-                                             VerticalDistance = VerticalDistanceToRect(point, x.Bounds) })
+                          .Select(x => new
+                          {
+                              x.Element,
+                              x.Bounds,
+                              Center = GetRectCenter(x.Bounds),
+                              VerticalDistance = VerticalDistanceToRect(point, x.Bounds)
+                          })
                           .OrderBy(x => x.VerticalDistance)
                           .ThenBy(x => Math.Abs(point.X - x.Center.X))
                           .ToList();
@@ -912,14 +966,6 @@ public partial class MainWindow : Window
     }
 
     private static Point GetRectCenter(Rect rect) => new(rect.Left + rect.Width / 2, rect.Top + rect.Height / 2);
-
-    private static double DistanceToRectCenter(Point point, Rect rect)
-    {
-        var center = GetRectCenter(rect);
-        var dx = point.X - center.X;
-        var dy = point.Y - center.Y;
-        return Math.Sqrt((dx * dx) + (dy * dy));
-    }
 
     private static Rect InflateRect(Rect rect, double x, double y)
     {
@@ -1027,6 +1073,7 @@ public partial class MainWindow : Window
         }
     }
 
+
     private static T? FindAncestor<T>(DependencyObject? source)
         where T : DependencyObject
     {
@@ -1060,11 +1107,21 @@ public partial class MainWindow : Window
 
             var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
 
-            var shrinkX = new DoubleAnimation { To = 0.975, Duration = TimeSpan.FromMilliseconds(55),
-                                                AutoReverse = true, EasingFunction = ease };
+            var shrinkX = new DoubleAnimation
+            {
+                To = 0.975,
+                Duration = TimeSpan.FromMilliseconds(55),
+                AutoReverse = true,
+                EasingFunction = ease
+            };
 
-            var shrinkY = new DoubleAnimation { To = 0.975, Duration = TimeSpan.FromMilliseconds(55),
-                                                AutoReverse = true, EasingFunction = ease };
+            var shrinkY = new DoubleAnimation
+            {
+                To = 0.975,
+                Duration = TimeSpan.FromMilliseconds(55),
+                AutoReverse = true,
+                EasingFunction = ease
+            };
 
             scale.BeginAnimation(ScaleTransform.ScaleXProperty, shrinkX);
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, shrinkY);
@@ -1126,8 +1183,11 @@ public partial class MainWindow : Window
 
         try
         {
-            var webView = new WebView2 { HorizontalAlignment = HorizontalAlignment.Stretch,
-                                         VerticalAlignment = VerticalAlignment.Stretch };
+            var webView = new WebView2
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
 
             PdfPreviewHost.Content = webView;
             var webViewUserDataFolder = AppPaths.WebView2;
@@ -1265,7 +1325,6 @@ public partial class MainWindow : Window
     }
     private void ApplyTheme(bool dark)
     {
-        WindowPresentationService.UpdateTheme(this, dark);
         try
         {
             _isApplyingTheme = true;
@@ -1273,87 +1332,87 @@ public partial class MainWindow : Window
 
             if (dark)
             {
-                SetGradientBrush(resources, "FlareDarkBrush", "#0B0D10", "#0B0D10");
-                SetGradientBrush(resources, "GlassBackgroundBrush", "#0B0D10", "#0B0D10");
-                SetBrush(resources, "WindowSurfaceBrush", "#0B0D10");
-                SetBrush(resources, "WindowTitleBarBrush", "#090B0E");
-                SetBrush(resources, "WindowHeaderBrush", "#0E1115");
-                SetBrush(resources, "WindowWorkspaceBrush", "#090C10");
-                SetBrush(resources, "SurfaceBrush", "#12161B");
-                SetBrush(resources, "SurfaceRaisedBrush", "#171C22");
-                SetBrush(resources, "SurfaceSubtleBrush", "#0F1318");
-                SetBrush(resources, "DividerBrush", "#242A31");
-                SetBrush(resources, "ControlBorderBrush", "#303841");
-                SetBrush(resources, "ControlHoverBrush", "#20262D");
-                SetBrush(resources, "ControlPressedBrush", "#262D35");
-                SetBrush(resources, "FocusRingBrush", "#789B00");
-                SetBrush(resources, "SuccessMutedBrush", "#B4C58C");
+                SetGradientBrush(resources, "FlareDarkBrush", "#0B1017", "#0B1017");
+                SetGradientBrush(resources, "GlassBackgroundBrush", "#0B1017", "#0B1017");
+                SetBrush(resources, "WindowSurfaceBrush", "#0B1017");
+                SetBrush(resources, "WindowTitleBarBrush", "#080C12");
+                SetBrush(resources, "WindowHeaderBrush", "#0E151D");
+                SetBrush(resources, "WindowWorkspaceBrush", "#0A1017");
+                SetBrush(resources, "SurfaceBrush", "#131C26");
+                SetBrush(resources, "SurfaceRaisedBrush", "#18232F");
+                SetBrush(resources, "SurfaceSubtleBrush", "#0F1720");
+                SetBrush(resources, "DividerBrush", "#1E2A36");
+                SetBrush(resources, "ControlBorderBrush", "#2A3947");
+                SetBrush(resources, "ControlHoverBrush", "#1B2734");
+                SetBrush(resources, "ControlPressedBrush", "#22303D");
+                SetBrush(resources, "FocusRingBrush", "#9CC33A");
+                SetBrush(resources, "SuccessMutedBrush", "#A9BD7E");
                 SetBrush(resources, "WarningBrush", "#E2B04A");
-                SetBrush(resources, "DangerBrush", "#FF7377");
-                SetBrush(resources, "GlassHeaderBrush", "#0E1115");
+                SetBrush(resources, "DangerBrush", "#FF6B6E");
+                SetBrush(resources, "GlassHeaderBrush", "#0E151D");
 
-                SetBrush(resources, "FlareCardBrush", "#12161B");
-                SetBrush(resources, "FlareCardAltBrush", "#0F1318");
+                SetBrush(resources, "FlareCardBrush", "#131C26");
+                SetBrush(resources, "FlareCardAltBrush", "#0F1720");
                 resources["GlassCardBrush"] = resources["FlareCardBrush"];
                 resources["GlassCardAltBrush"] = resources["FlareCardAltBrush"];
 
-                SetBrush(resources, "FlareInputBrush", "#0D1014");
-                SetBrush(resources, "GlassInputBrush", "#0D1014");
-                SetBrush(resources, "FlareBorderBrush", "#2A3038");
-                SetBrush(resources, "GlassBorderBrush", "#2A3038");
+                SetBrush(resources, "FlareInputBrush", "#0D141C");
+                SetBrush(resources, "GlassInputBrush", "#0D141C");
+                SetBrush(resources, "FlareBorderBrush", "#2A3947");
+                SetBrush(resources, "GlassBorderBrush", "#2A3947");
 
-                SetBrush(resources, "FlareTextBrush", "#F5F3EE");
-                SetBrush(resources, "FlareMutedTextBrush", "#A4A8AE");
-                SetBrush(resources, "FlareAccentBrush", "#99CC00");
-                SetBrush(resources, "FlareAccentTextBrush", "#141A00");
+                SetBrush(resources, "FlareTextBrush", "#F5F8FB");
+                SetBrush(resources, "FlareMutedTextBrush", "#93A2B2");
+                SetBrush(resources, "FlareAccentBrush", "#A6CE39");
+                SetBrush(resources, "FlareAccentTextBrush", "#172000");
 
-                SetBrush(resources, "FlareButtonBrush", "#171C22");
-                SetBrush(resources, "FlareButtonBorderBrush", "#343C46");
-                SetBrush(resources, "FlareChipBrush", "#181D23");
-                SetBrush(resources, "FlareChipBorderBrush", "#323A44");
-                SetBrush(resources, "GlassButtonHoverBrush", "#20262D");
-                SetBrush(resources, "GlassPopupBrush", "#171C22");
+                SetBrush(resources, "FlareButtonBrush", "#18232F");
+                SetBrush(resources, "FlareButtonBorderBrush", "#2A3947");
+                SetBrush(resources, "FlareChipBrush", "#182431");
+                SetBrush(resources, "FlareChipBorderBrush", "#314252");
+                SetBrush(resources, "GlassButtonHoverBrush", "#1B2734");
+                SetBrush(resources, "GlassPopupBrush", "#18232F");
             }
             else
             {
-                SetGradientBrush(resources, "FlareDarkBrush", "#F3F6F9", "#F3F6F9");
-                SetGradientBrush(resources, "GlassBackgroundBrush", "#F3F6F9", "#F3F6F9");
-                SetBrush(resources, "WindowSurfaceBrush", "#F3F6F9");
-                SetBrush(resources, "WindowTitleBarBrush", "#F9FBFD");
-                SetBrush(resources, "WindowHeaderBrush", "#F5F8FB");
-                SetBrush(resources, "WindowWorkspaceBrush", "#EDF2F6");
+                SetGradientBrush(resources, "FlareDarkBrush", "#EEF2F6", "#EEF2F6");
+                SetGradientBrush(resources, "GlassBackgroundBrush", "#EEF2F6", "#EEF2F6");
+                SetBrush(resources, "WindowSurfaceBrush", "#EEF2F6");
+                SetBrush(resources, "WindowTitleBarBrush", "#FBFCFE");
+                SetBrush(resources, "WindowHeaderBrush", "#F4F8FB");
+                SetBrush(resources, "WindowWorkspaceBrush", "#E9EEF3");
                 SetBrush(resources, "SurfaceBrush", "#FFFFFF");
                 SetBrush(resources, "SurfaceRaisedBrush", "#FFFFFF");
-                SetBrush(resources, "SurfaceSubtleBrush", "#F5F8FB");
-                SetBrush(resources, "DividerBrush", "#DDE4EA");
-                SetBrush(resources, "ControlBorderBrush", "#C3CED8");
+                SetBrush(resources, "SurfaceSubtleBrush", "#F5F8FA");
+                SetBrush(resources, "DividerBrush", "#E6EBF0");
+                SetBrush(resources, "ControlBorderBrush", "#D3DCE4");
                 SetBrush(resources, "ControlHoverBrush", "#E8EEF3");
                 SetBrush(resources, "ControlPressedBrush", "#DDE6ED");
-                SetBrush(resources, "FocusRingBrush", "#6F8A27");
+                SetBrush(resources, "FocusRingBrush", "#7BA321");
                 SetBrush(resources, "SuccessMutedBrush", "#587023");
-                SetBrush(resources, "WarningBrush", "#8A5B00");
-                SetBrush(resources, "DangerBrush", "#B42318");
-                SetBrush(resources, "GlassHeaderBrush", "#F5F8FB");
+                SetBrush(resources, "WarningBrush", "#B07B12");
+                SetBrush(resources, "DangerBrush", "#D6453D");
+                SetBrush(resources, "GlassHeaderBrush", "#F4F8FB");
 
                 SetBrush(resources, "FlareCardBrush", "#FFFFFF");
-                SetBrush(resources, "FlareCardAltBrush", "#F5F8FB");
+                SetBrush(resources, "FlareCardAltBrush", "#F5F8FA");
                 resources["GlassCardBrush"] = resources["FlareCardBrush"];
                 resources["GlassCardAltBrush"] = resources["FlareCardAltBrush"];
 
-                SetBrush(resources, "FlareInputBrush", "#F9FBFD");
-                SetBrush(resources, "GlassInputBrush", "#F9FBFD");
-                SetBrush(resources, "FlareBorderBrush", "#D5DEE6");
-                SetBrush(resources, "GlassBorderBrush", "#D5DEE6");
+                SetBrush(resources, "FlareInputBrush", "#F8FAFC");
+                SetBrush(resources, "GlassInputBrush", "#F8FAFC");
+                SetBrush(resources, "FlareBorderBrush", "#D3DCE4");
+                SetBrush(resources, "GlassBorderBrush", "#D3DCE4");
 
-                SetBrush(resources, "FlareTextBrush", "#17212B");
-                SetBrush(resources, "FlareMutedTextBrush", "#5F6F7E");
+                SetBrush(resources, "FlareTextBrush", "#152430");
+                SetBrush(resources, "FlareMutedTextBrush", "#5C6B7A");
                 SetBrush(resources, "FlareAccentBrush", "#8FB82B");
-                SetBrush(resources, "FlareAccentTextBrush", "#141A00");
+                SetBrush(resources, "FlareAccentTextBrush", "#16220B");
 
-                SetBrush(resources, "FlareButtonBrush", "#F8FAFC");
-                SetBrush(resources, "FlareButtonBorderBrush", "#C3CED8");
-                SetBrush(resources, "FlareChipBrush", "#EFF4F7");
-                SetBrush(resources, "FlareChipBorderBrush", "#C9D4DD");
+                SetBrush(resources, "FlareButtonBrush", "#FFFFFF");
+                SetBrush(resources, "FlareButtonBorderBrush", "#D3DCE4");
+                SetBrush(resources, "FlareChipBrush", "#EEF3F7");
+                SetBrush(resources, "FlareChipBorderBrush", "#CBD7E0");
                 SetBrush(resources, "GlassButtonHoverBrush", "#E8EEF3");
                 SetBrush(resources, "GlassPopupBrush", "#FFFFFF");
             }
@@ -1387,9 +1446,17 @@ public partial class MainWindow : Window
     private static string SafeForUser(string message)
     {
         var value = (message ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ').Trim();
+
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (!string.IsNullOrWhiteSpace(userProfile))
             value = value.Replace(userProfile, "%USERPROFILE%", StringComparison.OrdinalIgnoreCase);
+
+        // Redact absolute paths and emails so update errors never leak PII (matches MainViewModel.SafeForUser).
+        value = System.Text.RegularExpressions.Regex.Replace(value, @"[A-Z]:\\[^\s""]+", "%LOCAL_PATH%",
+                                                             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        value = System.Text.RegularExpressions.Regex.Replace(value, @"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", "[email]",
+                                                             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
         return string.IsNullOrWhiteSpace(value) ? "Unexpected error." : value;
     }
 
@@ -1654,6 +1721,57 @@ public partial class MainWindow : Window
             element.ContextMenu.IsOpen = true;
             e.Handled = true;
         }
+    }
+
+    // Handles the "x" on a fireplace summary card. We suppress the button's bound
+    // RemoveFireplaceCommand (via e.Handled) so the burn-to-ash animation can play first,
+    // then run the real removal when it finishes. If the animation cannot start, the
+    // fireplace is removed immediately so nothing is ever left stuck on the quote.
+    private void FireplaceRemove_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+
+        if (sender is not FrameworkElement element || element.DataContext is not FireplaceQuoteDraft draft ||
+            DataContext is not MainViewModel viewModel)
+            return;
+
+        void RemoveNow()
+        {
+            try
+            {
+                if (viewModel.RemoveFireplaceCommand.CanExecute(draft))
+                    viewModel.RemoveFireplaceCommand.Execute(draft);
+            }
+            catch
+            {
+                // Removal must never break the workflow.
+            }
+        }
+
+        var card = FindAncestorByTag(element, "FireplaceSummaryCard");
+
+        if (card is null || BurnOverlay is null)
+        {
+            RemoveNow();
+            return;
+        }
+
+        FireplaceBurnAnimation.Burn(card, BurnOverlay, RemoveNow);
+    }
+
+    private static FrameworkElement? FindAncestorByTag(DependencyObject? source, string tag)
+    {
+        DependencyObject? current = source;
+
+        while (current is not null)
+        {
+            if (current is FrameworkElement element && element.Tag as string == tag)
+                return element;
+
+            current = GetSafeParent(current);
+        }
+
+        return null;
     }
 
 }

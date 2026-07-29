@@ -91,12 +91,16 @@ public sealed class GmailEveryModelIntegrationTests
                 pdfBytes = new FileInfo(pdfPath).Length;
 
                 var result = await gmail.CreateDraftAsync(
-                    new EmailDraftRequest { ToEmail = sender,
-                                            Subject =
+                    new EmailDraftRequest
+                    {
+                        ToEmail = sender,
+                        Subject =
                                                 "[AUTOMATED TEST - DELETE] " + template.BuildSubject(request, priced),
-                                            HtmlBody =
+                        HtmlBody =
                                                 template.BuildHtml(request, priced, links, settings, string.Empty),
-                                            PdfAttachmentPath = pdfPath, OpenBrowserAfterCreate = false },
+                        PdfAttachmentPath = pdfPath,
+                        OpenBrowserAfterCreate = false
+                    },
                     perModelTimeout.Token);
 
                 Assert.True(result.Success && !string.IsNullOrWhiteSpace(result.DraftId), result.Message);
@@ -142,12 +146,12 @@ public sealed class GmailEveryModelIntegrationTests
 
         var expected = File.ReadLines(inventoryPath)
                            .Skip(1)
-                           .Select(line => line.Split(',') [0].Trim())
+                           .Select(line => line.Split(',')[0].Trim())
                            .Where(model => !string.IsNullOrWhiteSpace(model))
                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var actual = models.Select(row => row.Sku).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Assert.Equal(302, expected.Count);
+        Assert.Equal(266, expected.Count);
         Assert.Equal(expected.Count, actual.Count);
         Assert.Empty(expected.Except(actual, StringComparer.OrdinalIgnoreCase));
         Assert.Empty(actual.Except(expected, StringComparer.OrdinalIgnoreCase));

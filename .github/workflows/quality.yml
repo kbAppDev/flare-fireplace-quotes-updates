@@ -1,0 +1,67 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore .\FlareQuotes.sln
+
+      - name: Verify source formatting
+        shell: pwsh
+        run: dotnet format .\FlareQuotes.sln --verify-no-changes --no-restore --verbosity minimal
+
+      - name: Audit NuGet dependencies
+        shell: pwsh
+        run: |
+          $projects = @(
+            ".\FlareQuotes.App\FlareQuotes.App.csproj",
+            ".\FlareQuotes.Tests\FlareQuotes.Tests.csproj"
+          )
+          foreach ($project in $projects) {
+            $report = dotnet list $project package --vulnerable --include-transitive --format json --no-restore
+            if ($LASTEXITCODE -ne 0) { throw "Dependency audit failed for $project." }
+            if (($report -join "`n") -match '"advisoryUrl"\s*:') {
+              $report | Write-Host
+              throw "A vulnerable package was detected in $project."
+            }
+          }
+
+      - name: Validate UI contract
+        shell: pwsh
+        run: .\Test-UiContract.ps1
+
+      - name: Build with warnings as errors
+        shell: pwsh
+        run: dotnet build .\FlareQuotes.App\FlareQuotes.App.csproj -c Release --no-restore -p:TreatWarningsAsErrors=true
+
+      - name: Run automated tests
+        shell: pwsh
+        run: dotnet test .\FlareQuotes.Tests\FlareQuotes.Tests.csproj -c Release --no-restore --filter "FullyQualifiedName!~GmailEveryModelIntegrationTests"

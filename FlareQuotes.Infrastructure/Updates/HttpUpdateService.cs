@@ -79,7 +79,8 @@ public sealed class HttpUpdateService : IUpdateService, IDisposable
 
             var updateAvailable = IsNewer(manifest.Version, currentVersion);
 
-            return new UpdateCheckResult {
+            return new UpdateCheckResult
+            {
                 UpdateAvailable = updateAvailable,
                 LatestVersion = manifest.Version,
                 InstallerUrl = installerUri.AbsoluteUri,

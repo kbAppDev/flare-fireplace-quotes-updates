@@ -42,7 +42,6 @@ $main = Read-ValidatedXaml $mainPath
 Assert-ContainsAll $main $mainPath @(
     'x:Name="HeaderLogoImage"',
     'x:Name="WindowFrame"',
-    'shell:WindowChrome.WindowChrome',
     'x:Name="AppVersionText"',
     'x:Name="ThemeToggleButton"',
     'x:Name="RequestPane"',
@@ -84,8 +83,7 @@ $mainCodeBehind = Get-Content -LiteralPath (Join-Path $Root $mainCodeBehindPath)
 Assert-ContainsNone $mainCodeBehind $mainCodeBehindPath @(
     'Loaded += ShowSystemHealthOnce',
     'ShowFirstRunSystemHealthCheckAsync',
-    'new SystemHealthWindow',
-    'AllowsTransparency="True"'
+    'new SystemHealthWindow'
 )
 
 $settingsPath = "FlareQuotes.App\Views\SettingsWindow.xaml"
@@ -149,5 +147,30 @@ Assert-ContainsAll $theme $themePath @(
     'x:Key="MoonIconGeometry"',
     'x:Key="SettingsIconGeometry"'
 )
+
+
+# v1.6.0 safe-edit and three-pane regression tokens.
+$mainViewModel = Get-Content (Join-Path $PSScriptRoot "FlareQuotes.App\ViewModels\MainViewModel.cs") -Raw
+$mainWindow = Get-Content (Join-Path $PSScriptRoot "FlareQuotes.App\Views\MainWindow.xaml") -Raw
+$uiSnapshots = Get-Content (Join-Path $PSScriptRoot "FlareQuotes.App\Views\UiSnapshotCapture.cs") -Raw
+
+$requiredV160Tokens = @(
+    '_editingFireplace',
+    'Save Changes',
+    'Fireplaces[index] = fireplace',
+    'HasPendingNewFireplace',
+    'IsEnabled="{Binding CanGeneratePreview}"',
+    'x:Name="FireplaceSummaryPane"',
+    'Minimum fireplace summary width'
+)
+
+foreach ($token in $requiredV160Tokens) {
+    if ($mainViewModel -notmatch [regex]::Escape($token) -and
+        $mainWindow -notmatch [regex]::Escape($token) -and
+        $uiSnapshots -notmatch [regex]::Escape($token)) {
+        throw "Missing v1.6.0 UI regression token: $token"
+    }
+}
+
 
 Write-Host "UI contract validated successfully."

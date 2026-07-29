@@ -1,0 +1,21 @@
+Flare Fireplace Quotes v1.6.5 source update
+
+Changes:
+- Empty labeled fields no longer consume the following line during auto-fill.
+- A blank Project Name remains blank while an unlabeled customer name is detected correctly.
+- Blank-project PDF headings now use:
+  Application Style Width" x Height"
+- Multi-fireplace quotes list every fireplace in quote order.
+- Outdoor headings use opening dimensions and never say "glass."
+- Existing email greeting behavior continues to use the first name from Customer.
+
+Validation added:
+- Parser regression test for the exact Project Name / Meg request structure.
+- Outdoor heading test.
+- Indoor heading test.
+- Multi-fireplace heading-order test.
+
+Build note:
+This package contains the updated source. The current execution environment does not include
+the Windows .NET/WPF build toolchain, so the Windows release gate and installer build must be
+run on the project workstation before deployment.

@@ -40,8 +40,11 @@ public sealed class DraftWorkflowService
         {
             if (string.IsNullOrWhiteSpace(input.PdfPath) || !File.Exists(input.PdfPath))
             {
-                return new EmailDraftResult { Success = false,
-                                              Message = "The generated quote PDF could not be found." };
+                return new EmailDraftResult
+                {
+                    Success = false,
+                    Message = "The generated quote PDF could not be found."
+                };
             }
 
             var validAttachments =
@@ -66,19 +69,27 @@ public sealed class DraftWorkflowService
                 $"PdfBytes={pdfInfo.Length}; Models={input.ModelSummary}.");
 
             return await _gmail
-                .CreateDraftAsync(new EmailDraftRequest { ToEmail = input.Request.Email,
-                                                          BccEmail = input.Settings.HubSpotBcc, Subject = subject,
-                                                          HtmlBody = html, PdfAttachmentPath = input.PdfPath,
-                                                          AdditionalAttachmentPaths = validAttachments },
+                .CreateDraftAsync(new EmailDraftRequest
+                {
+                    ToEmail = input.Request.Email,
+                    BccEmail = input.Settings.HubSpotBcc,
+                    Subject = subject,
+                    HtmlBody = html,
+                    PdfAttachmentPath = input.PdfPath,
+                    AdditionalAttachmentPaths = validAttachments
+                },
                                   timeout.Token)
                 .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.Warning($"Draft workflow timed out. Models={input.ModelSummary}.");
-            return new EmailDraftResult { Success = false,
-                                          Message =
-                                              "Gmail draft creation timed out. Check the connection and try again." };
+            return new EmailDraftResult
+            {
+                Success = false,
+                Message =
+                                              "Gmail draft creation timed out. Check the connection and try again."
+            };
         }
     }
 }

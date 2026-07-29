@@ -1,65 +1,159 @@
 <Window x:Class="FlareQuotes.App.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Flare Fireplaces - Quotes" Width="1480" Height="920" MinWidth="1180" MinHeight="760"
-        WindowStartupLocation="CenterScreen"
-        WindowStyle="None"
-        ResizeMode="CanResize"
-        Background="{DynamicResource WindowSurfaceBrush}"
-        AllowsTransparency="False"
-        UseLayoutRounding="True"
-        SnapsToDevicePixels="True">
-
-    <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="56"
-                            ResizeBorderThickness="7"
-                            GlassFrameThickness="0"
-                            CornerRadius="0"
-                            UseAeroCaptionButtons="False" />
-    </shell:WindowChrome.WindowChrome>
+        WindowStartupLocation="CenterScreen" WindowStyle="None"
+        MouseLeftButtonDown="Window_MouseDown" Background="Transparent" AllowsTransparency="True" UseLayoutRounding="True" SnapsToDevicePixels="True">
 
     <Border x:Name="WindowFrame"
-            CornerRadius="0"
+            CornerRadius="14"
             Background="{DynamicResource WindowSurfaceBrush}"
             BorderBrush="{DynamicResource GlassBorderBrush}"
-            BorderThickness="0"
-            ClipToBounds="False">
+            BorderThickness="1"
+            ClipToBounds="True">
         <Grid Background="{DynamicResource WindowSurfaceBrush}" PreviewMouseDown="Root_PreviewMouseDown">
             <Grid.RowDefinitions>
                 <RowDefinition Height="56" />
-                <RowDefinition Height="76" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- Compact Windows title bar -->
+            <!-- Title bar: brand | workflow stepper | window controls -->
             <Border Grid.Row="0"
-                    CornerRadius="0"
+                    CornerRadius="13,13,0,0"
                     Background="{DynamicResource WindowTitleBarBrush}"
                     BorderBrush="{DynamicResource DividerBrush}"
                     BorderThickness="0,0,0,1"
-                    Padding="22,0,0,0">
+                    Padding="18,0,6,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="30" Height="30" CornerRadius="8" Background="{DynamicResource FlareAccentBrush}" Margin="0,0,11,0">
+                            <TextBlock Text="F" Foreground="{DynamicResource FlareAccentTextBrush}" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
                         <Image x:Name="HeaderLogoImage"
                                Source="/Assets/header_logo-dark.png"
-                               Width="150"
-                               Height="30"
-                               Stretch="Uniform"
+                               Width="132" Height="26" Stretch="Uniform"
                                RenderOptions.BitmapScalingMode="HighQuality"
-                               SnapsToDevicePixels="False"
-                               UseLayoutRounding="False" />
+                               SnapsToDevicePixels="False" UseLayoutRounding="False" />
                         <Border Width="1" Height="18" Background="{DynamicResource DividerBrush}" Margin="11,0" />
                         <TextBlock Text="Quotes" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
                         <TextBlock x:Name="AppVersionText" Text="v1.6.0" Style="{StaticResource MutedText}" FontSize="11" Margin="7,1,0,0" VerticalAlignment="Center" />
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="22" Height="22" CornerRadius="11" Margin="0,0,7,0">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceSubtleBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+                                        <Setter Property="BorderThickness" Value="1" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding WorkflowStage}" Value="Review"><Setter Property="Background" Value="{DynamicResource FlareAccentBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource FlareAccentBrush}" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10.5" FontWeight="Bold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding WorkflowStage}" Value="Review"><Setter Property="Foreground" Value="{DynamicResource FlareAccentTextBrush}" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                            <TextBlock Text="Build quote" VerticalAlignment="Center" FontSize="12">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding WorkflowStage}" Value="Review"><Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                        <Border Width="26" Height="1" Background="{DynamicResource DividerBrush}" Margin="10,0" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="22" Height="22" CornerRadius="11" Margin="0,0,7,0">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceSubtleBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+                                        <Setter Property="BorderThickness" Value="1" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview"><Setter Property="Background" Value="{DynamicResource FlareAccentBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource FlareAccentBrush}" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10.5" FontWeight="Bold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview"><Setter Property="Foreground" Value="{DynamicResource FlareAccentTextBrush}" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                            <TextBlock Text="Preview" VerticalAlignment="Center" FontSize="12">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview"><Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                        <Border Width="26" Height="1" Background="{DynamicResource DividerBrush}" Margin="10,0" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="22" Height="22" CornerRadius="11" Margin="0,0,7,0">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceSubtleBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+                                        <Setter Property="BorderThickness" Value="1" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks"><Setter Property="Background" Value="{DynamicResource FlareAccentBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource FlareAccentBrush}" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10.5" FontWeight="Bold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks"><Setter Property="Foreground" Value="{DynamicResource FlareAccentTextBrush}" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Border>
+                            <TextBlock Text="Verify links" VerticalAlignment="Center" FontSize="12">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks"><Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" /><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                        <Border Width="26" Height="1" Background="{DynamicResource DividerBrush}" Margin="10,0" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="22" Height="22" CornerRadius="11" Margin="0,0,7,0" Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1">
+                                <TextBlock Text="4" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10.5" FontWeight="Bold" Style="{StaticResource MutedText}" />
+                            </Border>
+                            <TextBlock Text="Gmail draft" VerticalAlignment="Center" FontSize="12" Style="{StaticResource MutedText}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="{Binding GmailStatusText}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,10,0" Visibility="Collapsed" />
                         <TextBlock x:Name="ThemeLabelText" Text="Dark Mode" Visibility="Collapsed" />
                         <ToggleButton x:Name="ThemeToggleButton"
@@ -126,212 +220,25 @@
                 </Grid>
             </Border>
 
-            <!-- Workflow navigation and high-frequency commands -->
-            <Border Grid.Row="1"
-                    Background="{DynamicResource WindowHeaderBrush}"
-                    BorderBrush="{DynamicResource DividerBrush}"
-                    BorderThickness="0,0,0,1"
-                    Padding="26,0">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="245" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="250" />
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Quote workspace" FontSize="22" FontWeight="SemiBold" />
-                        <TextBlock Text="Build a complete, presentation-ready fireplace quote." Style="{StaticResource MutedText}" FontSize="12" Margin="0,4,0,0" />
-                    </StackPanel>
-
-                    <Grid Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="42" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="42" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="42" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Border Width="28" Height="30" CornerRadius="14" Margin="0,0,8,0">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Setter Property="Background" Value="{DynamicResource SurfaceSubtleBrush}" />
-                                        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding WorkflowStage}" Value="Review">
-                                                <Setter Property="Background" Value="{DynamicResource FlareAccentBrush}" />
-                                                <Setter Property="BorderBrush" Value="{DynamicResource FlareAccentBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontWeight="Bold">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding WorkflowStage}" Value="Review">
-                                                    <Setter Property="Foreground" Value="{DynamicResource FlareAccentTextBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </Border>
-                            <TextBlock Text="Build quote" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold" />
-                        </StackPanel>
-                        <Border Grid.Column="1" Height="1" Background="{DynamicResource DividerBrush}" Margin="10,0" />
-
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Border Width="28" Height="30" CornerRadius="14" Margin="0,0,8,0">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Setter Property="Background" Value="{DynamicResource SurfaceSubtleBrush}" />
-                                        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview">
-                                                <Setter Property="Background" Value="{DynamicResource FlareAccentBrush}" />
-                                                <Setter Property="BorderBrush" Value="{DynamicResource FlareAccentBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontWeight="Bold">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview">
-                                                    <Setter Property="Foreground" Value="{DynamicResource FlareAccentTextBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </Border>
-                            <TextBlock Text="Preview" VerticalAlignment="Center" FontSize="12">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview">
-                                                <Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" />
-                                                <Setter Property="FontWeight" Value="SemiBold" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </StackPanel>
-                        <Border Grid.Column="3" Height="1" Background="{DynamicResource DividerBrush}" Margin="10,0" />
-
-                        <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Border Width="28" Height="30" CornerRadius="14" Margin="0,0,8,0">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Setter Property="Background" Value="{DynamicResource SurfaceSubtleBrush}" />
-                                        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
-                                        <Setter Property="BorderThickness" Value="1" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks">
-                                                <Setter Property="Background" Value="{DynamicResource FlareAccentBrush}" />
-                                                <Setter Property="BorderBrush" Value="{DynamicResource FlareAccentBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontWeight="Bold">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks">
-                                                    <Setter Property="Foreground" Value="{DynamicResource FlareAccentTextBrush}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </Border>
-                            <TextBlock Text="Verify links" VerticalAlignment="Center" FontSize="12">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks">
-                                                <Setter Property="Foreground" Value="{DynamicResource FlareTextBrush}" />
-                                                <Setter Property="FontWeight" Value="SemiBold" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </StackPanel>
-                        <Border Grid.Column="5" Height="1" Background="{DynamicResource DividerBrush}" Margin="10,0" />
-
-                        <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
-                            <Border Width="28" Height="30" CornerRadius="14" Margin="0,0,8,0" Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1">
-                                <TextBlock Text="4" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" FontWeight="Bold" />
-                            </Border>
-                            <TextBlock Text="Gmail draft" VerticalAlignment="Center" FontSize="12" Style="{StaticResource MutedText}" />
-                        </StackPanel>
-                    </Grid>
-
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <Button x:Name="RecallLastQuoteButton"
-                                Style="{StaticResource QuietButton}"
-                                Click="RecallLastQuoteButton_Click"
-                                IsEnabled="{Binding CanRecallLastQuote}"
-                                Margin="0,0,8,0">
-                            <StackPanel Orientation="Horizontal">
-                                <Viewbox Width="14" Height="14" Margin="0,0,7,0"><Path Data="{StaticResource RecentIconGeometry}" Stroke="{DynamicResource FlareMutedTextBrush}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Viewbox>
-                                <TextBlock Text="Recent quotes" VerticalAlignment="Center" />
-                            </StackPanel>
-                            <Button.ContextMenu>
-                                <ContextMenu ItemsSource="{Binding PlacementTarget.DataContext.RecentQuoteHistory, RelativeSource={RelativeSource Self}}"
-                                             Placement="Bottom"
-                                             MinWidth="260">
-                                    <ContextMenu.ItemContainerStyle>
-                                        <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
-                                            <Setter Property="Header" Value="{Binding DisplayName}" />
-                                            <Setter Property="Command" Value="{Binding PlacementTarget.DataContext.RecallQuoteCommand, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" />
-                                            <Setter Property="CommandParameter" Value="{Binding}" />
-                                        </Style>
-                                    </ContextMenu.ItemContainerStyle>
-                                </ContextMenu>
-                            </Button.ContextMenu>
-                        </Button>
-                        <Button Command="{Binding ClearCommand}">
-                            <StackPanel Orientation="Horizontal">
-                                <Viewbox Width="14" Height="14" Margin="0,0,7,0"><Path Data="{StaticResource PlusIconGeometry}" Stroke="{DynamicResource FlareTextBrush}" StrokeThickness="1.6" StrokeStartLineCap="Round" /></Viewbox>
-                                <TextBlock Text="New quote" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <Grid Grid.Row="2" Margin="16" Background="{DynamicResource WindowWorkspaceBrush}">
+            <!-- Workspace -->
+            <Grid Grid.Row="1" Margin="16" Background="{DynamicResource WindowWorkspaceBrush}">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="400" />
+                    <ColumnDefinition Width="360" />
                     <ColumnDefinition Width="14" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="14" />
+                    <ColumnDefinition Width="340" />
                 </Grid.ColumnDefinitions>
 
-                                <!-- StageResponsivePasteCard -->
+                <!-- STEP 1 : Customer request -->
                 <Border x:Name="RequestPane" Grid.Column="0" Margin="0">
                     <Border.Style>
                         <Style TargetType="Border" BasedOn="{StaticResource GlassCard}">
                             <Setter Property="Visibility" Value="Visible" />
                             <Setter Property="Padding" Value="0" />
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
+                                <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
@@ -361,22 +268,45 @@
                             <TextBox Grid.Row="2" Text="{Binding RawRequest, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Padding="14,12" />
                         </Grid>
                         <Border Grid.Row="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="18,12">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="8" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                <Button Grid.Column="1" Content="Clear" Command="{Binding ClearCommand}" MinWidth="64" Height="34" />
-                                <Button Grid.Column="3" Content="Auto-fill" Command="{Binding AutoFillCommand}" Style="{StaticResource PrimaryButton}" MinWidth="84" Height="34" />
-                            </Grid>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="RecallLastQuoteButton"
+                                        Style="{StaticResource QuietButton}"
+                                        Click="RecallLastQuoteButton_Click"
+                                        IsEnabled="{Binding CanRecallLastQuote}"
+                                        Height="34" Margin="0,0,8,0" Padding="10,6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Viewbox Width="14" Height="14" Margin="0,0,7,0"><Path Data="{StaticResource RecentIconGeometry}" Stroke="{DynamicResource FlareMutedTextBrush}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Viewbox>
+                                        <TextBlock Text="Recent quotes" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Button.ContextMenu>
+                                        <ContextMenu ItemsSource="{Binding PlacementTarget.DataContext.RecentQuoteHistory, RelativeSource={RelativeSource Self}}" Placement="Top" MinWidth="260">
+                                            <ContextMenu.ItemContainerStyle>
+                                                <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                                                    <Setter Property="Header" Value="{Binding DisplayName}" />
+                                                    <Setter Property="Command" Value="{Binding PlacementTarget.DataContext.RecallQuoteCommand, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}" />
+                                                    <Setter Property="CommandParameter" Value="{Binding}" />
+                                                </Style>
+                                            </ContextMenu.ItemContainerStyle>
+                                        </ContextMenu>
+                                    </Button.ContextMenu>
+                                </Button>
+                                <Button Content="Clear" Command="{Binding ClearCommand}" MinWidth="64" Height="34" Margin="0,0,8,0" />
+                                <Button Command="{Binding AutoFillCommand}" MinWidth="96" Height="34">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                                            <Setter Property="Content" Value="Auto-fill" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AutoFillCommand.IsRunning}" Value="True"><Setter Property="Content" Value="Reading..." /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
                         </Border>
                     </Grid>
                 </Border>
 
-                                <!-- StageResponsiveWorkflowCard -->
+                <!-- STEP 2 : Quote workspace (builder / preview / verify) -->
                 <Border x:Name="QuoteWorkspacePane" Margin="0">
                     <Border.Style>
                         <Style TargetType="Border" BasedOn="{StaticResource GlassCard}">
@@ -384,22 +314,8 @@
                             <Setter Property="Grid.ColumnSpan" Value="1" />
                             <Setter Property="Padding" Value="0" />
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview">
-                                    <Setter Property="Grid.Column" Value="0" />
-                                    <Setter Property="Grid.ColumnSpan" Value="3" />
-                                    <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
-                                    <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
-                                    <Setter Property="BorderThickness" Value="1" />
-                                    <Setter Property="CornerRadius" Value="10" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks">
-                                    <Setter Property="Grid.Column" Value="0" />
-                                    <Setter Property="Grid.ColumnSpan" Value="3" />
-                                    <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
-                                    <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
-                                    <Setter Property="BorderThickness" Value="1" />
-                                    <Setter Property="CornerRadius" Value="10" />
-                                </DataTrigger>
+                                <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview"><Setter Property="Grid.Column" Value="0" /><Setter Property="Grid.ColumnSpan" Value="5" /></DataTrigger>
+                                <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks"><Setter Property="Grid.Column" Value="0" /><Setter Property="Grid.ColumnSpan" Value="5" /></DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
@@ -409,28 +325,50 @@
                                 <Style TargetType="Grid">
                                     <Setter Property="Visibility" Value="Collapsed" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding WorkflowStage}" Value="Review">
-                                            <Setter Property="Visibility" Value="Visible" />
-                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding WorkflowStage}" Value="Review"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Grid.Style>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
-                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
+
                             <Border Grid.Row="0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="18,14">
                                 <Grid>
                                     <StackPanel>
                                         <TextBlock Text="QUOTE WORKSPACE" Style="{StaticResource EyebrowText}" />
                                         <TextBlock Text="Review quote details" FontSize="17" FontWeight="SemiBold" Margin="0,5,0,0" />
-                                        <TextBlock Text="Confirm the customer and fireplace information before previewing." Style="{StaticResource MutedText}" Margin="0,3,0,0" />
                                     </StackPanel>
-                                    <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="16" Padding="10,5">
+                                    <Border HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="16" Padding="10,5">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{DynamicResource SurfaceSubtleBrush}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+                                                <Setter Property="BorderThickness" Value="1" />
+                                            </Style>
+                                        </Border.Style>
                                         <StackPanel Orientation="Horizontal">
-                                            <Ellipse Width="7" Height="7" Fill="{DynamicResource FlareAccentBrush}" Margin="0,0,7,0" />
-                                            <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource MutedText}" FontSize="11" MaxWidth="260" TextTrimming="CharacterEllipsis" />
+                                            <Ellipse Width="7" Height="7" Margin="0,0,7,0" VerticalAlignment="Center">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Fill" Value="{DynamicResource WarningBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding CanGeneratePreview}" Value="True"><Setter Property="Fill" Value="{DynamicResource FlareAccentBrush}" /></DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+                                            <TextBlock Text="{Binding ReadinessText}" FontSize="11" VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding CanGeneratePreview}" Value="True"><Setter Property="Foreground" Value="{DynamicResource FlareMutedTextBrush}" /></DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </StackPanel>
                                     </Border>
                                 </Grid>
@@ -458,20 +396,18 @@
                                         <StackPanel Grid.Row="2" Grid.Column="2"><TextBlock Text="Project address" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Postal}" /></StackPanel>
                                         <StackPanel Grid.Row="2" Grid.Column="4"><TextBlock Text="Install target" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding InstallDate}" /></StackPanel>
                                     </Grid>
-
-                                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="0,16,0,0">
+                                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="0,16,0,0" Margin="0,16,0,0">
                                         <StackPanel>
                                             <Grid Margin="0,0,0,10">
                                                 <StackPanel>
-                                                    <TextBlock Text="Fireplaces" FontSize="15" FontWeight="SemiBold" />
-                                                    <TextBlock Text="Build the current fireplace, then add another only when the quote needs one." Style="{StaticResource MutedText}" FontSize="11" Margin="0,3,0,0" />
+                                                    <TextBlock Text="Current fireplace" FontSize="15" FontWeight="SemiBold" />
+                                                    <TextBlock Text="Build the current fireplace, then choose Add fireplace to place it on the quote." Style="{StaticResource MutedText}" FontSize="11" Margin="0,3,0,0" />
                                                 </StackPanel>
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                                     <Button Content="Clear current" Command="{Binding ClearCurrentFireplaceCommand}" Style="{StaticResource QuietButton}" Height="32" Margin="0,0,6,0" />
-                                                    <Button Content="{Binding AddFireplaceButtonText}" Command="{Binding AddFireplaceCommand}" Height="32" />
+                                                    <Button Content="{Binding AddFireplaceButtonText}" Command="{Binding AddFireplaceCommand}" Style="{StaticResource PrimaryButton}" Height="32" />
                                                 </StackPanel>
                                             </Grid>
-
                                             <Border Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14">
                                                 <StackPanel>
                                                     <Grid Margin="0,0,0,12">
@@ -572,27 +508,12 @@
                                                     </WrapPanel>
                                                 </StackPanel>
                                             </Border>
-
-                                            <ItemsControl ItemsSource="{Binding Fireplaces}" Margin="0,10,0,0">
-                                                <ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="9" Padding="12,9" Margin="0,0,0,8"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><StackPanel><TextBlock Text="{Binding FireplaceLabel}" FontWeight="SemiBold" /><TextBlock Text="{Binding LeadTimeLine}" Style="{StaticResource MutedText}" FontSize="11" /><TextBlock Text="{Binding FeaturesLine}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" /><TextBlock Text="{Binding ClassicMediaLine}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" /><TextBlock Text="{Binding PremiumMediaLine}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" /></StackPanel><Button Grid.Column="1" Content="×" Style="{StaticResource ChipRemoveButton}" Command="{Binding DataContext.RemoveFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="8,0,0,0" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate>
-                                            </ItemsControl>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
                             </ScrollViewer>
-
-                            <Border Grid.Row="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="18,12">
-                                <Grid>
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Border Width="30" Height="30" CornerRadius="15" BorderBrush="{DynamicResource FlareAccentBrush}" BorderThickness="2" Margin="0,0,10,0"><TextBlock Text="✓" Foreground="{DynamicResource FlareAccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" /></Border>
-                                        <StackPanel><TextBlock Text="Ready to generate" FontWeight="SemiBold" /><TextBlock Text="Review the customer and fireplace details above." Style="{StaticResource MutedText}" FontSize="11" /></StackPanel>
-                                    </StackPanel>
-                                    <Button x:Name="GeneratePreviewButton" Content="Generate preview  →" Command="{Binding NextToPreviewCommand}" Style="{StaticResource PrimaryButton}" Height="40" MinWidth="178" HorizontalAlignment="Right" />
-                                </Grid>
-                            </Border>
                         </Grid>
 
-                                                                            <!-- FullWidthPreviewStage -->
 <Grid>
                             <Grid.Style>
                                 <Style TargetType="Grid">
@@ -653,7 +574,6 @@
                             </Grid>
                         </Grid>
 
-                                                                            <!-- FullWidthSpecLinksStage -->
 <Grid>
                             <Grid.Style>
                                 <Style TargetType="Grid">
@@ -757,14 +677,14 @@
                             </Border.Style>
                             <Grid>
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="30" />
+                                    <RowDefinition Height="28" />
                                     <RowDefinition Height="70" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <Border Width="28" Height="30" CornerRadius="14" HorizontalAlignment="Left" Background="{DynamicResource SurfaceRaisedBrush}">
+                                <Border Width="28" Height="28" CornerRadius="14" HorizontalAlignment="Left" Background="{DynamicResource SurfaceRaisedBrush}">
                                     <TextBlock Text="{Binding Index}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="{DynamicResource FlareTextBrush}" />
                                 </Border>
 
@@ -1021,15 +941,245 @@
                                     <ColumnDefinition Width="180" />
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="Specific matched URLs are preferred. Yellow/fallback URLs should be checked before drafting." Style="{StaticResource MutedText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,12,0" />
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                                    <TextBlock Text="Specific matched URLs are preferred. Yellow/fallback URLs should be checked before drafting."
+                                               Style="{StaticResource MutedText}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding GmailDraftRequirementText}"
+                                               FontSize="11.5"
+                                               Margin="0,3,0,0"
+                                               TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding CanCreateGmailDraft}" Value="False">
+                                                        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding StatusMessage}"
+                                               Style="{StaticResource MutedText}"
+                                               FontSize="11"
+                                               Margin="0,2,0,0"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
                                 <Button Grid.Column="1" Content="Back to Preview" Command="{Binding BackToPreviewCommand}" Height="40" />
-                                <Button Grid.Column="3" Content="Create Gmail Draft" Command="{Binding CreateDraftCommand}" Style="{StaticResource PrimaryButton}" Height="40" />
+                                <Button Grid.Column="3"
+                                        Command="{Binding CreateDraftCommand}"
+                                        IsEnabled="{Binding CanCreateGmailDraft}"
+                                        Height="40">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                                            <Setter Property="Content" Value="Create Gmail Draft" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CanCreateGmailDraft}" Value="False">
+                                                    <Setter Property="Opacity" Value="0.55" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding CreateDraftCommand.IsRunning}" Value="True">
+                                                    <Setter Property="Content" Value="Creating Draft..." />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </Grid>
                         </Grid>
                     </Grid>
                 </Border>
 
+                <!-- Fireplaces on this quote (summary) -->
+                <Border x:Name="FireplaceSummaryPane" Grid.Column="4" Margin="0">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource GlassCard}">
+                            <Setter Property="Padding" Value="0" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding WorkflowStage}" Value="PdfPreview"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                <DataTrigger Binding="{Binding WorkflowStage}" Value="SpecLinks"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="18,15,18,13">
+                            <StackPanel>
+                                <TextBlock Text="ON THIS QUOTE" Style="{StaticResource EyebrowText}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                    <TextBlock Text="Fireplaces" FontSize="17" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding FireplaceCountText}" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource FlareMutedTextBrush}" Margin="8,0,0,0" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid Grid.Row="1">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="14,12,10,12">
+                                <ScrollViewer.Style>
+                                    <Style TargetType="ScrollViewer">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasFireplacesOnQuote}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ScrollViewer.Style>
+                                <ItemsControl ItemsSource="{Binding Fireplaces}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Command="{Binding DataContext.EditFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="0,0,0,10" HorizontalContentAlignment="Stretch" Cursor="Hand" ToolTip="Click to edit this fireplace">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <ContentPresenter HorizontalAlignment="Stretch" />
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                                <Border Tag="FireplaceSummaryCard"
+                                                        Background="{DynamicResource SurfaceSubtleBrush}"
+                                                        BorderBrush="{DynamicResource DividerBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="11"
+                                                        Padding="12,11"
+                                                        SnapsToDevicePixels="True">
+                                                    <StackPanel>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Border Grid.Column="0"
+                                                                    Width="20"
+                                                                    Margin="-3,0,7,0"
+                                                                    Tag="FireplaceDragHandle"
+                                                                    Cursor="Arrow"
+                                                                    Background="Transparent"
+                                                                    ToolTip="Click and drag to reorder this fireplace">
+                                                                <TextBlock Text="⋮⋮"
+                                                                           FontSize="15"
+                                                                           Foreground="{DynamicResource FlareMutedTextBrush}"
+                                                                           HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding FireplaceLabel}"
+                                                                       FontWeight="SemiBold"
+                                                                       FontSize="13"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       VerticalAlignment="Center" />
+                                                            <Button Grid.Column="2" Content="×" Style="{StaticResource ChipRemoveButton}"
+                                                                    PreviewMouseLeftButtonDown="FireplaceRemove_PreviewMouseLeftButtonDown"
+                                                                    Command="{Binding DataContext.RemoveFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}" Margin="8,0,0,0" ToolTip="Remove — burns away" />
+                                                        </Grid>
+                                                        <TextBlock Text="{Binding DetailLine}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
+                                                        <WrapPanel Margin="0,9,0,-5">
+                                                            <Border Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="9,3" Margin="0,0,5,5">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <Viewbox Width="10" Height="10" Margin="0,0,5,0"><Path Data="{StaticResource ClockIconGeometry}" Stroke="{DynamicResource FlareMutedTextBrush}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Viewbox>
+                                                                    <TextBlock Text="{Binding LeadTime}" FontSize="10.5" Foreground="{DynamicResource FlareMutedTextBrush}" />
+                                                                </StackPanel>
+                                                            </Border>
+                                                            <ItemsControl ItemsSource="{Binding Features}">
+                                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                                <ItemsControl.ItemTemplate><DataTemplate><Border Background="#1B2A16" BorderBrush="#3F5A22" BorderThickness="1" CornerRadius="12" Padding="9,3" Margin="0,0,5,5"><TextBlock Text="{Binding DisplayName}" FontSize="10.5" /></Border></DataTemplate></ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                            <ItemsControl ItemsSource="{Binding PremiumMedia}">
+                                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                                <ItemsControl.ItemTemplate><DataTemplate><Border Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="9,3" Margin="0,0,5,5"><TextBlock Text="{Binding DisplayName}" FontSize="10.5" TextTrimming="CharacterEllipsis" /></Border></DataTemplate></ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                            <Border Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="9,3" Margin="0,0,5,5">
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding HasClassicMedia}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                                <TextBlock Text="{Binding ClassicMediaSummary}" FontSize="10.5" TextTrimming="CharacterEllipsis" />
+                                                            </Border>
+                                                        </WrapPanel>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24,0">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasFireplacesOnQuote}" Value="True"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <Border Width="52" Height="52" CornerRadius="26" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" HorizontalAlignment="Center" Margin="0,0,0,12">
+                                    <Path Data="M15,3 C16,7 21,8 21,14 C21,19 18,23 12,23 C7,23 4,19 4,14 C4,10 7,7 10,4 C10,8 12,10 14,11 C15,9 15,6 15,3 Z" Stroke="{DynamicResource FlareMutedTextBrush}" StrokeThickness="1.2" Stretch="Uniform" Margin="15" />
+                                </Border>
+                                <TextBlock Text="No fireplaces yet" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                <TextBlock Text="Build one in the middle, then choose Add fireplace to place it on the quote." Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="230" Margin="0,5,0,0" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Grid.Row="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="16,12">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,11">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Width="28" Height="28" CornerRadius="14" BorderThickness="2" Margin="0,0,10,0">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding CanGeneratePreview}" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FlareAccentBrush}" /></DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="✓" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" FontSize="12">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding CanGeneratePreview}" Value="True"><Setter Property="Foreground" Value="{DynamicResource FlareAccentBrush}" /></DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                        <StackPanel>
+                                            <TextBlock Text="Ready to generate" FontWeight="SemiBold" FontSize="12.5" />
+                                            <TextBlock Text="{Binding ReadyToGenerateDetail}" Style="{StaticResource MutedText}" FontSize="11" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <TextBlock Text="Est. total" Style="{StaticResource MutedText}" FontSize="10" HorizontalAlignment="Right" />
+                                        <TextBlock Text="{Binding EstimatedTotalDisplay}" FontSize="15" FontWeight="Bold" HorizontalAlignment="Right" />
+                                    </StackPanel>
+                                </Grid>
+                                <Button x:Name="GeneratePreviewButton" Command="{Binding NextToPreviewCommand}" IsEnabled="{Binding CanGeneratePreview}" Height="40" HorizontalAlignment="Stretch">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                                            <Setter Property="Content" Value="Generate preview  →" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CanGeneratePreview}" Value="False"><Setter Property="Opacity" Value="0.55" /></DataTrigger>
+                                                <DataTrigger Binding="{Binding NextToPreviewCommand.IsRunning}" Value="True"><Setter Property="Content" Value="Generating..." /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
             </Grid>
+
+            <Canvas x:Name="BurnOverlay" Grid.Row="0" Grid.RowSpan="2" IsHitTestVisible="False" Panel.ZIndex="99" />
         </Grid>
     </Border>
 </Window>

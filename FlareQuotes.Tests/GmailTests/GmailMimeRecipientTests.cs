@@ -25,7 +25,8 @@ public sealed class GmailMimeRecipientTests
 
         try
         {
-            var raw = GmailDraftService.BuildRawMessage(new EmailDraftRequest {
+            var raw = GmailDraftService.BuildRawMessage(new EmailDraftRequest
+            {
                 ToEmail = "mailto:phil\u200Bdaloisio＠gmail．com.",
                 Subject = "Recipient regression test",
                 HtmlBody = "<p>Test</p>",

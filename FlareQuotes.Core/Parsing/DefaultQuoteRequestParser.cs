@@ -29,6 +29,17 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
         request.GlassHeight =
             FirstNonBlank(NormalizeGlassHeight(FindValue(rawText, "Glass Height", "Height")),
                           ExtractGlassHeightFromModelCode(request.Model), ExtractGlassHeightFromModelCode(rawText));
+
+        var decodedModel = TryDecodeCompleteFireplaceCode(
+            FirstNonBlank(request.Model, FindCompleteFireplaceCode(rawText)));
+
+        if (decodedModel is not null)
+        {
+            request.Model = decodedModel.Model;
+            request.Size = FirstNonBlank(request.Size, decodedModel.Size);
+            request.GlassHeight = FirstNonBlank(request.GlassHeight, decodedModel.GlassHeight);
+        }
+
         request.RawFeaturesText = FindValue(rawText, "Features", "Additional Features", "Options");
 
         if (string.IsNullOrWhiteSpace(request.ClientName))
@@ -43,7 +54,7 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
     {
         foreach (var label in labels)
         {
-            var match = Regex.Match(text, $@"(?im)^\s*{Regex.Escape(label)}\s*:\s*(.+?)\s*$");
+            var match = Regex.Match(text, $@"(?im)^[^\S\r\n]*{Regex.Escape(label)}[^\S\r\n]*:[^\S\r\n]*(.*?)[^\S\r\n]*$");
             if (match.Success)
                 return match.Groups[1].Value.Trim();
         }
@@ -62,11 +73,107 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
         if (string.IsNullOrWhiteSpace(text))
             return string.Empty;
 
-        // Examples: FF-80-H, FF80H, FF-80-EH, FF80EH, DVDR45R.
-        // EH is listed before H so the 30\" suffix wins correctly.
-        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|H|R)\b");
+        // Examples: FF-80-H, FF80H, FF-80-EH, FF80EH.
+        // EH is listed before E/H so the 30\" suffix wins correctly.
+        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|E|H|R)\b");
         return match.Success ? NormalizeGlassHeight(match.Groups[1].Value) : string.Empty;
     }
+
+    private static string FindCompleteFireplaceCode(string? value)
+    {
+        var text = value ?? string.Empty;
+
+        foreach (var pattern in new[]
+                 {
+                     @"(?i)\bDV[-\s]*(?:FF|ST|LC|RC|DC|RD)[-\s]*\d{2,3}[-\s]*(?:EH|E|H|R)\b",
+                     @"(?i)\b(?:VFFF|VFST|VFLC|VFRC|VFDC|VFF|VST|VLC|VRC|VDC)[-\s]*\d{2,3}(?:[-\s]*(?:EH|H|R))?\b",
+                     @"(?i)\bLDV[-\s]*(?:FF|LC|RC|DC)[-\s]*\d{3}(?:[-\s]*H)?\b",
+                     @"(?i)\bDVTRA[-\s]*\d{2,3}\b",
+                     @"(?i)\bDVPA(?:FF|ST)\b"
+                 })
+        {
+            var match = Regex.Match(text, pattern);
+            if (match.Success)
+                return match.Value;
+        }
+
+        return string.Empty;
+    }
+
+    private static DecodedFireplaceCode? TryDecodeCompleteFireplaceCode(string? value)
+    {
+        var compact = Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
+
+        if (compact == "DVPAFF")
+            return new DecodedFireplaceCode("FFPASS", "30", "60");
+
+        if (compact == "DVPAST")
+            return new DecodedFireplaceCode("STPASS", "30", "60");
+
+        var traditional = Regex.Match(compact, @"^DVTRA(?<size>\d{2,3})$");
+        if (traditional.Success)
+            return new DecodedFireplaceCode("Traditional", traditional.Groups["size"].Value, string.Empty);
+
+        var large = Regex.Match(compact, @"^LDV(?<style>FF|LC|RC|DC)(?<size>\d{3})(?<height>H)?$");
+        if (large.Success)
+        {
+            return new DecodedFireplaceCode(
+                $"Large {ReadableStyle(large.Groups["style"].Value)}",
+                large.Groups["size"].Value,
+                large.Groups["height"].Success ? "24" : string.Empty);
+        }
+
+        var indoor = Regex.Match(
+            compact,
+            @"^DV(?<style>FF|ST|LC|RC|DC|RD)(?<size>\d{2,3})(?<height>EH|E|H|R)$");
+
+        if (indoor.Success)
+        {
+            return new DecodedFireplaceCode(
+                ReadableStyle(indoor.Groups["style"].Value),
+                indoor.Groups["size"].Value,
+                NormalizeGlassHeight(indoor.Groups["height"].Value));
+        }
+
+        var outdoor = Regex.Match(
+            compact,
+            @"^(?<prefix>VFFF|VFST|VFLC|VFRC|VFDC|VFF|VST|VLC|VRC|VDC)(?<size>\d{2,3})(?<height>EH|H|R)?$");
+
+        if (outdoor.Success)
+        {
+            var prefix = outdoor.Groups["prefix"].Value;
+            var style = prefix switch
+            {
+                "VFST" or "VST" => "See Through",
+                "VFLC" or "VLC" => "Left Corner",
+                "VFRC" or "VRC" => "Right Corner",
+                "VFDC" or "VDC" => "Double Corner",
+                _ => "Front Facing"
+            };
+            var height = outdoor.Groups["height"].Success
+                             ? NormalizeGlassHeight(outdoor.Groups["height"].Value)
+                             : "16";
+
+            return new DecodedFireplaceCode(
+                $"Outdoor Vent Free {style}",
+                outdoor.Groups["size"].Value,
+                height);
+        }
+
+        return null;
+    }
+
+    private static string ReadableStyle(string style) => style switch
+    {
+        "ST" => "See Through",
+        "LC" => "Left Corner",
+        "RC" => "Right Corner",
+        "DC" => "Double Corner",
+        "RD" => "Room Definer",
+        _ => "Front Facing"
+    };
+
+    private sealed record DecodedFireplaceCode(string Model, string Size, string GlassHeight);
 
     private static string FirstNonBlank(params string?[] values)
     {
@@ -88,7 +195,7 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
         var compact = Regex.Replace(text.ToUpperInvariant(), @"[^A-Z0-9]", string.Empty);
 
         // Order matters: EH contains H, so Extra High must be checked first.
-        if (compact == "EH" || compact.Contains("EXTRAHIGH") || compact.Contains("30"))
+        if (compact is "E" or "EH" || compact.Contains("EXTRAHIGH") || compact.Contains("30"))
             return "30";
         if (compact == "H" || compact.Contains("HIGH") || compact.Contains("24"))
             return "24";
@@ -99,22 +206,6 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
         return m.Success ? m.Value : text;
     }
 
-    private static string InferGlassHeightFromModelCode(string rawText, string model)
-    {
-        var source = $"{model}`n{rawText}".ToUpperInvariant();
-
-        // Order matters: EH before H.
-        if (Regex.IsMatch(source, @"\b(?:DV)?(?:FF|ST|LC|RC|DC|RD|VFF|VST|VLC|VRC|VDC|VF)[-\s]?\d{2,3}[-\s]?EH\b"))
-            return "30";
-
-        if (Regex.IsMatch(source, @"\b(?:DV)?(?:FF|ST|LC|RC|DC|RD|VFF|VST|VLC|VRC|VDC|VF)[-\s]?\d{2,3}[-\s]?H\b"))
-            return "24";
-
-        if (Regex.IsMatch(source, @"\b(?:DV)?(?:FF|ST|LC|RC|DC|RD|VFF|VST|VLC|VRC|VDC|VF)[-\s]?\d{2,3}[-\s]?R\b"))
-            return "16";
-
-        return string.Empty;
-    }
     private static string NormalizePhone(string? value)
     {
         var digits = Regex.Replace(value ?? string.Empty, @"\D", "");
@@ -135,8 +226,14 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
         {
             if (line.Contains(':') || line.Contains('@') || Regex.IsMatch(line, @"\d{3}"))
                 continue;
-            if (line.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length is >= 2 and <= 4)
+            // Accept one-to-four-word human names, including names such as "Meg".
+            // Reject punctuation-heavy text that is more likely to be model or request data.
+            if (Regex.IsMatch(
+                    line,
+                    @"^[\p{L}][\p{L}'’.-]*(?:\s+[\p{L}][\p{L}'’.-]*){0,3}$"))
+            {
                 return line;
+            }
         }
 
         return string.Empty;

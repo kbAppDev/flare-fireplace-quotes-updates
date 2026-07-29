@@ -145,8 +145,11 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
     private static void CustomerProjectDetails(IContainer container, QuoteRequest request, string quoteDate,
                                                string quoteNumber, PricedFireplaceQuote? fireplace = null)
     {
-        var projectTitle = FirstNonBlank(fireplace?.ProjectName, request.ProjectName, request.FireplaceLocation,
-                                         fireplace?.FireplaceLabel, " ");
+        var fallbackTitle = request.Tag is PricedQuoteResult priced
+                                ? QuoteProjectTitleFormatter.BuildFallback(priced.Fireplaces)
+                                : string.Empty;
+        var projectTitle = FirstNonBlank(fireplace?.ProjectName, request.ProjectName, fallbackTitle,
+                                         request.FireplaceLocation, fireplace?.FireplaceLabel, " ");
         var projectAddress = FirstNonBlank(fireplace?.ProjectAddress, request.ProjectAddress, request.Postal, " ");
 
         container.Table(table =>
@@ -292,7 +295,8 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
             return new IncludedCopy(
                 "Included With Every Indoor Outdoor See Through Fireplace Purchase: ",
                 $"Power Supply, Wall Switch, Remote Control, {media}, Outdoor Kit, and *Free Shipping (*Free shipping within the continental United States only)");
-        return fp.Type switch {
+        return fp.Type switch
+        {
             FireplaceType.IndoorOutdoorSeeThrough => new IncludedCopy(
                 "Included With Every Indoor Outdoor See Through Fireplace Purchase: ",
                 $"Power Supply, Wall Switch, Remote Control, {media}, Outdoor Kit, and *Free Shipping (*Free shipping within the continental United States only)"),

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using FlareQuotes.Core.Email;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Infrastructure.Excel;
@@ -24,6 +25,12 @@ public sealed class AllPriceBookEmailPathTests
 
         Assert.NotEmpty(models);
         AssertInventoryMatches(root, models);
+        Assert.DoesNotContain(
+            models,
+            row => Regex.IsMatch(
+                row.Sku ?? string.Empty,
+                @"^DV(?:FF|ST)\d{2,3}(?:R|H|E)C$",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant));
         var categories = models.Select(row => PriceBookModelCatalog.Category(row.Sku))
                              .Distinct(StringComparer.OrdinalIgnoreCase)
                              .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -56,17 +63,66 @@ public sealed class AllPriceBookEmailPathTests
                     "Model-path failures:" + Environment.NewLine + string.Join(Environment.NewLine, failures));
     }
 
+    [Fact]
+    public async Task ResourceLinksPreserveEveryQuotedFireplaceInstanceInOrder()
+    {
+        var root = FindRepoRoot();
+        var pricingPath = Path.Combine(root, "LocalData", "pricing.xlsx");
+        var priceBook = new ClosedXmlPriceBookService();
+        var request = new QuoteRequest
+        {
+            Fireplaces =
+            [
+                new FireplaceQuote
+                {
+                    Type = FireplaceType.Outdoor,
+                    Model = "VDC50H",
+                    Size = "50",
+                    GlassHeight = "24"
+                },
+                new FireplaceQuote
+                {
+                    Type = FireplaceType.Outdoor,
+                    Model = "VDC50H",
+                    Size = "50",
+                    GlassHeight = "24"
+                },
+                new FireplaceQuote
+                {
+                    Type = FireplaceType.Large,
+                    Model = "FF140H",
+                    Size = "140",
+                    GlassHeight = "24"
+                }
+            ]
+        };
+
+        var links = await priceBook.ResolveResourceLinksAsync(request, pricingPath);
+
+        Assert.Equal(3, links.Count);
+        Assert.Equal(links[0].ModelNumber, links[1].ModelNumber, ignoreCase: true);
+        Assert.Contains("140", links[2].ModelNumber, StringComparison.OrdinalIgnoreCase);
+    }
+
     internal static QuoteRequest BuildRequest(PriceRow row, FireplaceType type, string email)
     {
-        return new QuoteRequest { ProjectName = "Automated Model Test", ClientName = "Flare QA", Email = email,
-                                  Model = row.Sku, Fireplaces = [new FireplaceQuote { Type = type, Model = row.Sku,
-                                                                                      LeadTime = "TEST" }] };
+        return new QuoteRequest
+        {
+            ProjectName = "Automated Model Test",
+            ClientName = "Flare QA",
+            Email = email,
+            Model = row.Sku,
+            Fireplaces = [new FireplaceQuote { Type = type, Model = row.Sku,
+                                                                                      LeadTime = "TEST" }]
+        };
     }
 
     internal static PricedQuoteResult BuildPricedResult(PriceRow row, FireplaceType type, QuoteRequest request)
     {
-        return new PricedQuoteResult {
-            Success = true, Request = request,
+        return new PricedQuoteResult
+        {
+            Success = true,
+            Request = request,
             Fireplaces = [new PricedFireplaceQuote {
                 Type = type, Model = row.Sku, ModelNumber = row.Sku, Description = row.Description,
                 BaseLine = new PriceLine { Sku = row.Sku, Description = row.Description, Price = row.Price }
@@ -81,12 +137,12 @@ public sealed class AllPriceBookEmailPathTests
 
         var expected = File.ReadLines(inventoryPath)
                            .Skip(1)
-                           .Select(line => line.Split(',') [0].Trim())
+                           .Select(line => line.Split(',')[0].Trim())
                            .Where(model => !string.IsNullOrWhiteSpace(model))
                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var actual = models.Select(row => row.Sku).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        Assert.Equal(302, expected.Count);
+        Assert.Equal(266, expected.Count);
         Assert.Equal(expected.Count, actual.Count);
         Assert.Empty(expected.Except(actual, StringComparer.OrdinalIgnoreCase));
         Assert.Empty(actual.Except(expected, StringComparer.OrdinalIgnoreCase));

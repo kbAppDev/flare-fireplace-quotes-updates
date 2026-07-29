@@ -7,7 +7,9 @@ internal static partial class PriceBookModelCatalog
 {
     public static IReadOnlyList<PriceRow> GetFireplaceModels(PriceBookWorkbook workbook)
     {
-        return workbook.Rows.Where(row => row.Price.HasValue && FireplaceSkuRegex().IsMatch(row.Sku ?? string.Empty))
+        return workbook.Rows.Where(row => row.Price.HasValue &&
+                                             FireplaceSkuRegex().IsMatch(row.Sku ?? string.Empty) &&
+                                             !IsDiscontinuedCommercialSku(row.Sku))
             .GroupBy(row => row.Sku, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .OrderBy(row => Category(row.Sku), StringComparer.OrdinalIgnoreCase)
@@ -39,7 +41,8 @@ internal static partial class PriceBookModelCatalog
         return FireplaceType.Indoor;
     }
 
-    public static string Category(string? sku) => Type(sku) switch {
+    public static string Category(string? sku) => Type(sku) switch
+    {
         FireplaceType.OutdoorSeeThrough => "Outdoor See Through",
         FireplaceType.Outdoor => "Outdoor",
         FireplaceType.Large => "Large",
@@ -48,7 +51,15 @@ internal static partial class PriceBookModelCatalog
         _ => "Indoor"
     };
 
-    [GeneratedRegex(@"^(?:DV(?:FF|ST|LC|RC|DC|RD)\d{2,3}(?:R|H|E)(?:C)?|DVTRA\d{2,3}|LDV(?:FF|ST|LC|RC|DC)\d{2,3}(?:" +
+    private static bool IsDiscontinuedCommercialSku(string? sku)
+    {
+        var compact = Regex.Replace(sku ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
+
+        return Regex.IsMatch(compact, @"^DV(?:FF|ST)\d{2,3}(?:R|H|E)C$",
+                             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
+    [GeneratedRegex(@"^(?:DV(?:FF|ST|LC|RC|DC|RD)\d{2,3}(?:R|H|E)|DVTRA\d{2,3}|LDV(?:FF|ST|LC|RC|DC)\d{2,3}(?:" +
                     @"R|H|E)?|VF(?:FF|ST|LC|RC|DC)\d{2,3}(?:H)?|DVPA(?:FF|ST))$",
                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex FireplaceSkuRegex();

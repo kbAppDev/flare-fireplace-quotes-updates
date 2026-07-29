@@ -21,13 +21,16 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     private string _loadedPath = string.Empty;
 
     private static readonly Dictionary<string, decimal> LouverMsrpFallback =
-        new(StringComparer.OrdinalIgnoreCase) { ["50"] = 266.6666666666667m,
-                                                ["70"] = 333.3333333333334m,
-                                                ["100"] = 400m,
-                                                ["120"] = 433.3333333333334m,
-                                                ["140"] = 466.6666666666667m,
-                                                ["180"] = 566.6666666666667m,
-                                                ["200"] = 666.6666666666667m };
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["50"] = 266.6666666666667m,
+            ["70"] = 333.3333333333334m,
+            ["100"] = 400m,
+            ["120"] = 433.3333333333334m,
+            ["140"] = 466.6666666666667m,
+            ["180"] = 566.6666666666667m,
+            ["200"] = 666.6666666666667m
+        };
 
     public Task<PriceBookWorkbook> LoadAsync(string path, CancellationToken cancellationToken = default)
     {
@@ -37,43 +40,94 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             return Task.FromResult(new PriceBookWorkbook { SourcePath = path ?? string.Empty });
 
-        using var workbook = new XLWorkbook(path);
-        var result = new PriceBookWorkbook { SourcePath = path };
-        foreach (var worksheet in workbook.Worksheets)
+        PriceBookWorkbook result;
+        try
         {
-            result.SheetNames.Add(worksheet.Name);
-            var headers = worksheet.Row(1)
-                              .CellsUsed()
-                              .Select((cell, index) => new { Name = cell.GetString(), Index = index + 1 })
-                              .ToList();
-            foreach (var row in worksheet.RowsUsed().Skip(1))
+            using var workbookBuffer = new MemoryStream();
+            using (var sourceStream = new FileStream(
+                       path,
+                       FileMode.Open,
+                       FileAccess.Read,
+                       FileShare.ReadWrite | FileShare.Delete))
             {
-                var priceRow = new PriceRow { SheetName = worksheet.Name };
-                var lastColumn = worksheet.LastColumnUsed()?.ColumnNumber() ?? headers.Max(h => h.Index);
-                for (var col = 1; col <= lastColumn; col++)
+                sourceStream.CopyTo(workbookBuffer);
+            }
+
+            workbookBuffer.Position = 0;
+            using var workbook = new XLWorkbook(workbookBuffer);
+            result = new PriceBookWorkbook { SourcePath = path };
+            foreach (var worksheet in workbook.Worksheets)
+            {
+                result.SheetNames.Add(worksheet.Name);
+                var headers = worksheet.Row(1)
+                                  .CellsUsed()
+                                  .Select((cell, index) => new { Name = cell.GetString(), Index = index + 1 })
+                                  .ToList();
+                foreach (var row in worksheet.RowsUsed().Skip(1))
                 {
-                    priceRow.RawValues[$"Column{col}"] = row.Cell(col).GetFormattedString().Trim();
+                    var priceRow = new PriceRow { SheetName = worksheet.Name };
+                    var lastColumn = worksheet.LastColumnUsed()?.ColumnNumber() ?? headers.Max(h => h.Index);
+                    for (var col = 1; col <= lastColumn; col++)
+                    {
+                        priceRow.RawValues[$"Column{col}"] = row.Cell(col).GetFormattedString().Trim();
+                    }
+                    foreach (var h in headers)
+                    {
+                        var header = h.Name.Trim();
+                        if (string.IsNullOrWhiteSpace(header))
+                            continue;
+                        priceRow.RawValues[header] = row.Cell(h.Index).GetFormattedString().Trim();
+                    }
+                    priceRow.Sku = First(priceRow.RawValues, "SKU", "Sku", "Model #", "Part #", "Item #");
+                    priceRow.PartName = First(priceRow.RawValues, "Part Name", "Name", "Model", "Product");
+                    priceRow.Description = First(priceRow.RawValues, "Description", "Product Description", "Style");
+                    // Read numeric price cells by value (locale-independent). Only text-typed cells fall
+                    // back to string parsing; avoids mis-parsing currency on non-US Windows locales.
+                    priceRow.Price = null;
+                    foreach (var priceHeader in new[] { "MSRP", "Price", "List Price" })
+                    {
+                        var match = headers.FirstOrDefault(x =>
+                            string.Equals(x.Name.Trim(), priceHeader, StringComparison.OrdinalIgnoreCase));
+                        if (match is null)
+                            continue;
+                        var priceCell = row.Cell(match.Index);
+                        if (priceCell.DataType == XLDataType.Number)
+                        {
+                            priceRow.Price = priceCell.GetValue<decimal>();
+                            break;
+                        }
+                        var parsedPrice = ParsePrice(priceCell.GetString());
+                        if (parsedPrice.HasValue)
+                        {
+                            priceRow.Price = parsedPrice;
+                            break;
+                        }
+                    }
+                    if (!string.IsNullOrWhiteSpace(priceRow.Sku) || !string.IsNullOrWhiteSpace(priceRow.PartName) ||
+                        !string.IsNullOrWhiteSpace(priceRow.Description) || IsQuantityCalculationSheet(worksheet.Name))
+                        result.Rows.Add(priceRow);
                 }
-                foreach (var h in headers)
-                {
-                    var header = h.Name.Trim();
-                    if (string.IsNullOrWhiteSpace(header))
-                        continue;
-                    priceRow.RawValues[header] = row.Cell(h.Index).GetFormattedString().Trim();
-                }
-                priceRow.Sku = First(priceRow.RawValues, "SKU", "Sku", "Model #", "Part #", "Item #");
-                priceRow.PartName = First(priceRow.RawValues, "Part Name", "Name", "Model", "Product");
-                priceRow.Description = First(priceRow.RawValues, "Description", "Product Description", "Style");
-                priceRow.Price = ParsePrice(First(priceRow.RawValues, "MSRP", "Price", "List Price"));
-                if (!string.IsNullOrWhiteSpace(priceRow.Sku) || !string.IsNullOrWhiteSpace(priceRow.PartName) ||
-                    !string.IsNullOrWhiteSpace(priceRow.Description) || IsQuantityCalculationSheet(worksheet.Name))
-                    result.Rows.Add(priceRow);
             }
         }
+        catch (Exception)
+        {
+            // Corrupt, locked, or partially-synced workbook: fail soft instead of crashing the quote flow.
+            return Task.FromResult(new PriceBookWorkbook { SourcePath = path });
+        }
+
+        result.Rows.RemoveAll(row => IsDiscontinuedCommercialSku(row.Sku));
 
         _cached = result;
         _loadedPath = path;
         return Task.FromResult(result);
+    }
+
+    private static bool IsDiscontinuedCommercialSku(string? sku)
+    {
+        var compact = Regex.Replace(sku ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
+
+        return Regex.IsMatch(compact, @"^DV(?:FF|ST)\d{2,3}(?:R|H|E)C$",
+                             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     private static bool IsQuantityCalculationSheet(string sheetName)
@@ -90,11 +144,17 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         var first = result.Fireplaces.FirstOrDefault();
         return first?.BaseLine.Price is null
                    ? new PriceBookMatch { Found = false, Reason = result.Message }
-                   : new PriceBookMatch { Found = true,
-                                          Row = new PriceRow { Sku = first.BaseLine.Sku,
-                                                               Description = first.BaseLine.Description,
-                                                               Price = first.BaseLine.Price },
-                                          Reason = "Matched" };
+                   : new PriceBookMatch
+                   {
+                       Found = true,
+                       Row = new PriceRow
+                       {
+                           Sku = first.BaseLine.Sku,
+                           Description = first.BaseLine.Description,
+                           Price = first.BaseLine.Price
+                       },
+                       Reason = "Matched"
+                   };
     }
 
     public async Task<PriceBookMatch> FindFeaturePriceAsync(QuoteRequest request, FeatureOption feature,
@@ -114,8 +174,12 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     {
         var workbook = await LoadAsync(pricingPath, cancellationToken);
         if (workbook.Rows.Count == 0)
-            return new PricedQuoteResult { Success = false, Request = request,
-                                           Message = $"Pricing file not found or empty: {pricingPath}" };
+            return new PricedQuoteResult
+            {
+                Success = false,
+                Request = request,
+                Message = $"Pricing file not found or empty: {pricingPath}"
+            };
 
         var result = new PricedQuoteResult { Request = request, Success = true };
         IEnumerable<FireplaceQuote> fireplaceInputs =
@@ -138,7 +202,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 FindIncludedOutdoorKitRow(workbook, type, inputModel, inputSize, inputGlassHeight);
             var modelNumber = ResolveModelNumber(workbook, type, inputModel, inputSize, inputGlassHeight) ??
                               BuildModelNumber(type, inputModel, inputSize, inputGlassHeight);
-            var priced = new PricedFireplaceQuote {
+            var priced = new PricedFireplaceQuote
+            {
                 FireplaceLabel = BuildLabel(input),
                 FireplaceLocation = input.FireplaceLocation,
                 ProjectName = input.ProjectName,
@@ -154,12 +219,16 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                                           ? input.ClassicMediaDisplay
                                           : (request.ClassicMedia.FirstOrDefault()?.DisplayName ?? string.Empty),
                 BaseLine =
-                    new PriceLine { Feature = "Fireplace",
-                                    Description = baseRow?.Description ??
+                    new PriceLine
+                    {
+                        Feature = "Fireplace",
+                        Description = baseRow?.Description ??
                                                   BuildDescription(type, inputModel, inputSize, inputGlassHeight),
-                                    Sku = FirstNonBlank(baseRow?.Sku, modelNumber),
-                                    Price = AddPrices(baseRow?.Price, includedOutdoorKitRow?.Price),
-                                    SourceSheet = baseRow?.SheetName ?? string.Empty, Url = PriceLineUrl(baseRow) }
+                        Sku = FirstNonBlank(baseRow?.Sku, modelNumber),
+                        Price = AddPrices(baseRow?.Price, includedOutdoorKitRow?.Price),
+                        SourceSheet = baseRow?.SheetName ?? string.Empty,
+                        Url = PriceLineUrl(baseRow)
+                    }
             };
 
             foreach (var feature in input.Features)
@@ -185,11 +254,15 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                     if (normalizedFeature.Contains("safety screen"))
                         featureDescription = OutdoorVentFreeScreenDescription(type, inputModel);
                 }
-                priced.OptionalFeatures.Add(new PriceLine { Feature = CanonicalFeatureName(feature.DisplayName),
-                                                            Description = featureDescription,
-                                                            Sku = row?.Sku ?? string.Empty, Price = row?.Price,
-                                                            SourceSheet = row?.SheetName ?? string.Empty,
-                                                            Url = PriceLineUrl(row) });
+                priced.OptionalFeatures.Add(new PriceLine
+                {
+                    Feature = CanonicalFeatureName(feature.DisplayName),
+                    Description = featureDescription,
+                    Sku = row?.Sku ?? string.Empty,
+                    Price = row?.Price,
+                    SourceSheet = row?.SheetName ?? string.Empty,
+                    Url = PriceLineUrl(row)
+                });
             }
 
             foreach (var media in input.PremiumMedia)
@@ -220,12 +293,17 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 var mediaFeatureName =
                     media.IsPremium ? media.DisplayName : $"Add. Classic Media - {media.DisplayName}";
                 priced.OptionalFeatures.Add(
-                    new PriceLine { Feature = mediaFeatureName,
-                                    Description =
+                    new PriceLine
+                    {
+                        Feature = mediaFeatureName,
+                        Description =
                                         quantity > 1 ? $"{mediaFeatureName} - {quantity} sets" : mediaFeatureName,
-                                    Sku = row?.Sku ?? string.Empty, Quantity = quantity,
-                                    Price = row?.Price is null ? null : row.Price.Value * quantity,
-                                    SourceSheet = row?.SheetName ?? string.Empty, Url = PriceLineUrl(row) });
+                        Sku = row?.Sku ?? string.Empty,
+                        Quantity = quantity,
+                        Price = row?.Price is null ? null : row.Price.Value * quantity,
+                        SourceSheet = row?.SheetName ?? string.Empty,
+                        Url = PriceLineUrl(row)
+                    });
             }
 
             if (priced.BaseLine.Price is null)
@@ -249,7 +327,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         IEnumerable<FireplaceQuote> fireplaceInputs =
             request.Fireplaces.Count > 0 ? request.Fireplaces : new List<FireplaceQuote> { ToFireplace(request) };
         var results = new List<ResourceLinkSet>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var input in fireplaceInputs)
         {
@@ -281,8 +358,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             // Passage resource model-number override
             if (IsPassageModel(inputModel))
                 modelNumber = PassageModelCode(inputModel);
-            if (!seen.Add(modelNumber))
-                continue;
 
             var set = new ResourceLinkSet { ModelNumber = modelNumber };
             var columns = ResourceColumns(type);
@@ -493,7 +568,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (IsIndoorOutdoorSeeThroughModelCode(model))
             return FireplaceType.IndoorOutdoorSeeThrough;
         if (HasOutdoorKitFeature(features) && IsSeeThroughForReflectiveBackRules(type, model) &&
-            type is not(FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough))
+            type is not (FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough))
         {
             return FireplaceType.IndoorOutdoorSeeThrough;
         }
@@ -516,7 +591,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         return (basePrice ?? 0m) + (includedPrice ?? 0m);
     }
 
-    private static FireplaceQuote ToFireplace(QuoteRequest request) => new() {
+    private static FireplaceQuote ToFireplace(QuoteRequest request) => new()
+    {
         FireplaceLocation = request.FireplaceLocation,
         Type = ApplyIndoorOutdoorSeeThroughForOutdoorKit(DetectType(request.Model, request.Size), request.Model,
                                                          request.SelectedFeatures),
@@ -587,6 +663,24 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
     private static string Compact(string? value) =>
         Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]+", string.Empty).ToUpperInvariant();
+
+
+    private static string OutdoorPriceBookGlassSuffix(string? glassHeight, string? model)
+    {
+        var glass = FirstNonBlank(
+            GlassInches(glassHeight ?? string.Empty),
+            GlassInches(ExtractGlassHeightFromModelCode(model)));
+
+        // Outdoor regular-height base SKUs omit R: VFLC100, VFDC100, VFFF100, and so on.
+        return glass switch
+        {
+            "24" => "H",
+            "30" => "EH",
+            _ => string.Empty
+        };
+    }
+
+
     private static PriceRow? FindBaseRow(PriceBookWorkbook wb, FireplaceType type, string model, string size,
                                          string glassHeight)
     {
@@ -594,9 +688,12 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (IsInvalidLargeSeeThroughModel(model, size))
             return null;
         type = ForceOutdoorVentFreeTypeFromModel(type, model);
-        var sheet = type switch { FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough => "Outdoor Price Book",
-                                  FireplaceType.Large => "Large Price Book",
-                                  _ => "Indoor Price Book" };
+        var sheet = type switch
+        {
+            FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough => "Outdoor Price Book",
+            FireplaceType.Large => "Large Price Book",
+            _ => "Indoor Price Book"
+        };
 
         var rows = wb.Rows.Where(r => Eq(r.SheetName, sheet) && r.Price is not null).ToList();
         var style = StyleWords(type, model);
@@ -610,16 +707,23 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             if (passageBaseRow is not null)
                 return passageBaseRow;
         }
+
         if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough)
         {
             var vfCode = VentFreeModelStyleCode(type, model);
-            var suffix = GlassSuffix(glassHeight);
+            var suffix = OutdoorPriceBookGlassSuffix(glassHeight, model);
 
             var part =
                 string.IsNullOrWhiteSpace(suffix) ? $"FLARE-{vfCode}-{sizeNum}" : $"FLARE-{vfCode}-{sizeNum}-{suffix}";
 
-            var skuStyle = vfCode switch { "VST" => "VFST", "VLC" => "VFLC", "VRC" => "VFRC", "VDC" => "VFDC",
-                                           _ => "VFFF" };
+            var skuStyle = vfCode switch
+            {
+                "VST" => "VFST",
+                "VLC" => "VFLC",
+                "VRC" => "VFRC",
+                "VDC" => "VFDC",
+                _ => "VFFF"
+            };
 
             var sku = $"{skuStyle}{sizeNum}{suffix}";
             var compactPart = part.Replace("-", string.Empty);
@@ -1091,10 +1195,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         return "VFF";
     }
 
-    private static string NormalizeResourceKey(string? value)
-    {
-        return Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
-    }
+    private static string NormalizeResourceKey(string? value) => Compact(value);
 
     private static PriceRow? FindOutdoorSafetyScreenRow(IReadOnlyList<PriceRow> rows, FireplaceType type, string model,
                                                         string sizeNum, string glassHeight)
@@ -1191,7 +1292,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     private static PriceRow? FindReflectiveSidesRow(IReadOnlyList<PriceRow> rows, FireplaceType type, string model,
                                                     string glassHeight)
     {
-        var sheet = type == FireplaceType.Large                                        ? "Large Price Book"
+        var sheet = type == FireplaceType.Large ? "Large Price Book"
                     : type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough ? "Outdoor Price Book"
                                                                                        : "Indoor Price Book";
         var style = StyleCode(type, model);
@@ -1228,9 +1329,12 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                                 ContainsGlass(r, GlassInches(glassHeight))));
     }
 
-    private static string LargeReflectiveSidesStyleCode(string styleCode) => styleCode switch { "LC" => "LC",
-                                                                                                "RC" => "RC",
-                                                                                                _ => "FF" };
+    private static string LargeReflectiveSidesStyleCode(string styleCode) => styleCode switch
+    {
+        "LC" => "LC",
+        "RC" => "RC",
+        _ => "FF"
+    };
 
     private static string RecommendedHeatReleaseLouverSize(FireplaceType type, string sizeNum, string model)
     {
@@ -1268,34 +1372,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         return "100";
     }
 
-    private static string RecommendedLouverSize(FireplaceType type, string sizeNum, string model)
-    {
-        var normalizedModel = Normalize(model);
-        if (type == FireplaceType.Traditional || normalizedModel.Contains("traditional"))
-            return "100";
-
-        if (!int.TryParse(sizeNum, out var sizeInt))
-            sizeInt = 0;
-
-        if (normalizedModel.Contains("passage") || sizeInt <= 30)
-            return "70";
-        if (sizeInt is 42 or 45 or 46 or 50)
-            return "100";
-        if (sizeInt is 60 or 70)
-            return "120";
-        if (sizeInt is 80 or 100)
-            return "180";
-        if (sizeInt >= 200)
-            return "200";
-        if (sizeInt >= 180)
-            return "180";
-        if (sizeInt >= 140)
-            return "140";
-        if (sizeInt >= 120)
-            return "120";
-        return "100";
-    }
-
     private static PriceRow? FindLouverRowBySize(PriceBookWorkbook wb, string size)
     {
         size = (size ?? string.Empty).Trim();
@@ -1318,14 +1394,17 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
         if (LouverMsrpFallback.TryGetValue(size, out var price))
         {
-            return new PriceRow { SheetName = "Parts Price Book",
-                                  Sku = exactSku,
-                                  PartName = exactPart,
-                                  Description = $"{size} SQ\" Louver",
-                                  Price = price,
-                                  RawValues = { ["Part Name"] = exactPart, ["Description"] = $"{size} SQ\" Louver",
+            return new PriceRow
+            {
+                SheetName = "Parts Price Book",
+                Sku = exactSku,
+                PartName = exactPart,
+                Description = $"{size} SQ\" Louver",
+                Price = price,
+                RawValues = { ["Part Name"] = exactPart, ["Description"] = $"{size} SQ\" Louver",
                                                 ["SKU"] = exactSku,
-                                                ["MSRP"] = price.ToString(CultureInfo.InvariantCulture) } };
+                                                ["MSRP"] = price.ToString(CultureInfo.InvariantCulture) }
+            };
         }
 
         return null;
@@ -1336,7 +1415,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         var rows = wb.Rows.Where(r => r.Price is not null).ToList();
         var norm = Normalize($"{key} {display}");
 
-        PriceRow ? BySku(params string[] skus) =>
+        PriceRow? BySku(params string[] skus) =>
                        Best(rows, r => skus.Any(sku => Text(r).Contains(sku, StringComparison.OrdinalIgnoreCase)));
 
         if (norm.Contains("black fire glass"))
@@ -1472,7 +1551,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     private static PriceRow? TryGetOutdoorVentFreeResourceRowFromWorkbook(FireplaceType type, string model, string size,
                                                                           string glassHeight)
     {
-        if (type is not(FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough) &&
+        if (type is not (FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough) &&
             !IsOutdoorVentFreeResourceModel(model))
             return null;
 
@@ -1613,8 +1692,13 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 var fallback = FirstNonBlank(Cell(fallbackCol), FallbackUrl(type));
 
                 var priceRow =
-                    new PriceRow { SheetName = "Resource Links", Sku = normalizedModel, PartName = normalizedModel,
-                                   Description = "Outdoor Vent Free Resource Links" };
+                    new PriceRow
+                    {
+                        SheetName = "Resource Links",
+                        Sku = normalizedModel,
+                        PartName = normalizedModel,
+                        Description = "Outdoor Vent Free Resource Links"
+                    };
 
                 priceRow.RawValues["Template"] = "Outdoor";
                 priceRow.RawValues["Model #"] = normalizedModel;
@@ -1654,8 +1738,14 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (string.IsNullOrWhiteSpace(digits) || string.IsNullOrWhiteSpace(style))
             yield break;
 
-        var skuStyle = style switch { "VST" => "VFST", "VLC" => "VFLC", "VRC" => "VFRC", "VDC" => "VFDC",
-                                      _ => "VFFF" };
+        var skuStyle = style switch
+        {
+            "VST" => "VFST",
+            "VLC" => "VFLC",
+            "VRC" => "VFRC",
+            "VDC" => "VFDC",
+            _ => "VFFF"
+        };
 
         if (!string.IsNullOrWhiteSpace(suffix))
         {
@@ -1669,10 +1759,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         yield return $"{skuStyle}{digits}";
     }
 
-    private static string NormalizeOutdoorResourceKey(string? value)
-    {
-        return Regex.Replace(value ?? string.Empty, @"[^A-Za-z0-9]", string.Empty).ToUpperInvariant();
-    }
+    private static string NormalizeOutdoorResourceKey(string? value) => Compact(value);
 
     private static PriceRow? TryGetLargeResourceRow(FireplaceType type, string model, string size, string glassHeight)
     {
@@ -1699,8 +1786,13 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         var framingStyle = string.IsNullOrWhiteSpace(suffix) ? style : $"{style}{suffix}";
         var ventCount = LargeResourceVentCount(digits);
 
-        var row = new PriceRow { SheetName = "Large Generated Resource Links", Sku = modelCompact, PartName = modelDash,
-                                 Description = $"Large {modelDash} resource links" };
+        var row = new PriceRow
+        {
+            SheetName = "Large Generated Resource Links",
+            Sku = modelCompact,
+            PartName = modelDash,
+            Description = $"Large {modelDash} resource links"
+        };
 
         row.RawValues["Model #"] = modelCompact;
         row.RawValues["Model"] = modelDash;
@@ -1748,9 +1840,13 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
     private static int LargeResourceVentCount(string sizeDigits)
     {
-        return sizeDigits switch { "180" or "210" or "240" or "300" => 3, "280" or "320" or "400" => 4,
-                                   "340" => 5,
-                                   _ => 2 };
+        return sizeDigits switch
+        {
+            "180" or "210" or "240" or "300" => 3,
+            "280" or "320" or "400" => 4,
+            "340" => 5,
+            _ => 2
+        };
     }
     private static PriceRow? FindResourceRow(PriceBookWorkbook wb, FireplaceType type, string model, string size,
                                              string glassHeight)
@@ -1824,9 +1920,11 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         sheetName.Contains("Resource", StringComparison.OrdinalIgnoreCase) &&
         sheetName.Contains("Link", StringComparison.OrdinalIgnoreCase);
 
-    private static string ResourceTemplate(FireplaceType type) => type switch {
+    private static string ResourceTemplate(FireplaceType type) => type switch
+    {
         FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough or FireplaceType.IndoorOutdoorSeeThrough => "Outdoor",
-        FireplaceType.Traditional => "Traditional", FireplaceType.Large => "Large",
+        FireplaceType.Traditional => "Traditional",
+        FireplaceType.Large => "Large",
         _ => "Indoor"
     };
 
@@ -2076,7 +2174,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                    : string.Empty;
     }
 
-    private static string[] ResourceColumns(FireplaceType type) => type switch {
+    private static string[] ResourceColumns(FireplaceType type) => type switch
+    {
         FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough or
             FireplaceType.IndoorOutdoorSeeThrough => ["Product Sheet", "Framing Guide", "Dimension File", "CAD",
                                                       "SketchUp", "Revit"],
@@ -2180,9 +2279,14 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         var displayName = StoneBallsDisplayName(family, color);
         var featureName = media.IsPremium ? displayName : $"Add. Classic Media - {displayName}";
 
-        return new PriceLine {
-            Feature = featureName, Description = $"{featureName} - {quantityText}", Sku = sku, Quantity = 1,
-            Price = price,         SourceSheet = "Indoor Stone Balls Price Table"
+        return new PriceLine
+        {
+            Feature = featureName,
+            Description = $"{featureName} - {quantityText}",
+            Sku = sku,
+            Quantity = 1,
+            Price = price,
+            SourceSheet = "Indoor Stone Balls Price Table"
         };
     }
 
@@ -2219,32 +2323,51 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     private static string StoneBallsSizeKey(string size)
     {
         var digits = Digits(size);
-        return digits switch { "25" => "25", "30" => "30", "45" => "45", "50" => "50",
-                               "60" => "60", "70" => "70", "80" => "80", "100" => "100",
-                               _ => "single" };
+        return digits switch
+        {
+            "25" => "25",
+            "30" => "30",
+            "45" => "45",
+            "50" => "50",
+            "60" => "60",
+            "70" => "70",
+            "80" => "80",
+            "100" => "100",
+            _ => "single"
+        };
     }
 
     private static string StoneBallsDisplayName(string family, string color)
     {
-        var colorText = color switch { "white" => "Cottage White", "black" => "Matte Black",
-                                       _ => "Cape Grey" };
+        var colorText = color switch
+        {
+            "white" => "Cottage White",
+            "black" => "Matte Black",
+            _ => "Cape Grey"
+        };
 
-        return family switch { "uniform4" => $"Uniform 4\" {colorText} Stone Balls",
-                               "mixed" => $"Mixed 2\" / 4\" {colorText} Stone Balls",
-                               _ => $"Uniform 2\" {colorText} Stone Balls" };
+        return family switch
+        {
+            "uniform4" => $"Uniform 4\" {colorText} Stone Balls",
+            "mixed" => $"Mixed 2\" / 4\" {colorText} Stone Balls",
+            _ => $"Uniform 2\" {colorText} Stone Balls"
+        };
     }
 
     private static string StoneBallsSku(string family, string color, string sizeKey)
     {
-        var baseSku = (family, color) switch { ("uniform4", "white") => "PSBWU4",
-                                               ("uniform4", "black") => "PSBBU4",
-                                               ("uniform4", _) => "PSBGU4",
-                                               ("mixed", "white") => "PSBWM",
-                                               ("mixed", "black") => "PSBBM",
-                                               ("mixed", _) => "PSBGM",
-                                               (_, "white") => "PSBWU",
-                                               (_, "black") => "PSBBU",
-                                               _ => "PSBGU" };
+        var baseSku = (family, color) switch
+        {
+            ("uniform4", "white") => "PSBWU4",
+            ("uniform4", "black") => "PSBBU4",
+            ("uniform4", _) => "PSBGU4",
+            ("mixed", "white") => "PSBWM",
+            ("mixed", "black") => "PSBBM",
+            ("mixed", _) => "PSBGM",
+            (_, "white") => "PSBWU",
+            (_, "black") => "PSBBU",
+            _ => "PSBGU"
+        };
 
         if (sizeKey == "single")
             return family == "uniform2" ? $"{baseSku}2" : baseSku;
@@ -2259,62 +2382,88 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     {
         if (family == "mixed")
         {
-            return sizeKey switch { "45" => "20-2\" / 8-4\" pcs",  "50" => "25-2\" / 9-4\" pcs",
-                                    "60" => "27-2\" / 11-4\" pcs", "70" => "34-2\" / 14-4\" pcs",
-                                    "80" => "36-2\" / 17-4\" pcs", "100" => "50-2\" / 20-4\" pcs",
-                                    _ => "14-2\" / 6-4\" pcs" };
+            return sizeKey switch
+            {
+                "45" => "20-2\" / 8-4\" pcs",
+                "50" => "25-2\" / 9-4\" pcs",
+                "60" => "27-2\" / 11-4\" pcs",
+                "70" => "34-2\" / 14-4\" pcs",
+                "80" => "36-2\" / 17-4\" pcs",
+                "100" => "50-2\" / 20-4\" pcs",
+                _ => "14-2\" / 6-4\" pcs"
+            };
         }
 
         if (family == "uniform4")
         {
-            return sizeKey switch { "25" or "30" => "16 pcs",
-                                    "45" => "19 pcs",
-                                    "50" => "28 pcs",
-                                    "60" => "34 pcs",
-                                    "70" => "35 pcs",
-                                    "80" => "44 pcs",
-                                    "100" => "56 pcs",
-                                    _ => "11 pcs" };
+            return sizeKey switch
+            {
+                "25" or "30" => "16 pcs",
+                "45" => "19 pcs",
+                "50" => "28 pcs",
+                "60" => "34 pcs",
+                "70" => "35 pcs",
+                "80" => "44 pcs",
+                "100" => "56 pcs",
+                _ => "11 pcs"
+            };
         }
 
-        return sizeKey switch { "25" or "30" => "20 pcs",
-                                "45" => "25 pcs",
-                                "50" => "28 pcs",
-                                "60" => "35 pcs",
-                                "70" => "40 pcs",
-                                "80" => "45 pcs",
-                                "100" => "56 pcs",
-                                _ => "25 pcs" };
+        return sizeKey switch
+        {
+            "25" or "30" => "20 pcs",
+            "45" => "25 pcs",
+            "50" => "28 pcs",
+            "60" => "35 pcs",
+            "70" => "40 pcs",
+            "80" => "45 pcs",
+            "100" => "56 pcs",
+            _ => "25 pcs"
+        };
     }
 
     private static decimal StoneBallsMsrp(string family, string sizeKey)
     {
         if (family == "mixed")
         {
-            return sizeKey switch { "45" => 257m, "50" => 322m, "60" => 355m, "70" => 449m, "80" => 484m, "100" => 643m,
-                                    _ => 232m };
+            return sizeKey switch
+            {
+                "45" => 257m,
+                "50" => 322m,
+                "60" => 355m,
+                "70" => 449m,
+                "80" => 484m,
+                "100" => 643m,
+                _ => 232m
+            };
         }
 
         if (family == "uniform4")
         {
-            return sizeKey switch { "25" or "30" => 215m,
-                                    "45" => 269m,
-                                    "50" => 392m,
-                                    "60" => 473m,
-                                    "70" => 489m,
-                                    "80" => 607m,
-                                    "100" => 783m,
-                                    _ => 193m };
+            return sizeKey switch
+            {
+                "25" or "30" => 215m,
+                "45" => 269m,
+                "50" => 392m,
+                "60" => 473m,
+                "70" => 489m,
+                "80" => 607m,
+                "100" => 783m,
+                _ => 193m
+            };
         }
 
-        return sizeKey switch { "25" or "30" => 167m,
-                                "45" => 209m,
-                                "50" => 234m,
-                                "60" => 292m,
-                                "70" => 334m,
-                                "80" => 376m,
-                                "100" => 468m,
-                                _ => 209m };
+        return sizeKey switch
+        {
+            "25" or "30" => 167m,
+            "45" => 209m,
+            "50" => 234m,
+            "60" => 292m,
+            "70" => 334m,
+            "80" => 376m,
+            "100" => 468m,
+            _ => 209m
+        };
     }
     private static PriceLine BuildDriftwoodPriceLine(PriceBookWorkbook wb, FireplaceType type, string size,
                                                      string model)
@@ -2351,7 +2500,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (largeQty > 0)
             parts.Add($"{largeQty} Large");
 
-        return new PriceLine {
+        return new PriceLine
+        {
             Feature = "Driftwood",
             Description = parts.Count > 0 ? $"Driftwood Logs - {string.Join(" / ", parts)}" : "Driftwood Logs",
             Sku = string.Join(", ", new[] { smallRow?.Sku, largeRow?.Sku }.Where(x => !string.IsNullOrWhiteSpace(x))),
@@ -2555,9 +2705,14 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 if (!secondBlock)
                     continue;
 
-                value = group switch { "birchwood" => col3, "embers" => col7, "branches" => col5,
-                                       "drift_small" or "drift_large" => col2,
-                                       _ => string.Empty };
+                value = group switch
+                {
+                    "birchwood" => col3,
+                    "embers" => col7,
+                    "branches" => col5,
+                    "drift_small" or "drift_large" => col2,
+                    _ => string.Empty
+                };
 
                 if (group == "drift_small")
                 {
@@ -2582,7 +2737,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 if (secondBlock)
                     continue;
 
-                value = group switch {
+                value = group switch
+                {
                     "fireglass" => col2,
                     "raindrop_diamonds" => col3,
                     "ceramic_pebbles" => col4,
@@ -2752,14 +2908,18 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
     private static int OutdoorGlassMediaSetsFallback(string sizeNum)
     {
-        return sizeNum switch { "50" => PoundsToTenPoundSets(12),
-                                "60" => PoundsToTenPoundSets(14),
-                                "70" => PoundsToTenPoundSets(16),
-                                "80" => PoundsToTenPoundSets(20),
-                                "100" => PoundsToTenPoundSets(24),
-                                _ => 0 };
+        return sizeNum switch
+        {
+            "50" => PoundsToTenPoundSets(12),
+            "60" => PoundsToTenPoundSets(14),
+            "70" => PoundsToTenPoundSets(16),
+            "80" => PoundsToTenPoundSets(20),
+            "100" => PoundsToTenPoundSets(24),
+            _ => 0
+        };
     }
-    private static string IndoorBlockTitle(string group) => group switch {
+    private static string IndoorBlockTitle(string group) => group switch
+    {
         "fireglass" => "fireglass",
         "raindrop_diamonds" => "raindrop and black diamonds",
         "ceramic_pebbles" => "ceramic pebbles",
@@ -2841,7 +3001,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
         if (isRoomDefiner)
         {
-            return sizeNumber switch {
+            return sizeNumber switch
+            {
                 45 => (1, 1),
                 50 => (2, 1),
                 60 => (2, 1),
@@ -2852,7 +3013,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             };
         }
 
-        return sizeNumber switch {
+        return sizeNumber switch
+        {
             30 => (1, 0),
             42 => (1, 0),
             45 => (0, 1),
@@ -2878,36 +3040,45 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (!int.TryParse(s, out var n))
             return 1;
         if (key.Contains("glass", StringComparison.OrdinalIgnoreCase))
-            return n switch { <=
+            return n switch
+            {
+                <=
                                   30 => 10,
-                              <=
-                                  50 => 19,
-                              <=
-                                  60 => 22,
-                              <=
-                                  70 => 26,
-                              <=
-                                  80 => 31,
-                              _ => 38 };
+                <=
+                    50 => 19,
+                <=
+                    60 => 22,
+                <=
+                    70 => 26,
+                <=
+                    80 => 31,
+                _ => 38
+            };
         if (key.Contains("stones", StringComparison.OrdinalIgnoreCase))
-            return n switch { <=
+            return n switch
+            {
+                <=
                                   30 => 4,
-                              <=
-                                  50 => 7,
-                              <=
-                                  60 => 8,
-                              <=
-                                  80 => 10,
-                              _ => 12 };
+                <=
+                    50 => 7,
+                <=
+                    60 => 8,
+                <=
+                    80 => 10,
+                _ => 12
+            };
         if (key.Contains("balls", StringComparison.OrdinalIgnoreCase))
             return 1;
         if (key.Contains("drift", StringComparison.OrdinalIgnoreCase) ||
             key.Contains("birch", StringComparison.OrdinalIgnoreCase))
-            return n switch { <=
+            return n switch
+            {
+                <=
                                   50 => 1,
-                              <=
-                                  70 => 2,
-                              _ => 3 };
+                <=
+                    70 => 2,
+                _ => 3
+            };
         return 1;
     }
 
@@ -3100,13 +3271,16 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                        ? "Indoor Outdoor See Through Passage 30\" x 60\""
                        : $"{ReadableStyle(type, model)} 30\" x 60\"";
 
-        return type switch { FireplaceType.Traditional => $"Traditional {Digits(size)}\"",
-                             FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough =>
-                                 $"Outdoor {ReadableStyle(type, model)} {Digits(size)}\"",
-                             FireplaceType.IndoorOutdoorSeeThrough =>
-                                 $"Indoor Outdoor See Through {Digits(size)}\" x {GlassInches(glassHeight)}\"",
-                             FireplaceType.Large => $"Large {ReadableStyle(type, model)} {Digits(size)}\"",
-                             _ => $"{ReadableStyle(type, model)} {Digits(size)}\" x {GlassInches(glassHeight)}\"" };
+        return type switch
+        {
+            FireplaceType.Traditional => $"Traditional {Digits(size)}\"",
+            FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough =>
+                $"Outdoor {ReadableStyle(type, model)} {Digits(size)}\"",
+            FireplaceType.IndoorOutdoorSeeThrough =>
+                $"Indoor Outdoor See Through {Digits(size)}\" x {GlassInches(glassHeight)}\"",
+            FireplaceType.Large => $"Large {ReadableStyle(type, model)} {Digits(size)}\"",
+            _ => $"{ReadableStyle(type, model)} {Digits(size)}\" x {GlassInches(glassHeight)}\""
+        };
     }
     private static string BuildModelNumber(FireplaceType type, string model, string size, string glassHeight)
     {
@@ -3134,7 +3308,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough)
         {
             var vfCode = VentFreeModelStyleCode(type, model);
-            return $"{vfCode}-{digits}{(string.IsNullOrWhiteSpace(suffix) ? "" : "-" + suffix)}";
+            var outdoorSuffix = OutdoorPriceBookGlassSuffix(glassHeight, model);
+            return $"{vfCode}-{digits}{(string.IsNullOrWhiteSpace(outdoorSuffix) ? "" : "-" + outdoorSuffix)}";
         }
 
         if (type == FireplaceType.IndoorOutdoorSeeThrough)
@@ -3157,31 +3332,60 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return PassageStyleCode(model);
 
         var value = Normalize(model);
+        var compactStyleModel = Compact(model);
 
-        // manual TR style-code override
-        var compactStyleModel = Regex.Replace(model ?? string.Empty, @"[^A-Za-z0-9]+", string.Empty).ToUpperInvariant();
+        bool StartsWithAny(params string[] prefixes) =>
+            prefixes.Any(prefix => compactStyleModel.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
         if (compactStyleModel.Equals("TR", StringComparison.OrdinalIgnoreCase) ||
             compactStyleModel.Equals("TRA", StringComparison.OrdinalIgnoreCase) ||
-            Regex.IsMatch(compactStyleModel, @"^(TR|TRA)\d{2,3}$"))
+            Regex.IsMatch(compactStyleModel, @"^(TR|TRA)\d{2,3}$") ||
+            type == FireplaceType.Traditional)
+        {
             return "TR";
-        if (type == FireplaceType.IndoorOutdoorSeeThrough)
+        }
+
+        if (type is FireplaceType.IndoorOutdoorSeeThrough or FireplaceType.OutdoorSeeThrough)
             return "ST";
-        if (type == FireplaceType.OutdoorSeeThrough)
-            return "ST";
-        if (type == FireplaceType.Outdoor)
-            return value.Contains("see") ? "ST" : "FF";
-        if (type == FireplaceType.Traditional)
-            return "TR";
-        if (value.Contains("room") || value.Contains("rd"))
+
+        // Match complete style names, standalone style codes, or known SKU prefixes.
+        // Never use loose substring checks such as Contains("rc"): "commercial" contains "rc".
+        if (value.Contains("room definer", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\brd\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVRD", "LDRD", "RD"))
+        {
             return "RD";
-        if (value.Contains("double corner") || value.Contains("dc"))
+        }
+
+        if (value.Contains("double corner", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\bdc\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVDC", "LDVDC", "VFDC", "VDC", "DC"))
+        {
             return "DC";
-        if (value.Contains("left") || value.Contains("lc"))
+        }
+
+        if (value.Contains("left corner", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\blc\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVLC", "LDVLC", "VFLC", "VLC", "LC"))
+        {
             return "LC";
-        if (value.Contains("right") || value.Contains("rc"))
+        }
+
+        if (value.Contains("right corner", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\brc\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVRC", "LDVRC", "VFRC", "VRC", "RC"))
+        {
             return "RC";
-        if (value.Contains("see") || value.Contains("st"))
+        }
+
+        if (value.Contains("see through", StringComparison.OrdinalIgnoreCase) ||
+            value.Contains("see-through", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(value, @"\bst\b", RegexOptions.IgnoreCase) ||
+            StartsWithAny("DVST", "LDVST", "VFST", "VST", "ST"))
+        {
             return "ST";
+        }
+
         return "FF";
     }
 
@@ -3214,9 +3418,16 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return IsSeeThroughPassageModel(model) ? ["see", "through", "passage"] : ["front", "facing", "passage"];
 
         var code = StyleCode(type, model);
-        return code switch { "TR" => ["traditional"],     "ST" => ["see", "through"],   "LC" => ["left", "corner"],
-                             "RC" => ["right", "corner"], "DC" => ["double", "corner"], "RD" => ["room", "definer"],
-                             _ => ["front", "facing"] };
+        return code switch
+        {
+            "TR" => ["traditional"],
+            "ST" => ["see", "through"],
+            "LC" => ["left", "corner"],
+            "RC" => ["right", "corner"],
+            "DC" => ["double", "corner"],
+            "RD" => ["room", "definer"],
+            _ => ["front", "facing"]
+        };
     }
 
     private static string[] ResourceStyle(FireplaceType type, string model)
@@ -3233,9 +3444,16 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return IsSeeThroughPassageModel(model) ? "See Through Passage" : "Front Facing Passage";
 
         var code = StyleCode(type, model);
-        return code switch { "TR" => "Traditional",  "ST" => "See Through",   "LC" => "Left Corner",
-                             "RC" => "Right Corner", "DC" => "Double Corner", "RD" => "Room Definer",
-                             _ => "Front Facing" };
+        return code switch
+        {
+            "TR" => "Traditional",
+            "ST" => "See Through",
+            "LC" => "Left Corner",
+            "RC" => "Right Corner",
+            "DC" => "Double Corner",
+            "RD" => "Room Definer",
+            _ => "Front Facing"
+        };
     }
 
     private static string Digits(string? value)
@@ -3264,9 +3482,13 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         return Digits(glassHeight);
     }
 
-    private static string GlassSuffix(string glassHeight) => GlassInches(glassHeight) switch { "16" => "R", "24" => "H",
-                                                                                               "30" => "EH",
-                                                                                               _ => string.Empty };
+    private static string GlassSuffix(string glassHeight) => GlassInches(glassHeight) switch
+    {
+        "16" => "R",
+        "24" => "H",
+        "30" => "EH",
+        _ => string.Empty
+    };
     private static bool ContainsGlass(PriceRow row, string glass)
     {
         var text = Text(row);
@@ -3309,7 +3531,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return number;
 
         // Check EH before H so 30\" glass is never accidentally parsed as 24\".
-        if (Regex.IsMatch(text, @"(?i)^\s*EH\s*$"))
+        if (Regex.IsMatch(text, @"(?i)^\s*(?:E|EH)\s*$"))
             return "30";
         if (Regex.IsMatch(text, @"(?i)^\s*H\s*$"))
             return "24";
@@ -3329,7 +3551,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
         // Examples: FF-80-H, FF80H, FF-80-EH, FF80EH, DVDR45R.
         // EH is listed before H so the 30" suffix wins correctly.
-        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|H|R)(?:[-\s]*(OD|IO))?\b");
+        var match = Regex.Match(text, @"(?i)\b[A-Z]{1,10}[-\s]*\d{2,3}[-\s]*(EH|E|H|R)(?:[-\s]*(OD|IO))?\b");
         return match.Success ? NormalizeGlassHeightAlias(match.Groups[1].Value) : string.Empty;
     }
 
