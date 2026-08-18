@@ -192,6 +192,63 @@ public sealed class MainViewModelUiRefreshTests
     }
 
     [Fact]
+    public void FrontFacingDoesNotExposeOutdoorKitOptionalFeature()
+    {
+        var viewModel = CreateViewModel(featureService: new FeatureSelectionService());
+
+        viewModel.Model = "Front Facing";
+        viewModel.Size = "60";
+        viewModel.GlassHeight = "24";
+
+        Assert.DoesNotContain(
+            viewModel.AllFeatureOptions,
+            option => option.DisplayName.Contains("Outdoor Kit", StringComparison.OrdinalIgnoreCase) ||
+                      option.Key.Contains("outdoor_kit", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void FeatureChipRemoveCommandClearsSelectedFeature()
+    {
+        var viewModel = CreateViewModel(featureService: new FeatureSelectionService());
+
+        viewModel.Model = "Front Facing";
+        viewModel.Size = "60";
+        viewModel.GlassHeight = "24";
+
+        var option = Assert.Single(
+            viewModel.AllFeatureOptions,
+            feature => string.Equals(feature.Key, "rgb_leds", StringComparison.OrdinalIgnoreCase));
+
+        viewModel.ToggleFeatureCommand.Execute(option);
+        var selected = Assert.Single(
+            viewModel.SelectedFeatures,
+            feature => string.Equals(feature.Key, "rgb_leds", StringComparison.OrdinalIgnoreCase));
+
+        viewModel.RemoveFeatureCommand.Execute(selected);
+
+        Assert.DoesNotContain(
+            viewModel.SelectedFeatures,
+            feature => string.Equals(feature.Key, "rgb_leds", StringComparison.OrdinalIgnoreCase));
+        Assert.False(option.IsSelected);
+    }
+
+    [Fact]
+    public async Task EstimatedTotalPricesCurrentQuoteBeforePreview()
+    {
+        var viewModel = CreateViewModel(priceBookService: new FixedEstimatePriceBookService(4321m));
+
+        viewModel.Model = "Front Facing";
+        viewModel.Size = "60";
+        viewModel.GlassHeight = "24";
+
+        var deadline = DateTime.UtcNow.AddSeconds(3);
+        while (viewModel.EstimatedTotalDisplay == "—" && DateTime.UtcNow < deadline)
+            await Task.Delay(25);
+
+        Assert.Equal(4321m.ToString("C0"), viewModel.EstimatedTotalDisplay);
+    }
+
+    [Fact]
     public void GmailDraftButtonRequiresOneValidRecipient()
     {
         var viewModel = CreateViewModel();
@@ -209,14 +266,15 @@ public sealed class MainViewModelUiRefreshTests
 
     private static MainViewModel CreateViewModel(
         IQuoteRequestParser? parser = null,
-        IFeatureSelectionService? featureService = null)
+        IFeatureSelectionService? featureService = null,
+        IPriceBookService? priceBookService = null)
     {
         var logger = new NullLogger();
         var draftWorkflow = new DraftWorkflowService(new NullGmailDraftService(), new EmailTemplateService(), logger);
 
         return new MainViewModel(parser ?? new EmptyParser(), featureService ?? new EmptyFeatureService(),
-                                 new EmptyMediaService(), new EmptyPriceBookService(), new EmptyPdfService(),
-                                 new MemorySettingsService(), draftWorkflow, logger);
+                                 new EmptyMediaService(), priceBookService ?? new EmptyPriceBookService(),
+                                 new EmptyPdfService(), new MemorySettingsService(), draftWorkflow, logger);
     }
 
     private sealed class EmptyParser : IQuoteRequestParser
@@ -253,6 +311,56 @@ public sealed class MainViewModelUiRefreshTests
         public Task<PricedQuoteResult> BuildPricedQuoteAsync(QuoteRequest request, string pricingPath,
                                                              CancellationToken cancellationToken = default) =>
             Task.FromResult(new PricedQuoteResult { Request = request, Success = true });
+
+        public Task<IReadOnlyList<ResourceLinkSet>> ResolveResourceLinksAsync(
+            QuoteRequest request, string pricingPath, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ResourceLinkSet>>([]);
+    }
+
+    private sealed class FixedEstimatePriceBookService : IPriceBookService
+    {
+        private readonly decimal _price;
+
+        public FixedEstimatePriceBookService(decimal price)
+        {
+            _price = price;
+        }
+
+        public Task<PriceBookWorkbook> LoadAsync(string path, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PriceBookWorkbook { SourcePath = path });
+
+        public Task<PriceBookMatch> FindBaseModelAsync(QuoteRequest request,
+                                                       CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PriceBookMatch());
+
+        public Task<PriceBookMatch> FindFeaturePriceAsync(QuoteRequest request, FeatureOption feature,
+                                                          CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PriceBookMatch());
+
+        public Task<PricedQuoteResult> BuildPricedQuoteAsync(QuoteRequest request, string pricingPath,
+                                                             CancellationToken cancellationToken = default)
+        {
+            var result = new PricedQuoteResult { Request = request, Success = true };
+
+            var count = request.Fireplaces.Count;
+            if (count == 0 && !string.IsNullOrWhiteSpace(request.Model))
+                count = 1;
+
+            for (var i = 0; i < count; i++)
+            {
+                result.Fireplaces.Add(
+                    new PricedFireplaceQuote
+                    {
+                        BaseLine = new PriceLine
+                        {
+                            Feature = "Fireplace",
+                            Price = _price
+                        }
+                    });
+            }
+
+            return Task.FromResult(result);
+        }
 
         public Task<IReadOnlyList<ResourceLinkSet>> ResolveResourceLinksAsync(
             QuoteRequest request, string pricingPath, CancellationToken cancellationToken = default) =>

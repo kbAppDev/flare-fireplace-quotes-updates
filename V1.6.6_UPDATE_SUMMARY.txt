@@ -1,0 +1,34 @@
+Flare Fireplace Quotes v1.6.6
+
+Baseline:
+- Built from the uploaded v1.6.5 source.
+- The previously prepared Front Facing Outdoor Kit patch was NOT applied and is not included in this build.
+
+Changes:
+1. Front Facing Outdoor Kit
+   - Reverted/omitted the unshipped Front Facing Outdoor Kit option.
+   - Existing See Through indoor/outdoor behavior is unchanged.
+
+2. Selected feature/media chip removal
+   - Fixed the chip drag handler so the mouse-up event from the x/remove button is not marked handled.
+   - The remove command can now complete normally.
+
+3. Outdoor Classic Media
+   - Added Zircon Black Diamonds.
+   - Added Rain Drop Diamonds.
+   - Applies to Outdoor and Outdoor See Through classic-media lists.
+
+4. Estimated Total
+   - Est. total no longer depends on first generating a PDF preview.
+   - It refreshes automatically when the model, size, glass height, features, media, or fireplace list changes.
+   - Rapid changes are debounced before repricing.
+   - Generating a preview still replaces the estimate with the exact priced quote total.
+
+Validation added:
+- Front Facing does not expose Outdoor Kit.
+- Feature remove command clears the selection.
+- Outdoor classic media includes Zircon Black Diamonds and Rain Drop Diamonds.
+- Estimated total can populate before preview.
+
+Version:
+- 1.6.6

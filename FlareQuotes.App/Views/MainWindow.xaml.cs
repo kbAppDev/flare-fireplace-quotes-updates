@@ -439,6 +439,14 @@ public partial class MainWindow : Window
     }
     private void SelectedChip_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        // Do not swallow the remove-button mouse-up. The button needs the event to complete
+        // its Click/Command pipeline; only the chip-drag gesture should handle this event.
+        if (e.OriginalSource is DependencyObject source && FindAncestor<ButtonBase>(source) is not null)
+            return;
+
+        if (_selectedChipDragElement is null)
+            return;
+
         if (_selectedChipIsDragging)
             CommitSelectedChipDrop();
 

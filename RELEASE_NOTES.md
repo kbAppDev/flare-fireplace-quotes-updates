@@ -1,3 +1,11 @@
+# 1.6.6
+
+- Reverted the unshipped Front Facing Outdoor Kit option; Front Facing fireplaces no longer expose an Outdoor Kit optional feature.
+- Fixed selected-feature/media chip remove buttons so clicking the `×` is not swallowed by the drag/reorder mouse handler.
+- Added Zircon Black Diamonds and Rain Drop Diamonds to the Classic Media lists for Outdoor and Outdoor See Through fireplaces.
+- Reworked the `Est. total` card to price the current quote before PDF preview and refresh automatically when pricing inputs change.
+- Added regression coverage for the Front Facing Outdoor Kit revert, feature removal, Outdoor diamond media availability, and pre-preview estimated totals.
+
 # 1.6.5
 
 - Fixed auto-fill so an empty labeled field cannot consume the following line.

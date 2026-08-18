@@ -59,6 +59,8 @@ public sealed class MainViewModel : ObservableObject
     private string _manualPhotoAttachmentPath = string.Empty;
     private QuoteRequest? _lastRequest;
     private PricedQuoteResult? _lastPricedQuote;
+    private CancellationTokenSource? _estimatedTotalRefreshCts;
+    private string _estimatedTotalDisplay = "—";
     private LastQuoteSnapshot? _lastCompletedQuoteSnapshot;
     private bool _canRecallLastQuote;
     private string _manualUrlToolName = string.Empty;
@@ -988,6 +990,7 @@ public sealed class MainViewModel : ObservableObject
     {
         try
         {
+            CancelEstimatedTotalRefresh();
             StatusMessage = "Pricing quote and generating PDF...";
             var request = BuildQuoteRequest();
             if (request.Fireplaces.Count == 0 && string.IsNullOrWhiteSpace(request.Model))
@@ -1009,7 +1012,7 @@ public sealed class MainViewModel : ObservableObject
             await _quotePdfService.BuildQuotePdfAsync(request, pdfPath);
             _lastRequest = request;
             _lastPricedQuote = priced;
-            OnPropertyChanged(nameof(EstimatedTotalDisplay));
+            SetEstimatedTotalDisplay(priced.TotalMsrp.ToString("C0"));
             GeneratedPdfPath = string.Empty;
             GeneratedPdfPath = pdfPath;
             BuildQuotePreviewRows(priced);
@@ -2964,13 +2967,110 @@ public sealed class MainViewModel : ObservableObject
 
     private void InvalidatePricedSnapshot()
     {
-        if (_lastRequest is null && _lastPricedQuote is null && string.IsNullOrWhiteSpace(GeneratedPdfPath))
+        if (_lastRequest is not null || _lastPricedQuote is not null || !string.IsNullOrWhiteSpace(GeneratedPdfPath))
+        {
+            _lastRequest = null;
+            _lastPricedQuote = null;
+            GeneratedPdfPath = string.Empty;
+        }
+
+        // The estimate is independent from the generated-PDF snapshot. Reprice the current
+        // quote whenever its pricing inputs change so "Est. total" remains useful before preview.
+        ScheduleEstimatedTotalRefresh();
+    }
+
+    private void CancelEstimatedTotalRefresh()
+    {
+        try
+        {
+            _estimatedTotalRefreshCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Best-effort cancellation only.
+        }
+    }
+
+    private void SetEstimatedTotalDisplay(string value)
+    {
+        var finalValue = string.IsNullOrWhiteSpace(value) ? "—" : value;
+        if (string.Equals(_estimatedTotalDisplay, finalValue, StringComparison.Ordinal))
             return;
 
-        _lastRequest = null;
-        _lastPricedQuote = null;
-        GeneratedPdfPath = string.Empty;
+        _estimatedTotalDisplay = finalValue;
         OnPropertyChanged(nameof(EstimatedTotalDisplay));
+    }
+
+    private QuoteRequest BuildEstimatedQuoteRequest()
+    {
+        var request = BuildQuoteRequest();
+
+        // BuildQuoteRequest intentionally excludes a pending second fireplace until it is added.
+        // For the estimate, include that in-progress fireplace so the number reflects what the
+        // user is currently building. Editing an existing fireplace keeps the saved quote total
+        // until Save Changes is chosen.
+        if (Fireplaces.Count > 0 && !IsEditingFireplace && HasCurrentFireplaceDetails())
+            request.Fireplaces.Add(BuildCurrentFireplaceQuote());
+
+        return request;
+    }
+
+    private void ScheduleEstimatedTotalRefresh()
+    {
+        CancelEstimatedTotalRefresh();
+
+        var request = BuildEstimatedQuoteRequest();
+        if (request.Fireplaces.Count == 0 && string.IsNullOrWhiteSpace(request.Model))
+        {
+            SetEstimatedTotalDisplay("—");
+            return;
+        }
+
+        var refreshCts = new CancellationTokenSource();
+        _estimatedTotalRefreshCts = refreshCts;
+        _ = RefreshEstimatedTotalAsync(request, refreshCts);
+    }
+
+    private async Task RefreshEstimatedTotalAsync(QuoteRequest request, CancellationTokenSource refreshCts)
+    {
+        try
+        {
+            // Debounce rapid model/size/media changes so the workbook is not repriced on every keystroke.
+            await Task.Delay(180, refreshCts.Token);
+
+            var priced = await _priceBookService.BuildPricedQuoteAsync(
+                request,
+                PricingPath(),
+                refreshCts.Token);
+
+            if (refreshCts.IsCancellationRequested || !ReferenceEquals(_estimatedTotalRefreshCts, refreshCts))
+                return;
+
+            var hasAnyPricedLine = priced.Fireplaces.Any(
+                fireplace => fireplace.BaseLine.Price.HasValue ||
+                             fireplace.OptionalFeatures.Any(feature => feature.Price.HasValue));
+
+            SetEstimatedTotalDisplay(hasAnyPricedLine ? priced.TotalMsrp.ToString("C0") : "—");
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer quote state superseded this estimate.
+        }
+        catch (Exception ex)
+        {
+            if (ReferenceEquals(_estimatedTotalRefreshCts, refreshCts))
+            {
+                SetEstimatedTotalDisplay("—");
+                _logger.Warning("Estimated total refresh failed: " + SafeForUser(ex.Message));
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_estimatedTotalRefreshCts, refreshCts))
+                _estimatedTotalRefreshCts = null;
+
+            refreshCts.Dispose();
+        }
     }
 
     // Readiness / summary values surfaced to the redesigned build workspace.
@@ -2997,11 +3097,10 @@ public sealed class MainViewModel : ObservableObject
         : Fireplaces.Count > 1 ? $"{Fireplaces.Count} fireplaces on quote"
                                : "Add at least one fireplace";
     public string FireplaceCountText => Fireplaces.Count.ToString();
-    public string EstimatedTotalDisplay => _lastPricedQuote is { } priced ? priced.TotalMsrp.ToString("C0") : "—";
+    public string EstimatedTotalDisplay => _estimatedTotalDisplay;
     private void UpdateStatusForManualSelection()
     {
         InvalidatePricedSnapshot();
-        OnPropertyChanged(nameof(EstimatedTotalDisplay));
         var count = SelectedFeatures.Count + SelectedPremiumMedia.Count + SelectedAdditionalClassicMedia.Count +
                     (ClassicMediaChoice is null ? 0 : 1);
 
@@ -3056,7 +3155,6 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ReadinessText));
         OnPropertyChanged(nameof(ReadyToGenerateDetail));
         OnPropertyChanged(nameof(FireplaceCountText));
-        OnPropertyChanged(nameof(EstimatedTotalDisplay));
         UpdateStatusCards();
     }
     private static string CreateFreshQuotePdfPath(QuoteRequest request, PricedQuoteResult priced)

@@ -8,10 +8,13 @@ public sealed class MediaSelectionService : IMediaSelectionService
 {
     public IReadOnlyList<MediaOption> GetClassicMedia(FireplaceType type)
     {
-        // Outdoor quotes use glass-style classic media only in the Python app.
+        // Outdoor quotes use glass-style classic media, including the diamond media options.
         if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough)
         {
-            return MediaCatalog.Classic.Where(x => x.Key.StartsWith("fg_", StringComparison.OrdinalIgnoreCase))
+            return MediaCatalog.Classic
+                .Where(x => x.Key.StartsWith("fg_", StringComparison.OrdinalIgnoreCase) ||
+                            x.Key.Equals("pd_black", StringComparison.OrdinalIgnoreCase) ||
+                            x.Key.Equals("pd_rain", StringComparison.OrdinalIgnoreCase))
                 .OrderBy(x => x.Label)
                 .ToList();
         }
