@@ -4,7 +4,7 @@
   const LOGICAL_W = 402;
   const LOGICAL_H = 874;
   const EXPORT_SCALE = 3;
-  const APP_VERSION = '0.4.1';
+  const APP_VERSION = '0.4.2';
   const COMPOSER_TOP = 806;
   const CONTENT_TOP = 172;
   const CONTENT_BOTTOM_PAD = 105;
@@ -416,7 +416,25 @@
     else if(state.status.batteryPct){ctx.fillStyle=theme==='dark'?'#000':'#fff';setFont(ctx,8.5,'700');ctx.textAlign='center';ctx.fillText(String(state.status.battery),bx+bw/2,by+bh/2+1);}
   }
 
-  function drawWifi(ctx,cx,cy,level,color){ctx.save();ctx.strokeStyle=color;ctx.lineWidth=2.2;ctx.lineCap='round';const radii=[10,6.5,3];for(let i=0;i<3;i++){ctx.globalAlpha=(3-i)<=level?1:.18;ctx.beginPath();ctx.arc(cx,cy+7,radii[i],Math.PI*1.18,Math.PI*1.82);ctx.stroke();}ctx.globalAlpha=1;ctx.fillStyle=color;ctx.beginPath();ctx.arc(cx,cy+7,1.8,0,Math.PI*2);ctx.fill();ctx.restore();}
+  function drawWifi(ctx,cx,cy,level,color){
+    // Two broad bands and a rounded sector, traced against the supplied
+    // status-bar reference. Three stroked arcs plus a dot looked like radar.
+    ctx.save();ctx.translate(cx,cy);ctx.fillStyle=color;
+    ctx.globalAlpha=level>=3?1:.18;ctx.beginPath();
+    ctx.moveTo(-9.2,-.8);ctx.bezierCurveTo(-4.2,-5.5,4.2,-5.5,9.2,-.8);
+    ctx.quadraticCurveTo(9.8,-.15,9.15,.5);ctx.lineTo(8.15,1.5);
+    ctx.quadraticCurveTo(7.65,2,7.1,1.5);ctx.bezierCurveTo(3.2,-2.1,-3.2,-2.1,-7.1,1.5);
+    ctx.quadraticCurveTo(-7.65,2,-8.15,1.5);ctx.lineTo(-9.15,.5);ctx.quadraticCurveTo(-9.8,-.15,-9.2,-.8);ctx.closePath();ctx.fill();
+    ctx.globalAlpha=level>=2?1:.18;ctx.beginPath();
+    ctx.moveTo(-5.8,3);ctx.bezierCurveTo(-2.6,0,2.6,0,5.8,3);
+    ctx.quadraticCurveTo(6.4,3.55,5.8,4.15);ctx.lineTo(4.6,5.3);
+    ctx.quadraticCurveTo(4.1,5.8,3.55,5.3);ctx.bezierCurveTo(1.55,3.65,-1.55,3.65,-3.55,5.3);
+    ctx.quadraticCurveTo(-4.1,5.8,-4.6,5.3);ctx.lineTo(-5.8,4.15);ctx.quadraticCurveTo(-6.4,3.55,-5.8,3);ctx.closePath();ctx.fill();
+    ctx.globalAlpha=level>=1?1:.18;ctx.beginPath();ctx.moveTo(-2.5,6.8);
+    ctx.quadraticCurveTo(0,4.65,2.5,6.8);ctx.quadraticCurveTo(2.9,7.2,2.45,7.7);
+    ctx.lineTo(.7,9.45);ctx.quadraticCurveTo(0,10.1,-.7,9.45);ctx.lineTo(-2.45,7.7);
+    ctx.quadraticCurveTo(-2.9,7.2,-2.5,6.8);ctx.closePath();ctx.fill();ctx.restore();
+  }
 
   function drawAvatar(ctx,cx,cy,r) {
     const c=state.contact;
@@ -431,7 +449,14 @@
   }
 
   function drawVideoButton(ctx,theme) {
-    const fg=theme==='dark'?'#fff':'#000';ctx.fillStyle=theme==='dark'?'rgba(58,58,60,.62)':'rgba(248,248,250,.70)';ctx.strokeStyle=theme==='dark'?'rgba(255,255,255,.24)':'rgba(60,60,67,.18)';ctx.lineWidth=.7;ctx.beginPath();ctx.arc(364,84,22.5,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.strokeStyle=fg;ctx.lineWidth=1.8;roundedRectPath(ctx,353,78,14,12,3);ctx.stroke();ctx.beginPath();ctx.moveTo(367,81);ctx.lineTo(374,77);ctx.lineTo(374,91);ctx.lineTo(367,87);ctx.closePath();ctx.stroke();
+    ctx.save();
+    const fg=theme==='dark'?'#fff':'#000';ctx.fillStyle=theme==='dark'?'rgba(58,58,60,.62)':'rgba(248,248,250,.70)';ctx.strokeStyle=theme==='dark'?'rgba(255,255,255,.24)':'rgba(60,60,67,.18)';ctx.lineWidth=.7;ctx.beginPath();ctx.arc(364,84,22.5,0,Math.PI*2);ctx.fill();ctx.stroke();
+    // Wider camera body and softly rounded viewfinder, with no doubled seam.
+    ctx.strokeStyle=fg;ctx.lineWidth=1.75;ctx.lineJoin='round';ctx.lineCap='round';
+    roundedRectPath(ctx,351.8,76.3,18.1,15.4,3.5);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(369.9,81.1);ctx.lineTo(375.4,77.6);
+    ctx.quadraticCurveTo(376.3,77.05,376.3,78.15);ctx.lineTo(376.3,89.85);
+    ctx.quadraticCurveTo(376.3,90.95,375.4,90.4);ctx.lineTo(369.9,86.9);ctx.stroke();ctx.restore();
   }
 
   function drawHeader(ctx,theme) {

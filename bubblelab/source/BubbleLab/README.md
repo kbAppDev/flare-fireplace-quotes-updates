@@ -1,6 +1,6 @@
 # Bubble Lab
 
-Version 0.4.1 — native-refinement rebuild.
+Version 0.4.2 — native-refinement rebuild.
 
 A local-first installable PWA for composing one-to-one iOS-style Messages conversations and exporting the visible iPhone 17 Pro screen at 1206×2622 PNG.
 
