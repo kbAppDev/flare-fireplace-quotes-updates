@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#f5f5f7" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Bubble Lab" />
+  <title>Bubble Lab</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="stylesheet" href="styles.css?v=0.4.0" />
+</head>
+<body>
+  <main id="appShell">
+    <section id="phoneStage" aria-label="Bubble Lab Messages editor">
+      <div id="phoneViewport">
+        <canvas id="previewCanvas" width="1206" height="2622" aria-label="Messages preview"></canvas>
+        <div id="messageScroller" aria-label="Conversation messages">
+          <div id="scrollSpacer"></div>
+          <div id="hitLayer"></div>
+        </div>
+        <button id="backHit" class="invisible-hit" aria-label="Open Bubble Lab tools"></button>
+        <button id="headerHit" class="invisible-hit" aria-label="Edit contact"></button>
+        <button id="videoHit" class="invisible-hit" aria-label="Edit conversation contact"></button>
+        <button id="composerHit" class="invisible-hit" aria-label="Add message"></button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="messageDialog" class="sheet-dialog">
+    <form method="dialog" id="messageForm" class="sheet-card">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <button value="cancel" class="plain-btn">Cancel</button>
+        <h2 id="messageDialogTitle">Add Message</h2>
+        <button type="button" id="saveMessageBtn" class="plain-btn accent">Add</button>
+      </div>
+      <h3 class="field-heading">From</h3>
+      <div class="segmented" id="senderSegment">
+        <button type="button" data-sender="them" class="active">Them</button>
+        <button type="button" data-sender="me">Me</button>
+      </div>
+      <h3 class="field-heading">Type</h3>
+      <div class="segmented type-grid" id="kindSegment" aria-label="Message type">
+        <button type="button" data-kind="text" class="active">Text</button>
+        <button type="button" data-kind="photo">Photo</button>
+        <button type="button" data-kind="video">Video</button>
+        <button type="button" data-kind="link">Link</button>
+        <button type="button" data-kind="file">File</button>
+        <button type="button" data-kind="voice">Voice</button>
+        <button type="button" data-kind="sticker">Sticker</button>
+      </div>
+
+      <div class="form-grid">
+        <label class="full" id="textFieldWrap">Message
+          <textarea id="messageText" rows="4" placeholder="Message"></textarea>
+        </label>
+        <label class="full media-only" id="mediaFieldWrap">Media
+          <input id="messageMedia" type="file" accept="image/*,video/*" />
+          <span class="help">Images stay only on this device. Video exports use the selected file as a thumbnail.</span>
+        </label>
+        <label class="full link-only" id="linkFieldWrap">URL
+          <input id="messageUrl" type="url" placeholder="https://example.com" inputmode="url" />
+        </label>
+        <label class="full file-only" id="fileFieldWrap">Attachment label
+          <input id="messageFileName" type="text" placeholder="Project Notes.pdf" />
+        </label>
+        <label>Date & time
+          <input id="messageDate" type="datetime-local" />
+        </label>
+        <label>Delivery
+          <select id="messageDelivery">
+            <option value="">Nothing</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Read">Read</option>
+          </select>
+        </label>
+        <label>Reaction
+          <select id="messageReaction">
+            <option value="">None</option>
+            <option>❤️</option><option>👍</option><option>👎</option><option>😂</option><option>‼️</option><option>❓</option>
+            <option>🔥</option><option>👏</option><option>💯</option><option>😮</option>
+          </select>
+        </label>
+        <label>Bubble Type
+          <select id="messageChannel">
+            <option value="imessage">iMessage blue</option>
+            <option value="sms">SMS/RCS green</option>
+          </select>
+        </label>
+        <label class="check-row"><input id="messageEdited" type="checkbox" role="switch" /> <span>Edited</span></label>
+        <label class="check-row"><input id="messageDeleted" type="checkbox" role="switch" /> <span>Message Removed</span></label>
+        <label class="full">Inline reply to
+          <select id="messageReplyTo"><option value="">No reply</option></select>
+        </label>
+      </div>
+      <div id="editActions" class="action-grid hidden">
+        <button type="button" id="moveUpBtn">Move Earlier</button>
+        <button type="button" id="moveDownBtn">Move Later</button>
+        <button type="button" id="deleteMessageBtn" class="danger">Delete</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="contactDialog" class="sheet-dialog">
+    <form method="dialog" id="contactForm" class="sheet-card">
+      <div class="grabber"></div>
+      <div class="sheet-head">
+        <button value="cancel" class="plain-btn">Cancel</button>
+        <h2>Conversation</h2>
+        <button type="button" id="saveContactBtn" class="plain-btn accent">Save</button>
+      </div>
+      <div class="avatar-preview-row">
+        <div id="avatarPreview" class="avatar-preview">JM</div>
+      </div>
+      <div class="form-grid">
+        <label class="full">Contact name <input id="contactName" value="James" /></label>
+        <label>Initials <input id="contactInitials" value="JM" maxlength="3" /></label>
+        <label>Avatar style
+          <select id="avatarStyle"><option value="initials">Initials</option><option value="emoji">Emoji</option><option value="photo">Photo</option></select>
+        </label>
+        <label id="emojiWrap">Emoji <input id="contactEmoji" value="🙂" maxlength="8" /></label>
+        <label>Avatar color <input id="avatarColor" type="color" value="#879bd1" /></label>
+        <label class="full" id="avatarPhotoWrap">Contact photo <input id="avatarPhoto" type="file" accept="image/*" /></label>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="toolsDialog" class="sheet-dialog">
+    <form method="dialog" class="sheet-card tools-card">
+      <div class="grabber"></div>
+      <div class="sheet-head"><button value="cancel" class="plain-btn">Done</button><h2>Bubble Lab</h2><span class="head-spacer"></span></div>
+      <section class="settings-section">
+        <h3>Appearance</h3>
+        <div class="segmented" id="themeSegment"><button type="button" data-theme="light" class="active">Light</button><button type="button" data-theme="dark">Dark</button></div>
+        <label>Messages background
+          <select id="backgroundEffect">
+            <option value="plain">Native Plain</option>
+          </select>
+        </label>
+      </section>
+      <section class="settings-section">
+        <h3>Status Bar</h3>
+        <div class="form-grid">
+          <label>Time <input id="statusTime" value="9:41" inputmode="numeric" /></label>
+          <label>Battery <input id="statusBattery" type="number" min="0" max="100" value="82" /></label>
+          <label>Cell signal <input id="statusSignal" type="range" min="0" max="4" value="4" /></label>
+          <label>Wi‑Fi <input id="statusWifi" type="range" min="0" max="3" value="3" /></label>
+          <label class="check-row"><input id="statusCharging" type="checkbox" /> <span>Charging</span></label>
+          <label class="check-row"><input id="statusSilent" type="checkbox" checked /> <span>Silent</span></label>
+          <label class="check-row"><input id="statusFocus" type="checkbox" /> <span>Focus indicator</span></label>
+          <label class="check-row"><input id="statusBatteryPct" type="checkbox" /> <span>Battery %</span></label>
+        </div>
+      </section>
+      <section class="settings-section action-stack">
+        <button type="button" id="exportBtn" class="primary-action">Export This Screen</button>
+        <button type="button" id="resetBtn" class="danger ghost">Reset Conversation</button>
+      </section>
+      <p class="privacy-note">Everything stays on this device. Bubble Lab does not upload or save your conversation.</p>
+      <p class="privacy-note">Back: tools · Contact: edit · Composer: add<br>Tap or hold a message to edit, react, or reorder.</p>
+      <p class="version-note">Bubble Lab <span id="appVersion">0.4.0</span> · 1206 × 2622 PNG</p>
+      <button type="button" id="updateBtn" class="plain-btn accent">Check for Update</button>
+    </form>
+  </dialog>
+
+  <dialog id="choiceDialog" class="sheet-dialog" aria-labelledby="choiceTitle">
+    <form method="dialog" class="sheet-card">
+      <div class="grabber"></div>
+      <div class="sheet-head"><button class="plain-btn" value="cancel">Back</button><h2 id="choiceTitle">Choose</h2><span></span></div>
+      <div id="choiceOptions" class="choice-list"></div>
+    </form>
+  </dialog>
+  <script src="app.js?v=0.4.0"></script>
+</body>
+</html>
