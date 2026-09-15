@@ -24,7 +24,7 @@ async function sample(){await reset();click('headerHit');fill('contactName','Ale
 async function run(){
   entries=[];document.querySelector('#run').disabled=true;report.textContent='Running…';
   try{
-    await reset();ok($('appVersion').textContent==='0.4.0','version 0.4.0');
+    await reset();ok($('appVersion').textContent==='0.4.1','version 0.4.1');
     for(const [w,h]of [[320,568],[375,667],[402,874],[768,1024]]){
       frame.style.width=w+'px';frame.style.height=h+'px';await wait(120);const b=bounds();ok(Math.abs(b.width/b.height-402/874)<.00001,`${w}×${h}: uniform preview scaling`);ok(b.pixels.join('×')==='1206×2622',`${w}×${h}: fixed canvas pixels`);
       click('composerHit');ok(noOverflow(),`${w}×${h}: sheet fields inside bounds`);const buttons=Array.from($('kindSegment').children);ok(buttons.every(b=>b.clientWidth>=50&&b.clientHeight>=44),`${w}×${h}: all seven type buttons fit`);ok(buttons[4].offsetTop>buttons[0].offsetTop,`${w}×${h}: type grid wraps into two rows`);closeAll();
@@ -47,7 +47,7 @@ async function run(){
     const exported=await new Promise(resolve=>{const reader=new (win().FileReader)();reader.onload=()=>resolve(reader.result);reader.readAsDataURL(out);});
     async function pixels(src){const im=new (win().Image)();im.src=src;await im.decode();const c=doc().createElement('canvas');c.width=1206;c.height=2622;const x=c.getContext('2d');x.drawImage(im,0,0);return x.getImageData(0,0,1206,2622).data;}
     const a=await pixels(before),b=await pixels(exported);let differences=0;for(let i=0;i<a.length;i++)if(a[i]!==b[i])differences++;if(differences){const block=document.createElement('section');block.id='exportDiagnostics';for(const [name,src]of [['Visible canvas',before],['Exported PNG',exported]]){const label=document.createElement('h2'),im=document.createElement('img');label.textContent=name;im.src=src;im.style.width='402px';block.append(label,im);}document.querySelector('main').prepend(block);}ok(!differences,'export pixel match at scroll 170: no tools or browser chrome ('+differences+' channel differences, current scroll '+$('messageScroller').scrollTop+')');closeAll();
-    const caches=await win().caches.keys();ok(caches.includes('bubble-lab-v0.4.0'),'versioned PWA cache installed');const keys=await (await win().caches.open('bubble-lab-v0.4.0')).keys();ok(keys.length===8&&keys.every(r=>!r.url.includes('qa.')),'offline shell contains only eight static assets, no conversation data');
+    const caches=await win().caches.keys();ok(caches.includes('bubble-lab-v0.4.1'),'versioned PWA cache installed');const keys=await (await win().caches.open('bubble-lab-v0.4.1')).keys();ok(keys.length===8&&keys.every(r=>!r.url.includes('qa.')),'offline shell contains only eight static assets, no conversation data');
     await sample();entries.push('\nCOMPLETE — '+entries.length+' checks passed. Physical iPhone / Safari share sheet still requires device verification.');report.textContent=entries.join('\n');
   }catch(e){entries.push('FAIL '+e.message);report.textContent=entries.join('\n');}finally{document.querySelector('#run').disabled=false;}
 }

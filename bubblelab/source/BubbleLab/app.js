@@ -4,7 +4,7 @@
   const LOGICAL_W = 402;
   const LOGICAL_H = 874;
   const EXPORT_SCALE = 3;
-  const APP_VERSION = '0.4.0';
+  const APP_VERSION = '0.4.1';
   const COMPOSER_TOP = 806;
   const CONTENT_TOP = 172;
   const CONTENT_BOTTOM_PAD = 105;
@@ -585,7 +585,7 @@
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('PNG exported');
   }
 
-  function resetConversation(){if(!confirm('Discard this conversation and reset Bubble Lab?'))return;state=defaultState();scroller.scrollTop=0;closeDialog($('toolsDialog'));refreshRender();toast('Conversation reset');}
+  function resetConversation(){if(!confirm('Discard this conversation and reset Bubble Lab?'))return;state=defaultState();imageCache.clear();decodedImages.clear();scroller.scrollTop=0;closeDialog($('toolsDialog'));refreshRender();toast('Conversation reset');}
 
   function installChoices(){
     document.querySelectorAll('select').forEach(sel=>{
@@ -617,7 +617,9 @@
   }
 
   function attachEvents(){
-    scroller.addEventListener('scroll',()=>{requestAnimationFrame(renderPreview)} ,{passive:true});
+    // Rendering already serializes requests; avoid a redundant animation frame
+    // leaving stale pixels when a PWA resumes or loses focus.
+    scroller.addEventListener('scroll',renderPreview,{passive:true});
     $('composerHit').addEventListener('click',()=>openMessageDialog());$('headerHit').addEventListener('click',openContact);$('backHit').addEventListener('click',openTools);$('videoHit').addEventListener('click',openContact);
     $('senderSegment').addEventListener('click',e=>{const b=e.target.closest('button[data-sender]');if(!b)return;setSegment($('senderSegment'),'sender',b.dataset.sender);});
     $('kindSegment').addEventListener('click',e=>{const b=e.target.closest('button[data-kind]');if(!b)return;setSegment($('kindSegment'),'kind',b.dataset.kind);updateKindFields(b.dataset.kind);});
