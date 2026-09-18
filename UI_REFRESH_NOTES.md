@@ -1,6 +1,6 @@
-# Flare Quotes v1.6.4 — Audited UI Refresh
+# Flare Quotes v1.6.7 — Audited UI Refresh
 
-This candidate applies the three-pane visual redesign while keeping the official v1.5.1 pricing, PDF, Gmail, updater, security, parsing, feature/media, workbook, and release-pipeline files byte-equivalent after line-ending normalization.
+This candidate retains the audited three-pane design and adds explicit per-fireplace location handling across the builder, quote review, PDF, URL verification, and Gmail resource links.
 
 ## Production UI changes
 
@@ -15,11 +15,20 @@ This candidate applies the three-pane visual redesign while keeping the official
 
 The source is not publishable merely because the XAML is well formed. The Windows release candidate must pass:
 
-1. `Test-UiContract.ps1`
-2. restore and NuGet vulnerability audit
-3. warnings-as-errors builds
-4. automated tests
-5. `Test-UiSnapshots.ps1` at normal and minimum dimensions
-6. CodeQL
-7. local installer installation and hands-on smoke test
-8. tagged release workflow and live manifest/hash verification
+1. `dotnet restore .\FlareQuotes.sln`
+2. `dotnet format .\FlareQuotes.sln --verify-no-changes --no-restore --verbosity minimal`
+3. direct and transitive NuGet vulnerability audits for the app and test projects
+4. warnings-as-errors Release builds for the app and tests
+5. automated tests excluding the opt-in live Gmail integration suite
+6. a direct snapshot-mode run at normal and minimum dimensions:
+
+   ```powershell
+   $env:FLARE_UI_SNAPSHOT_MODE = "1"
+   $env:FLARE_UI_SNAPSHOT_DIR = Join-Path (Get-Location) "artifacts\ui-snapshots"
+   dotnet run --project .\FlareQuotes.App\FlareQuotes.App.csproj -c Release --no-restore -p:DefineConstants=FLARE_UI_SNAPSHOTS -p:TreatWarningsAsErrors=true
+   Remove-Item Env:FLARE_UI_SNAPSHOT_MODE, Env:FLARE_UI_SNAPSHOT_DIR -ErrorAction SilentlyContinue
+   ```
+
+7. CodeQL
+8. direct Inno Setup compilation, local installer installation, and hands-on smoke testing
+9. installer size/SHA-256 verification and live updater-metadata verification

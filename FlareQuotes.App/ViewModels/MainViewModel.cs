@@ -1046,6 +1046,7 @@ public sealed class MainViewModel : ObservableObject
                         {
                             FireplaceGroupId = groupId,
                             FireplaceCode = set.ModelNumber,
+                            FireplaceLocation = set.FireplaceLocation,
                             Label = link.Key,
                             Url = link.Value,
                             Status = set.Sources.TryGetValue(link.Key, out var s) ? s : "specific"
@@ -1274,7 +1275,14 @@ public sealed class MainViewModel : ObservableObject
                         var modelNumber = group.Select(x => x.FireplaceCode)
                                                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ??
                                           group.Key;
-                        var set = new ResourceLinkSet { ModelNumber = modelNumber };
+                        var fireplaceLocation = group.Select(x => x.FireplaceLocation)
+                                                     .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ??
+                                                  string.Empty;
+                        var set = new ResourceLinkSet
+                        {
+                            ModelNumber = modelNumber,
+                            FireplaceLocation = fireplaceLocation
+                        };
 
                         foreach (var item in group)
                         {
@@ -1415,6 +1423,12 @@ public sealed class MainViewModel : ObservableObject
 
         return $"Fireplace {index}";
     }
+    private static string ResolveUrlVerificationFireplaceLocation(IEnumerable<object> rows)
+    {
+        return rows.Select(row => GetObjectStringValue(row, "FireplaceLocation", "Location", "Room", "Area"))
+                   .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?
+                   .Trim() ?? string.Empty;
+    }
     private void AddManualUrl()
     {
         if (SelectedUrlVerificationFireplace is null)
@@ -1445,6 +1459,7 @@ public sealed class MainViewModel : ObservableObject
         {
             FireplaceGroupId = fireplaceGroupId,
             FireplaceCode = fireplaceCode,
+            FireplaceLocation = SelectedUrlVerificationFireplace.FireplaceLocation,
             Label = toolName,
             Url = url,
             Status = "manual"
@@ -1499,6 +1514,8 @@ public sealed class MainViewModel : ObservableObject
             var modelCode = ResolveUrlVerificationModelCode(groupRows, i + 1);
             var styleKey = ResolveUrlVerificationStyleKey(modelCode, groupRows);
             var isValid = groupRows.All(IsUrlVerificationRowValid);
+            var fireplaceLocation = ResolveUrlVerificationFireplaceLocation(groupRows);
+            var urlHeading = BuildUrlVerificationHeading(modelCode, styleKey, groupRows);
 
             UrlVerificationFireplaces.Add(new UrlVerificationFireplaceCard
             {
@@ -1507,9 +1524,12 @@ public sealed class MainViewModel : ObservableObject
                                    .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ??
                           $"legacy:{i + 1:D3}:{modelCode}",
                 ModelCode = modelCode,
+                FireplaceLocation = fireplaceLocation,
                 StyleKey = styleKey,
                 StyleLabel = ResolveUrlVerificationStyleLabel(styleKey, modelCode, groupRows),
-                UrlHeading = BuildUrlVerificationHeading(modelCode, styleKey, groupRows),
+                UrlHeading = string.IsNullOrWhiteSpace(fireplaceLocation)
+                                 ? urlHeading
+                                 : $"{fireplaceLocation} — {urlHeading}",
                 ImagePath = IsFf25EhModelText(modelCode) ? "pack://application:,,,/Assets/UrlStyleCards/FF25EH.png"
                             : string.Equals(styleKey, "TR", StringComparison.OrdinalIgnoreCase)
                                 ? "pack://application:,,,/Assets/UrlStyleCards/TR.png"
@@ -2141,6 +2161,7 @@ public sealed class MainViewModel : ObservableObject
             QuotePreviewRows.Add(new QuotePreviewRow
             {
                 FireplaceLabel = string.IsNullOrWhiteSpace(fp.ModelNumber) ? fp.FireplaceLabel : fp.ModelNumber,
+                FireplaceLocation = fp.FireplaceLocation,
                 LeadTime = fp.LeadTime,
                 Features = fp.OptionalFeatures.Count == 0
                                ? "None"
@@ -4069,6 +4090,7 @@ public sealed class UrlVerificationFireplaceCard : ObservableObject
     }
     public string GroupId { get; init; } = string.Empty;
     public string ModelCode { get; init; } = string.Empty;
+    public string FireplaceLocation { get; init; } = string.Empty;
     public string StyleKey { get; init; } = "FF";
     public string StyleLabel { get; init; } = "Front Facing";
     public string UrlHeading { get; init; } = "Fireplace URLs";
@@ -4117,22 +4139,33 @@ public sealed class FireplaceQuoteDraft : ObservableObject
     public string AdditionalClassicMediaKey { get; set; } = string.Empty;
     public List<FeatureSelection> Features { get; set; } = [];
     public List<MediaSelection> PremiumMedia { get; set; } = [];
+    public string DisplayName
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Location))
+                return Location.Trim();
+            if (!string.IsNullOrWhiteSpace(FireplaceLabel))
+                return FireplaceLabel.Trim();
+            return string.IsNullOrWhiteSpace(Model) ? "Fireplace" : Model.Trim();
+        }
+    }
     public string LeadTimeLine => $"Lead Time: {LeadTime}";
     public string FeaturesLine => $"Features: {FeaturesSummary}";
     public string ClassicMediaLine => $"Classic Media: {ClassicMediaSummary}";
     public string PremiumMediaLine => $"Premium Media: {PremiumMediaSummary}";
-    // Compact "60\" · 14\" glass · Great room" style line for the summary cards.
+    // Compact "Front Facing · 60 · 16 glass" style line for the summary cards.
     public string DetailLine
     {
         get
         {
             var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(Model))
+                parts.Add(Model.Trim());
             if (!string.IsNullOrWhiteSpace(Size))
-                parts.Add(Size);
+                parts.Add(Size.Trim());
             if (!string.IsNullOrWhiteSpace(GlassHeight))
-                parts.Add($"{GlassHeight} glass");
-            if (!string.IsNullOrWhiteSpace(Location))
-                parts.Add(Location);
+                parts.Add($"{GlassHeight.Trim()} glass");
             return string.Join("  ·  ", parts);
         }
     }
@@ -4143,6 +4176,7 @@ public sealed class FireplaceQuoteDraft : ObservableObject
 public sealed class QuotePreviewRow : ObservableObject
 {
     public string FireplaceLabel { get; set; } = string.Empty;
+    public string FireplaceLocation { get; set; } = string.Empty;
     public string LeadTime { get; set; } = string.Empty;
     public string Features { get; set; } = string.Empty;
     public string ClassicMedia { get; set; } = string.Empty;
@@ -4155,6 +4189,7 @@ public sealed class SpecLinkDraft : ObservableObject
     private string _url = string.Empty;
     public string FireplaceGroupId { get; set; } = string.Empty;
     public string FireplaceCode { get; set; } = string.Empty;
+    public string FireplaceLocation { get; set; } = string.Empty;
     public string Label { get; set; } = string.Empty;
     public string Url
     {

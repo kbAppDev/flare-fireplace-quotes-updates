@@ -151,6 +151,7 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
         var projectTitle = FirstNonBlank(fireplace?.ProjectName, request.ProjectName, fallbackTitle,
                                          request.FireplaceLocation, fireplace?.FireplaceLabel, " ");
         var projectAddress = FirstNonBlank(fireplace?.ProjectAddress, request.ProjectAddress, request.Postal, " ");
+        var fireplaceLocation = FirstNonBlank(fireplace?.FireplaceLocation, request.FireplaceLocation);
 
         container.Table(table =>
                         {
@@ -180,6 +181,12 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                             DetailsValue(table, projectAddress);
                             DetailsLabel(table, "Quote #:");
                             DetailsValue(table, quoteNumber);
+
+                            if (!string.IsNullOrWhiteSpace(fireplaceLocation))
+                            {
+                                DetailsLabel(table, "Fireplace Location:");
+                                DetailsValue(table, fireplaceLocation, 3);
+                            }
                         });
     }
 
@@ -346,13 +353,18 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
     private static void DetailsLabel(TableDescriptor table, string value) =>
         table.Cell().Element(DetailsBox).AlignMiddle().Text(value).Bold().FontSize(6.8f).AlignLeft();
 
-    private static void DetailsValue(TableDescriptor table,
-                                     string value) => table.Cell()
-                                                          .Element(DetailsBox)
-                                                          .AlignMiddle()
-                                                          .Text(string.IsNullOrWhiteSpace(value) ? " " : value)
-                                                          .FontSize(6.8f)
-                                                          .AlignLeft();
+    private static void DetailsValue(TableDescriptor table, string value, uint columnSpan = 1)
+    {
+        var cell = table.Cell();
+        if (columnSpan > 1)
+            cell = cell.ColumnSpan(columnSpan);
+
+        cell.Element(DetailsBox)
+            .AlignMiddle()
+            .Text(string.IsNullOrWhiteSpace(value) ? " " : value)
+            .FontSize(6.8f)
+            .AlignLeft();
+    }
 
     private static void HeaderCell(TableDescriptor table, string value) => table.Cell()
                                                                                .Element(TableHeaderBox)

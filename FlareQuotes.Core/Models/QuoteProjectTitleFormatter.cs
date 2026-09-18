@@ -31,10 +31,12 @@ public static class QuoteProjectTitleFormatter
 
         var title = string.Join(" ", new[] { application, style }.Where(x => !string.IsNullOrWhiteSpace(x)));
         if (!string.IsNullOrWhiteSpace(width) && !string.IsNullOrWhiteSpace(height))
-            return $"{title} {width}\" x {height}\"";
-        if (!string.IsNullOrWhiteSpace(width))
-            return $"{title} {width}\"";
-        return title;
+            title = $"{title} {width}\" x {height}\"";
+        else if (!string.IsNullOrWhiteSpace(width))
+            title = $"{title} {width}\"";
+
+        var location = (fireplace.FireplaceLocation ?? string.Empty).Trim();
+        return string.IsNullOrWhiteSpace(location) ? title : $"{location} — {title}";
     }
 
     private static string ResolveStyle(PricedFireplaceQuote fireplace)

@@ -1,43 +1,55 @@
-# Flare Fireplace Quotes v1.6.4
+# Flare Fireplace Quotes v1.6.7
 
 Windows WPF application for turning fireplace quote requests into priced PDFs, verified specification links, and Gmail drafts.
 
 ## Release highlights
 
-v1.6.4 fixes locale-sensitive price loading, makes damaged pricing workbooks fail safely, aligns user-facing error redaction, and removes verified dead code without changing the approved interface or quote workflow.
+v1.6.7 adds clear per-fireplace location names throughout multi-fireplace quotes while retaining the v1.6.6 pricing, media, and estimated-total fixes.
 
 The updater is pinned to the Flare-managed GitHub release lane. Every installer download must match the release version, exact asset path, declared byte size, and SHA-256 hash before launch. Optional RS256 manifest signatures fail closed whenever a signature is present but invalid.
 
-## Build and test
+## Build and validate
 
 Requirements: Windows, .NET 10 SDK, and Inno Setup 6 for installer builds.
 
 ```powershell
-dotnet restore .\FlareQuotes.Tests\FlareQuotes.Tests.csproj
+dotnet restore .\FlareQuotes.sln
+dotnet format .\FlareQuotes.sln --verify-no-changes --no-restore --verbosity minimal
 dotnet build .\FlareQuotes.App\FlareQuotes.App.csproj -c Release -p:TreatWarningsAsErrors=true
+dotnet build .\FlareQuotes.Tests\FlareQuotes.Tests.csproj -c Release -p:TreatWarningsAsErrors=true
 dotnet test .\FlareQuotes.Tests\FlareQuotes.Tests.csproj -c Release --filter "FullyQualifiedName!~GmailEveryModelIntegrationTests"
+dotnet list .\FlareQuotes.App\FlareQuotes.App.csproj package --vulnerable --include-transitive --format json --no-restore
+dotnet list .\FlareQuotes.Tests\FlareQuotes.Tests.csproj package --vulnerable --include-transitive --format json --no-restore
 ```
 
-Maintained workflows:
+## Create the release deliverables
 
-- `Build_And_Run_Safe.ps1` — local clean build and launch.
-- `Test-UiContract.ps1` — validates required workflow bindings, commands, named controls, and theme resources.
-- `Test-UiSnapshots.ps1` — renders the actual WPF main and settings windows on Windows and rejects key layout overflow.
-- `Run-Final-Release-Gate.ps1` — full pre-release validation.
-- `Build_Release_Installer.ps1` — self-contained Windows installer and updater manifest.
-- `Build_Publish_Professional_Release.ps1` — validated installer build and GitHub release publication.
-- `.github/workflows/release.yml` — tag-driven Windows build, test, CodeQL, installer, manifest, and release pipeline.
+Run these commands from the repository root after the validation commands pass:
+
+```powershell
+$releaseVersion = "1.6.7"
+$publishDir = Join-Path (Get-Location) "FlareQuotes.App\bin\Release\net10.0-windows\win-x64\publish"
+$iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+
+dotnet restore .\FlareQuotes.App\FlareQuotes.App.csproj -r win-x64
+dotnet publish .\FlareQuotes.App\FlareQuotes.App.csproj -c Release -r win-x64 --self-contained true --no-restore -p:SelfContained=true -p:PublishSingleFile=false -p:PublishReadyToRun=true
+& $iscc "/DMyAppVersion=$releaseVersion" "/DSourceDir=$publishDir" "/FFlare.Fireplace.Quotes" .\FlareQuotes.App\Installer\FlareFireplacesQuotesInstaller.iss
+Compress-Archive -Path "$publishDir\*" -DestinationPath .\installer\Flare.Fireplace.Quotes-portable.zip -CompressionLevel Optimal -Force
+```
+
+If Inno Setup is installed elsewhere, replace `$iscc` with the full path to `ISCC.exe`. The Inno command writes `installer\Flare.Fireplace.Quotes.exe`.
 
 ## Publishing
 
-Merge a clean, passing commit to `main`, then push a tag matching `Directory.Build.props`, such as `v1.6.0`. The release workflow refuses mismatched versions, vulnerable NuGet dependencies, UI render failures, compiler warnings, test failures, or CodeQL failures before publishing updater assets.
+Publish only from a clean, passing commit tagged `v1.6.7`, matching `Directory.Build.props`. The tag-driven GitHub workflow performs formatting, tests, rendered Windows UI checks, CodeQL, packaging, and installer hash verification before publishing. The updater metadata points to that exact versioned installer and records its exact size and SHA-256.
 
-Required release assets:
+Current user-facing release deliverables:
 
 - `Flare.Fireplace.Quotes.exe`
-- `flare-quotes-v1-latest.json`
 - `Flare.Fireplace.Quotes-portable.zip`
-- `Flare.Fireplace.Quotes-v1.6.4-FULL-BACKUP.zip`
+- `flare-quotes-v1-latest.json`
+
+The updater's `flare-quotes-v1-latest.json` is release metadata, not an additional application package. Regenerate and verify it against the installer before publication.
 
 ## Runtime data
 

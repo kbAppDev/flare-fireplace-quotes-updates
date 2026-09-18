@@ -6,8 +6,7 @@ public static class AppPaths
 {
     public const string ProductFolderName = "Flare Fireplace Quotes";
 
-    public static string Root => Ensure(
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ProductFolderName));
+    public static string Root => Ensure(Path.Combine(LocalApplicationDataRoot, ProductFolderName));
 
     public static string SettingsFile => Path.Combine(Root, "settings.json");
     public static string Logs => Ensure(Path.Combine(Root, "Logs"));
@@ -25,12 +24,22 @@ public static class AppPaths
     public static string UiSettingsFile => Path.Combine(Root, "ui-settings.json");
 
     public static IReadOnlyList<string>
-        LegacyRoots => [Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                                     "Flare Fireplaces - Quotes"),
-                        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                                     "Flare Fireplaces - Quotes", "v3"),
-                        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                                     "Flare Quote Builder")];
+        LegacyRoots => [Path.Combine(LocalApplicationDataRoot, "Flare Fireplaces - Quotes"),
+                        Path.Combine(LocalApplicationDataRoot, "Flare Fireplaces - Quotes", "v3"),
+                        Path.Combine(LocalApplicationDataRoot, "Flare Quote Builder")];
+
+    private static string LocalApplicationDataRoot
+    {
+        get
+        {
+#if FLARE_UI_SNAPSHOTS
+            var snapshotRoot = Environment.GetEnvironmentVariable("FLARE_UI_SNAPSHOT_APPDATA");
+            if (!string.IsNullOrWhiteSpace(snapshotRoot) && Path.IsPathFullyQualified(snapshotRoot))
+                return Path.GetFullPath(snapshotRoot);
+#endif
+            return Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        }
+    }
 
     public static void MigrateLegacyData()
     {

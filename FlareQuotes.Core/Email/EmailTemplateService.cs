@@ -68,7 +68,15 @@ public sealed class EmailTemplateService
         var lines = new List<string>();
         foreach (var set in sets)
         {
-            var labelText = string.IsNullOrWhiteSpace(set.ModelNumber) ? "Spec Files" : $"{set.ModelNumber} Spec Files";
+            var location = (set.FireplaceLocation ?? string.Empty).Trim();
+            var modelNumber = (set.ModelNumber ?? string.Empty).Trim();
+            var labelText = !string.IsNullOrWhiteSpace(location) && !string.IsNullOrWhiteSpace(modelNumber)
+                                ? $"{location} — {modelNumber} Spec Files"
+                                : !string.IsNullOrWhiteSpace(location)
+                                    ? $"{location} Spec Files"
+                                    : !string.IsNullOrWhiteSpace(modelNumber)
+                                        ? $"{modelNumber} Spec Files"
+                                        : "Spec Files";
 
             var label = $"<strong>{WebUtility.HtmlEncode(labelText)}:</strong>";
 

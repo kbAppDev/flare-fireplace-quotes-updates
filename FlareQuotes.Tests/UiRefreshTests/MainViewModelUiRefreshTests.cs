@@ -143,6 +143,27 @@ public sealed class MainViewModelUiRefreshTests
     }
 
     [Fact]
+    public void FireplaceCardUsesLocationAsItsNameWithoutRepeatingItInDetails()
+    {
+        var located = new FireplaceQuoteDraft
+        {
+            FireplaceLabel = "Living Room | FF50 | 50\" | 16\" glass",
+            Location = " Living Room ",
+            Model = "FF50",
+            Size = "50",
+            GlassHeight = "16"
+        };
+        var labeled = new FireplaceQuoteDraft { FireplaceLabel = "Existing label", Model = "FF60" };
+        var modelOnly = new FireplaceQuoteDraft { Model = "ST70" };
+
+        Assert.Equal("Living Room", located.DisplayName);
+        Assert.Equal("FF50  ·  50  ·  16 glass", located.DetailLine);
+        Assert.DoesNotContain("Living Room", located.DetailLine, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Existing label", labeled.DisplayName);
+        Assert.Equal("ST70", modelOnly.DisplayName);
+    }
+
+    [Fact]
     public void UrlVerificationCreatesOneCardPerResourceSetInstance()
     {
         var viewModel = CreateViewModel();
@@ -189,6 +210,92 @@ public sealed class MainViewModelUiRefreshTests
         Assert.Equal("FF140H", viewModel.UrlVerificationFireplaces[1].ModelCode);
         Assert.Equal(2, viewModel.UrlVerificationFireplaces[0].Rows.Count);
         Assert.Equal(2, viewModel.UrlVerificationFireplaces[1].Rows.Count);
+    }
+
+    [Fact]
+    public void UrlVerificationDistinguishesDuplicateModelsByFireplaceLocation()
+    {
+        var viewModel = CreateViewModel();
+
+        viewModel.SpecLinks.Add(
+            new SpecLinkDraft
+            {
+                FireplaceGroupId = "001:FF60R",
+                FireplaceCode = "FF60R",
+                FireplaceLocation = "Living Room",
+                Label = "Product Sheet",
+                Url = "https://example.com/ff60-product.pdf",
+                Status = "specific"
+            });
+        viewModel.SpecLinks.Add(
+            new SpecLinkDraft
+            {
+                FireplaceGroupId = "002:FF60R",
+                FireplaceCode = "FF60R",
+                FireplaceLocation = "Primary Bedroom",
+                Label = "Product Sheet",
+                Url = "https://example.com/ff60-product.pdf",
+                Status = "specific"
+            });
+
+        Assert.Collection(
+            viewModel.UrlVerificationFireplaces,
+            card =>
+            {
+                Assert.Equal("Living Room", card.FireplaceLocation);
+                Assert.StartsWith("Living Room — ", card.UrlHeading, StringComparison.Ordinal);
+            },
+            card =>
+            {
+                Assert.Equal("Primary Bedroom", card.FireplaceLocation);
+                Assert.StartsWith("Primary Bedroom — ", card.UrlHeading, StringComparison.Ordinal);
+            });
+    }
+
+    [Fact]
+    public async Task QuotePreviewRowsPreserveEachFireplaceLocation()
+    {
+        var viewModel = CreateViewModel(priceBookService: new FixedEstimatePriceBookService(4200m));
+
+        viewModel.Model = "Front Facing";
+        viewModel.Size = "60";
+        viewModel.GlassHeight = "16";
+        viewModel.FireplaceLocation = "Living Room";
+        viewModel.AddFireplaceCommand.Execute(null);
+
+        viewModel.Model = "Front Facing";
+        viewModel.Size = "60";
+        viewModel.GlassHeight = "16";
+        viewModel.FireplaceLocation = "Primary Bedroom";
+        viewModel.AddFireplaceCommand.Execute(null);
+
+        var priced = new PricedQuoteResult
+        {
+            Fireplaces =
+            [
+                new PricedFireplaceQuote { ModelNumber = "FF60R", FireplaceLocation = "Living Room" },
+                new PricedFireplaceQuote { ModelNumber = "FF60R", FireplaceLocation = "Primary Bedroom" }
+            ]
+        };
+        var buildPreviewRows = typeof(MainViewModel).GetMethod(
+            "BuildQuotePreviewRows",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.NotNull(buildPreviewRows);
+        buildPreviewRows!.Invoke(viewModel, [priced]);
+
+        Assert.Collection(
+            viewModel.QuotePreviewRows,
+            row => Assert.Equal("Living Room", row.FireplaceLocation),
+            row => Assert.Equal("Primary Bedroom", row.FireplaceLocation));
+
+        await viewModel.NextToSpecLinksCommand.ExecuteAsync(null);
+
+        Assert.True(viewModel.SpecLinks.Count == 2, viewModel.StatusMessage);
+        Assert.Collection(
+            viewModel.UrlVerificationFireplaces,
+            card => Assert.Equal("Living Room", card.FireplaceLocation),
+            card => Assert.Equal("Primary Bedroom", card.FireplaceLocation));
     }
 
     [Fact]
@@ -348,9 +455,15 @@ public sealed class MainViewModelUiRefreshTests
 
             for (var i = 0; i < count; i++)
             {
+                var fireplace = i < request.Fireplaces.Count ? request.Fireplaces[i] : null;
                 result.Fireplaces.Add(
                     new PricedFireplaceQuote
                     {
+                        FireplaceLabel = fireplace?.Model ?? request.Model,
+                        FireplaceLocation = fireplace?.FireplaceLocation ?? request.FireplaceLocation,
+                        Model = fireplace?.Model ?? request.Model,
+                        ModelNumber = fireplace?.Model ?? request.Model,
+                        LeadTime = fireplace?.LeadTime ?? "3-5 Business Days",
                         BaseLine = new PriceLine
                         {
                             Feature = "Fireplace",
@@ -363,8 +476,23 @@ public sealed class MainViewModelUiRefreshTests
         }
 
         public Task<IReadOnlyList<ResourceLinkSet>> ResolveResourceLinksAsync(
-            QuoteRequest request, string pricingPath, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<ResourceLinkSet>>([]);
+            QuoteRequest request, string pricingPath, CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<ResourceLinkSet> links = request.Fireplaces.Select(
+                fireplace =>
+                {
+                    var set = new ResourceLinkSet
+                    {
+                        ModelNumber = fireplace.Model,
+                        FireplaceLocation = fireplace.FireplaceLocation
+                    };
+                    set.Links["Product Sheet"] = "https://example.com/product.pdf";
+                    set.Sources["Product Sheet"] = "specific";
+                    return set;
+                }).ToList();
+
+            return Task.FromResult(links);
+        }
     }
 
     private sealed class EmptyPdfService : IQuotePdfService

@@ -59,4 +59,20 @@ public sealed class QuoteProjectTitleFormatterTests
         Assert.Equal("Outdoor See Through 50\" x 16\" | Indoor Front Facing 80\" x 24\"",
                      QuoteProjectTitleFormatter.BuildFallback(fireplaces));
     }
+
+    [Fact]
+    public void PrefixesFireplaceTitleWithLocationWhenProvided()
+    {
+        var fireplace = new PricedFireplaceQuote
+        {
+            FireplaceLocation = "Living Room",
+            Type = FireplaceType.Indoor,
+            Model = "Front Facing",
+            Size = "60",
+            GlassHeight = "24"
+        };
+
+        Assert.Equal("Living Room — Indoor Front Facing 60\" x 24\"",
+                     QuoteProjectTitleFormatter.BuildFireplaceTitle(fireplace));
+    }
 }

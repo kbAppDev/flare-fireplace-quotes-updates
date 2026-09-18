@@ -431,7 +431,7 @@
                                                         <StackPanel Grid.Column="0"><TextBlock Text="Model" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
                                                         <StackPanel Grid.Column="2"><TextBlock Text="Size" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Size, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
                                                         <StackPanel Grid.Column="4"><TextBlock Text="Glass height" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding GlassHeight, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                                                        <StackPanel Grid.Column="6"><TextBlock Text="Location" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding FireplaceLocation, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
+                                                        <StackPanel Grid.Column="6"><TextBlock Text="Fireplace location" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding FireplaceLocation, UpdateSourceTrigger=PropertyChanged}" ToolTip="Name the room or area, for example Living Room or Patio" /></StackPanel>
                                                     </Grid>
 
                                                     <Grid Margin="0,12,0,0">
@@ -638,7 +638,7 @@
                                 </Setter>
                             </Style>
                         </Button.Style>
-                        <Border CornerRadius="10" Padding="14" Width="198" MinHeight="174" Background="{DynamicResource SurfaceRaisedBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" RenderTransformOrigin="0.5,0.5">
+                        <Border CornerRadius="10" Padding="14" Width="198" MinHeight="194" Background="{DynamicResource SurfaceRaisedBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" RenderTransformOrigin="0.5,0.5">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Opacity" Value="0.92" />
@@ -676,13 +676,14 @@
                                 </Style>
                             </Border.Style>
                             <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="28" />
-                                    <RowDefinition Height="70" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
+                                 <Grid.RowDefinitions>
+                                     <RowDefinition Height="28" />
+                                     <RowDefinition Height="70" />
+                                     <RowDefinition Height="Auto" />
+                                     <RowDefinition Height="Auto" />
+                                     <RowDefinition Height="Auto" />
+                                     <RowDefinition Height="Auto" />
+                                 </Grid.RowDefinitions>
 
                                 <Border Width="28" Height="28" CornerRadius="14" HorizontalAlignment="Left" Background="{DynamicResource SurfaceRaisedBrush}">
                                     <TextBlock Text="{Binding Index}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="{DynamicResource FlareTextBrush}" />
@@ -700,10 +701,20 @@
        RenderOptions.BitmapScalingMode="HighQuality"
        SnapsToDevicePixels="True" />
 
-                                <TextBlock Grid.Row="2" Text="{Binding ModelCode}" HorizontalAlignment="Center" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource FlareTextBrush}" Margin="0,7,0,0" />
-                                <TextBlock Grid.Row="3" Text="{Binding StyleLabel}" HorizontalAlignment="Center" FontSize="13" Foreground="{DynamicResource FlareMutedTextBrush}" Margin="0,4,0,0" />
+                                 <TextBlock Grid.Row="2" Text="{Binding ModelCode}" HorizontalAlignment="Center" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource FlareTextBrush}" Margin="0,7,0,0" />
+                                 <TextBlock Grid.Row="3" Text="{Binding FireplaceLocation}" HorizontalAlignment="Center" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource FlareAccentBrush}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis">
+                                     <TextBlock.Style>
+                                         <Style TargetType="TextBlock">
+                                             <Setter Property="Visibility" Value="Visible" />
+                                             <Style.Triggers>
+                                                 <DataTrigger Binding="{Binding FireplaceLocation}" Value=""><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                             </Style.Triggers>
+                                         </Style>
+                                     </TextBlock.Style>
+                                 </TextBlock>
+                                 <TextBlock Grid.Row="4" Text="{Binding StyleLabel}" HorizontalAlignment="Center" FontSize="13" Foreground="{DynamicResource FlareMutedTextBrush}" Margin="0,4,0,0" />
 
-                                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,0">
+                                 <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,0">
                                     <TextBlock Text="{Binding StatusGlyph}" FontSize="15" FontWeight="Bold" Margin="0,0,7,0">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
@@ -1065,7 +1076,7 @@
                                                                            VerticalAlignment="Center" />
                                                             </Border>
                                                             <TextBlock Grid.Column="1"
-                                                                       Text="{Binding FireplaceLabel}"
+                                                                       Text="{Binding DisplayName}"
                                                                        FontWeight="SemiBold"
                                                                        FontSize="13"
                                                                        TextTrimming="CharacterEllipsis"

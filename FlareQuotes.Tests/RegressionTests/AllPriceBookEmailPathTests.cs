@@ -75,6 +75,7 @@ public sealed class AllPriceBookEmailPathTests
             [
                 new FireplaceQuote
                 {
+                    FireplaceLocation = "Living Room",
                     Type = FireplaceType.Outdoor,
                     Model = "VDC50H",
                     Size = "50",
@@ -82,6 +83,7 @@ public sealed class AllPriceBookEmailPathTests
                 },
                 new FireplaceQuote
                 {
+                    FireplaceLocation = "Primary Bedroom",
                     Type = FireplaceType.Outdoor,
                     Model = "VDC50H",
                     Size = "50",
@@ -102,6 +104,9 @@ public sealed class AllPriceBookEmailPathTests
         Assert.Equal(3, links.Count);
         Assert.Equal(links[0].ModelNumber, links[1].ModelNumber, ignoreCase: true);
         Assert.Contains("140", links[2].ModelNumber, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Living Room", links[0].FireplaceLocation);
+        Assert.Equal("Primary Bedroom", links[1].FireplaceLocation);
+        Assert.Equal(string.Empty, links[2].FireplaceLocation);
     }
 
     internal static QuoteRequest BuildRequest(PriceRow row, FireplaceType type, string email)

@@ -359,7 +359,11 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             if (IsPassageModel(inputModel))
                 modelNumber = PassageModelCode(inputModel);
 
-            var set = new ResourceLinkSet { ModelNumber = modelNumber };
+            var set = new ResourceLinkSet
+            {
+                ModelNumber = modelNumber,
+                FireplaceLocation = input.FireplaceLocation?.Trim() ?? string.Empty
+            };
             var columns = ResourceColumns(type);
             var rowFallback = linkRow is not null ? CleanCellUrl(First(linkRow.RawValues, "Fallback URL", "Fallback",
                                                                        "Download Center", "Download Center URL"))

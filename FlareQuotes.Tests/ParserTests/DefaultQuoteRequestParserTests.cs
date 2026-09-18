@@ -47,6 +47,16 @@ public sealed class DefaultQuoteRequestParserTests
     }
 
     [Theory]
+    [InlineData("Fireplace Location: Living Room")]
+    [InlineData("Location: Living Room")]
+    public void ParsesFireplaceLocationLabels(string input)
+    {
+        var result = new DefaultQuoteRequestParser().Parse(input);
+
+        Assert.Equal("Living Room", result.FireplaceLocation);
+    }
+
+    [Theory]
     [InlineData("VFDC50H", "Outdoor Vent Free Double Corner", "50", "24")]
     [InlineData("VFLC100", "Outdoor Vent Free Left Corner", "100", "16")]
     [InlineData("VFFF80H", "Outdoor Vent Free Front Facing", "80", "24")]

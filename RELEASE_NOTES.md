@@ -1,3 +1,11 @@
+# 1.6.7
+
+- Made the existing per-fireplace location field explicit in the quote builder and easier to scan on saved fireplace cards.
+- Preserved each fireplace location through preview, URL verification, and Gmail resource-link review so repeated models remain distinguishable.
+- Added a dedicated `Fireplace Location` row to every applicable PDF page while retaining the shared project name and address.
+- Included fireplace locations in blank-project fallback headings without changing quotes that leave the location blank.
+- Removed archived build output and prior packaged releases from the 1.6.7 deliverables; only the current updater installer, portable application, and verified update manifest are published.
+
 # 1.6.6
 
 - Reverted the unshipped Front Facing Outdoor Kit option; Front Facing fireplaces no longer expose an Outdoor Kit optional feature.
