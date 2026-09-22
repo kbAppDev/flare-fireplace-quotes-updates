@@ -7,6 +7,7 @@ public sealed class PricedQuoteResult
     public QuoteRequest Request { get; set; } = new();
     public List<PricedFireplaceQuote> Fireplaces { get; set; } = [];
     public IReadOnlyList<ResourceLinkSet> ResourceLinks { get; set; } = [];
+    public int TotalFireplaceQuantity => Fireplaces.Sum(x => Math.Max(1, x.Quantity));
     public decimal TotalMsrp => Fireplaces.Sum(x => x.TotalMsrp);
 }
 
@@ -22,6 +23,7 @@ public sealed class PricedFireplaceQuote
     public string GlassHeight { get; set; } = string.Empty;
     public string ModelNumber { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public int Quantity { get; set; } = 1;
     public string LeadTime { get; set; } = "3-5 Business Days";
     public PriceLine BaseLine { get; set; } = new();
     public List<PriceLine> OptionalFeatures { get; set; } = [];

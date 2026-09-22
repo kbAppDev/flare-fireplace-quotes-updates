@@ -1,0 +1,15 @@
+Flare Fireplace Quotes v1.6.8
+
+WHAT CHANGED
+- Each fireplace configuration now has a quantity selector for projects using multiple identical fireplaces.
+- Base fireplace pricing, selected-feature pricing, media quantities, quote totals, preview rows, and email wording all reflect the selected quantity.
+- Passive Heat Flex selections now use the exact Passive Heat Flex framing guide for the selected model and glass height while excluding standard Free Flow wood and metal framing guides.
+- Generated PDF filenames now end with the customer's name.
+- Quote PDFs show Qty and Total MSRP columns for both the fireplace and optional features.
+
+VALIDATION
+- Automated regression tests cover quantity pricing and persistence, the full Passive Heat Flex guide matrix, and filename behavior.
+- A representative three-fireplace PDF was rendered and visually inspected for table layout, quantities, totals, filename, and hyperlinks.
+
+VERSION
+- 1.6.8

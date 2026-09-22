@@ -42,7 +42,7 @@
                                SnapsToDevicePixels="False" UseLayoutRounding="False" />
                         <Border Width="1" Height="18" Background="{DynamicResource DividerBrush}" Margin="11,0" />
                         <TextBlock Text="Quotes" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
-                        <TextBlock x:Name="AppVersionText" Text="v1.6.0" Style="{StaticResource MutedText}" FontSize="11" Margin="7,1,0,0" VerticalAlignment="Center" />
+                        <TextBlock x:Name="AppVersionText" Text="v" Style="{StaticResource MutedText}" FontSize="11" Margin="7,1,0,0" VerticalAlignment="Center" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -399,25 +399,87 @@
                                     <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="0,16,0,0" Margin="0,16,0,0">
                                         <StackPanel>
                                             <Grid Margin="0,0,0,10">
-                                                <StackPanel>
-                                                    <TextBlock Text="Current fireplace" FontSize="15" FontWeight="SemiBold" />
-                                                    <TextBlock Text="Build the current fireplace, then choose Add fireplace to place it on the quote." Style="{StaticResource MutedText}" FontSize="11" Margin="0,3,0,0" />
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="4" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Current fireplace" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                                                     <Button Content="Clear current" Command="{Binding ClearCurrentFireplaceCommand}" Style="{StaticResource QuietButton}" Height="32" Margin="0,0,6,0" />
                                                     <Button Content="{Binding AddFireplaceButtonText}" Command="{Binding AddFireplaceCommand}" Style="{StaticResource PrimaryButton}" Height="32" />
                                                 </StackPanel>
+                                                <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                                           Text="Build the current fireplace, then add it to the quote."
+                                                           Style="{StaticResource MutedText}"
+                                                           FontSize="11"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" />
                                             </Grid>
                                             <Border Background="{DynamicResource SurfaceSubtleBrush}" BorderBrush="{DynamicResource ControlBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14">
                                                 <StackPanel>
                                                     <Grid Margin="0,0,0,12">
-                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
                                                         <Border Width="30" Height="30" CornerRadius="8" Background="#1E2B12" BorderBrush="#4E6B25" BorderThickness="1" Margin="0,0,10,0">
                                                             <Path Data="M15,3 C16,7 21,8 21,14 C21,19 18,23 12,23 C7,23 4,19 4,14 C4,10 7,7 10,4 C10,8 12,10 14,11 C15,9 15,6 15,3 Z" Fill="{DynamicResource FlareAccentBrush}" Stretch="Uniform" Margin="6" />
                                                         </Border>
                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                             <TextBlock Text="Current fireplace" FontWeight="SemiBold" />
                                                             <TextBlock Text="{Binding CurrentFireplaceLabel}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                                            <TextBlock Text="Qty" Style="{StaticResource MutedText}" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,7,0" />
+                                                            <Border Height="30"
+                                                                    Background="{DynamicResource FlareInputBrush}"
+                                                                    BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="7"
+                                                                    ClipToBounds="True"
+                                                                    ToolTip="Number of identical fireplaces with this configuration">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="30" />
+                                                                        <ColumnDefinition Width="36" />
+                                                                        <ColumnDefinition Width="30" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <Button Grid.Column="0"
+                                                                            Content="−"
+                                                                            Command="{Binding DecreaseFireplaceQuantityCommand}"
+                                                                            Style="{StaticResource QuietButton}"
+                                                                            Width="30" Height="28" MinHeight="28" Padding="0"
+                                                                            FontSize="16" FontWeight="Normal"
+                                                                            Foreground="{DynamicResource FlareTextBrush}"
+                                                                            ToolTip="Decrease quantity"
+                                                                            AutomationProperties.Name="Decrease fireplace quantity" />
+                                                                    <Border Grid.Column="1"
+                                                                            BorderBrush="{DynamicResource DividerBrush}"
+                                                                            BorderThickness="1,0"
+                                                                            Background="{DynamicResource SurfaceRaisedBrush}">
+                                                                        <TextBlock Text="{Binding FireplaceQuantity}"
+                                                                                   HorizontalAlignment="Center"
+                                                                                   VerticalAlignment="Center"
+                                                                                   FontSize="12.5"
+                                                                                   FontWeight="SemiBold" />
+                                                                    </Border>
+                                                                    <Button Grid.Column="2"
+                                                                            Content="+"
+                                                                            Command="{Binding IncreaseFireplaceQuantityCommand}"
+                                                                            Style="{StaticResource QuietButton}"
+                                                                            Width="30" Height="28" MinHeight="28" Padding="0"
+                                                                            FontSize="15" FontWeight="Normal"
+                                                                            Foreground="{DynamicResource FlareTextBrush}"
+                                                                            ToolTip="Increase quantity"
+                                                                            AutomationProperties.Name="Increase fireplace quantity" />
+                                                                </Grid>
+                                                            </Border>
                                                         </StackPanel>
                                                     </Grid>
 
@@ -1061,6 +1123,7 @@
                                                                 <ColumnDefinition Width="Auto" />
                                                                 <ColumnDefinition Width="*" />
                                                                 <ColumnDefinition Width="Auto" />
+                                                                <ColumnDefinition Width="Auto" />
                                                             </Grid.ColumnDefinitions>
                                                             <Border Grid.Column="0"
                                                                     Width="20"
@@ -1081,7 +1144,10 @@
                                                                        FontSize="13"
                                                                        TextTrimming="CharacterEllipsis"
                                                                        VerticalAlignment="Center" />
-                                                            <Button Grid.Column="2" Content="×" Style="{StaticResource ChipRemoveButton}"
+                                                            <Border Grid.Column="2" Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="11" Padding="8,3" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding QuantityDisplay}" FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource FlareMutedTextBrush}" />
+                                                            </Border>
+                                                            <Button Grid.Column="3" Content="×" Style="{StaticResource ChipRemoveButton}"
                                                                     PreviewMouseLeftButtonDown="FireplaceRemove_PreviewMouseLeftButtonDown"
                                                                     Command="{Binding DataContext.RemoveFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                     CommandParameter="{Binding}" Margin="8,0,0,0" ToolTip="Remove — burns away" />

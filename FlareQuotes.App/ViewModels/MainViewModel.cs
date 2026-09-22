@@ -39,6 +39,7 @@ public sealed class MainViewModel : ObservableObject
     private string _size = string.Empty;
     private string _glassHeight = string.Empty;
     private string _fireplaceLocation = string.Empty;
+    private int _fireplaceQuantity = 1;
     private string _leadTime = "3-5 Business Days";
     private string _statusMessage = "Ready. Paste a quote request to begin.";
     private string _gmailStatusText = InitialGmailStatusText();
@@ -116,6 +117,12 @@ public sealed class MainViewModel : ObservableObject
         SelectLeadTimeCommand = new RelayCommand<string>(SelectLeadTime);
         AddFireplaceCommand = new RelayCommand(AddFireplaceToQuote);
         ClearCurrentFireplaceCommand = new RelayCommand(ClearCurrentFireplaceInputs);
+        DecreaseFireplaceQuantityCommand = new RelayCommand(
+            () => FireplaceQuantity--,
+            () => FireplaceQuantity > 1);
+        IncreaseFireplaceQuantityCommand = new RelayCommand(
+            () => FireplaceQuantity++,
+            () => FireplaceQuantity < 100);
         RemoveFireplaceCommand = new RelayCommand<FireplaceQuoteDraft>(RemoveFireplace);
         EditFireplaceCommand = new RelayCommand<FireplaceQuoteDraft>(EditFireplace);
         NextToPreviewCommand = new AsyncRelayCommand(NextToPreviewAsync);
@@ -285,6 +292,20 @@ public sealed class MainViewModel : ObservableObject
         {
             if (SetProperty(ref _fireplaceLocation, value))
                 NotifyFireplaceContextChanged();
+        }
+    }
+    public int FireplaceQuantity
+    {
+        get => _fireplaceQuantity;
+        set
+        {
+            var normalized = Math.Clamp(value, 1, 100);
+            if (SetProperty(ref _fireplaceQuantity, normalized))
+            {
+                DecreaseFireplaceQuantityCommand.NotifyCanExecuteChanged();
+                IncreaseFireplaceQuantityCommand.NotifyCanExecuteChanged();
+                NotifyFireplaceContextChanged();
+            }
         }
     }
     public string LeadTime
@@ -626,7 +647,8 @@ public sealed class MainViewModel : ObservableObject
     public string LeadTimeDropdownButtonText => string.IsNullOrWhiteSpace(LeadTime) ? "Select Lead Time" : LeadTime;
     public string FireplaceQuoteSummary =>
         Fireplaces.Count == 0 ? "No fireplaces added yet."
-                              : string.Join("; ", Fireplaces.Select(x => $"{x.FireplaceLabel}: {x.LeadTime}"));
+                              : string.Join("; ", Fireplaces.Select(
+                                                x => $"{x.FireplaceLabel} (Qty {Math.Max(1, x.Quantity)}): {x.LeadTime}"));
     public bool IsEditingFireplace => _editingFireplace is not null;
     public string AddFireplaceButtonText => IsEditingFireplace ? "Save Changes" : "Add Fireplace";
     private static string NormalizeGlassHeightForQuote(string? value)
@@ -756,6 +778,14 @@ public sealed class MainViewModel : ObservableObject
     {
         get;
     }
+    public RelayCommand DecreaseFireplaceQuantityCommand
+    {
+        get;
+    }
+    public RelayCommand IncreaseFireplaceQuantityCommand
+    {
+        get;
+    }
     public RelayCommand<FireplaceQuoteDraft> RemoveFireplaceCommand
     {
         get;
@@ -826,6 +856,7 @@ public sealed class MainViewModel : ObservableObject
     private async Task AutoFillAsync()
     {
         var parsed = _parser.Parse(RawRequest);
+        FireplaceQuantity = 1;
         ProjectName = parsed.ProjectName;
         ClientName = parsed.ClientName;
         Email = EmailAddressNormalizer.NormalizeSingleOrEmpty(parsed.Email);
@@ -965,6 +996,7 @@ public sealed class MainViewModel : ObservableObject
         EndFireplaceEdit();
         RawRequest = ProjectName = ClientName = Email = Phone = Postal = InstallDate = Model = Size = GlassHeight =
             FireplaceLocation = string.Empty;
+        FireplaceQuantity = 1;
         LeadTime = "3-5 Business Days";
         Fireplaces.Clear();
         ClearFeatureSelections();
@@ -1018,7 +1050,7 @@ public sealed class MainViewModel : ObservableObject
             BuildQuotePreviewRows(priced);
             WorkflowStage = QuoteWorkflowStage.PdfPreview;
             StatusMessage =
-                priced.Success ? $"PDF preview ready for {priced.Fireplaces.Count} fireplace(s)." : priced.Message;
+                priced.Success ? $"PDF preview ready for {priced.TotalFireplaceQuantity} fireplace(s)." : priced.Message;
         }
         catch (Exception ex)
         {
@@ -2120,6 +2152,7 @@ public sealed class MainViewModel : ObservableObject
         return new FireplaceQuote
         {
             FireplaceLocation = FireplaceLocation,
+            Quantity = FireplaceQuantity,
             Type = ResolveTypeForQuote(Model, Size, SelectedFeatures),
             Model = ModelForQuotePreservingOdIo(
                                         Model, ForceOutdoorVentFreeType(Model, DetectType(Model, Size)), Size,
@@ -2138,6 +2171,7 @@ public sealed class MainViewModel : ObservableObject
         return new FireplaceQuote
         {
             FireplaceLocation = fireplace.Location,
+            Quantity = Math.Max(1, fireplace.Quantity),
             ProjectName = fireplace.ProjectName,
             ProjectAddress = fireplace.ProjectAddress,
             Type = ResolveTypeForQuote(fireplace.Model, fireplace.Size, fireplace.Features),
@@ -2162,10 +2196,12 @@ public sealed class MainViewModel : ObservableObject
             {
                 FireplaceLabel = string.IsNullOrWhiteSpace(fp.ModelNumber) ? fp.FireplaceLabel : fp.ModelNumber,
                 FireplaceLocation = fp.FireplaceLocation,
+                Quantity = Math.Max(1, fp.Quantity),
                 LeadTime = fp.LeadTime,
                 Features = fp.OptionalFeatures.Count == 0
                                ? "None"
-                               : string.Join(", ", fp.OptionalFeatures.Select(x => $"{x.Feature} {x.PriceText}")),
+                               : string.Join(", ", fp.OptionalFeatures.Select(
+                                                 x => $"{x.Feature} (Qty {Math.Max(1, x.Quantity)}) {x.PriceText}")),
                 ClassicMedia =
                     string.IsNullOrWhiteSpace(fp.ClassicMediaDisplay) ? ClassicMediaSummary : fp.ClassicMediaDisplay,
                 PremiumMedia =
@@ -2834,6 +2870,7 @@ public sealed class MainViewModel : ObservableObject
             Size = Size,
             GlassHeight = EffectiveGlassHeight(GlassHeight, Model),
             Location = FireplaceLocation,
+            Quantity = FireplaceQuantity,
             ProjectName = ProjectName,
             ProjectAddress = Postal,
             LeadTime = value,
@@ -2854,13 +2891,13 @@ public sealed class MainViewModel : ObservableObject
             else
                 Fireplaces.Add(fireplace);
 
-            StatusMessage = $"Updated {label} with lead time {value}.";
+            StatusMessage = $"Updated {label} (quantity {FireplaceQuantity}) with lead time {value}.";
             EndFireplaceEdit();
         }
         else
         {
             Fireplaces.Add(fireplace);
-            StatusMessage = $"Added {label} with lead time {value}.";
+            StatusMessage = $"Added {label} (quantity {FireplaceQuantity}) with lead time {value}.";
         }
 
         InvalidatePricedSnapshot();
@@ -2873,6 +2910,7 @@ public sealed class MainViewModel : ObservableObject
         var canceledEdit = IsEditingFireplace;
         EndFireplaceEdit();
         Model = Size = GlassHeight = FireplaceLocation = string.Empty;
+        FireplaceQuantity = 1;
         LeadTime = "3-5 Business Days";
         CustomLeadTime = string.Empty;
         ClearFeatureSelections();
@@ -2929,6 +2967,7 @@ public sealed class MainViewModel : ObservableObject
         Size = fireplace.Size;
         GlassHeight = fireplace.GlassHeight;
         FireplaceLocation = fireplace.Location;
+        FireplaceQuantity = Math.Max(1, fireplace.Quantity);
         LeadTime = string.IsNullOrWhiteSpace(fireplace.LeadTime) ? "3-5 Business Days" : fireplace.LeadTime;
         if (!string.IsNullOrWhiteSpace(fireplace.ProjectName))
             ProjectName = fireplace.ProjectName;
@@ -3114,11 +3153,12 @@ public sealed class MainViewModel : ObservableObject
         HasDiscontinuedCommercialSelection ? "Remove the discontinued Commercial fireplace"
         : IsEditingFireplace ? "Save the fireplace currently being edited"
         : HasPendingNewFireplace ? "Add the current fireplace to the quote"
-        : Fireplaces.Count == 1 ? "1 fireplace on quote"
-        : Fireplaces.Count > 1 ? $"{Fireplaces.Count} fireplaces on quote"
+        : TotalSavedFireplaceQuantity == 1 ? "1 fireplace on quote"
+        : TotalSavedFireplaceQuantity > 1 ? $"{TotalSavedFireplaceQuantity} fireplaces on quote"
                                : "Add at least one fireplace";
-    public string FireplaceCountText => Fireplaces.Count.ToString();
+    public string FireplaceCountText => TotalSavedFireplaceQuantity.ToString();
     public string EstimatedTotalDisplay => _estimatedTotalDisplay;
+    private int TotalSavedFireplaceQuantity => Fireplaces.Sum(fireplace => Math.Max(1, fireplace.Quantity));
     private void UpdateStatusForManualSelection()
     {
         InvalidatePricedSnapshot();
@@ -3192,12 +3232,14 @@ public sealed class MainViewModel : ObservableObject
         var fireplaces = (priced.Fireplaces ?? new List<PricedFireplaceQuote>()).ToList();
 
         if (fireplaces.Count >= 5)
-            return "Flare Fireplaces Quote - Multiple Fireplaces.pdf";
+            return AppendCustomerNameToPdfFileName("Flare Fireplaces Quote - Multiple Fireplaces.pdf",
+                                                   request.ClientName);
 
         if (fireplaces.Count == 0)
         {
             var fallbackModel = CompactFireplaceModelForFileName(FirstNonBlank(request.Model, "Fireplace"));
-            return $"Flare Fireplace Quote - {SafeFileNamePart(fallbackModel)}.pdf";
+            return AppendCustomerNameToPdfFileName(
+                $"Flare Fireplace Quote - {SafeFileNamePart(fallbackModel)}.pdf", request.ClientName);
         }
 
         var modelNames = new List<string>();
@@ -3212,11 +3254,23 @@ public sealed class MainViewModel : ObservableObject
             modelNames.Add(modelName);
         }
 
-        var title = fireplaces.Count == 1 ? "Flare Fireplace Quote" : "Flare Fireplaces Quote";
+        var title = fireplaces.Sum(fireplace => Math.Max(1, fireplace.Quantity)) == 1
+                        ? "Flare Fireplace Quote"
+                        : "Flare Fireplaces Quote";
 
         var modelPart = fireplaces.Count == 1 ? modelNames[0] : JoinModelNamesForFileName(modelNames);
 
-        return $"{title} - {SafeFileNamePart(modelPart)}.pdf";
+        return AppendCustomerNameToPdfFileName($"{title} - {SafeFileNamePart(modelPart)}.pdf", request.ClientName);
+    }
+
+    private static string AppendCustomerNameToPdfFileName(string fileName, string? customerName)
+    {
+        var safeCustomerName = SafeFileNamePart(customerName ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(safeCustomerName))
+            return fileName;
+
+        var baseName = Path.GetFileNameWithoutExtension(fileName);
+        return $"{baseName} - {safeCustomerName}.pdf";
     }
 
     private static string BuildCompactFireplaceModelName(PricedFireplaceQuote pricedFireplace)
@@ -3820,6 +3874,7 @@ public sealed class MainViewModel : ObservableObject
             Size = Size,
             GlassHeight = GlassHeight,
             FireplaceLocation = FireplaceLocation,
+            FireplaceQuantity = FireplaceQuantity,
             LeadTime = LeadTime,
             ClassicMediaKey = ClassicMediaChoice?.Key ?? string.Empty,
             AdditionalClassicMediaKey =
@@ -3876,6 +3931,7 @@ public sealed class MainViewModel : ObservableObject
         EndFireplaceEdit();
         RawRequest = ProjectName = ClientName = Email = Phone = Postal = InstallDate = Model = Size = GlassHeight =
             FireplaceLocation = string.Empty;
+        FireplaceQuantity = 1;
         LeadTime = "3-5 Business Days";
         Fireplaces.Clear();
         ClearFeatureSelections();
@@ -3924,6 +3980,7 @@ public sealed class MainViewModel : ObservableObject
         Size = snapshot.Size;
         GlassHeight = snapshot.GlassHeight;
         FireplaceLocation = snapshot.FireplaceLocation;
+        FireplaceQuantity = Math.Max(1, snapshot.FireplaceQuantity);
         LeadTime = string.IsNullOrWhiteSpace(snapshot.LeadTime) ? "3-5 Business Days" : snapshot.LeadTime;
 
         RefreshSelectionOptions(preserveSelected: false);
@@ -3977,6 +4034,7 @@ public sealed class MainViewModel : ObservableObject
             Size = fireplace.Size,
             GlassHeight = fireplace.GlassHeight,
             Location = fireplace.Location,
+            Quantity = Math.Max(1, fireplace.Quantity),
             ProjectName = fireplace.ProjectName,
             ProjectAddress = fireplace.ProjectAddress,
             LeadTime = fireplace.LeadTime,
@@ -4010,6 +4068,7 @@ public sealed class MainViewModel : ObservableObject
         public string Size { get; init; } = string.Empty;
         public string GlassHeight { get; init; } = string.Empty;
         public string FireplaceLocation { get; init; } = string.Empty;
+        public int FireplaceQuantity { get; init; } = 1;
         public string LeadTime { get; init; } = string.Empty;
         public string ClassicMediaKey { get; init; } = string.Empty;
         public string AdditionalClassicMediaKey { get; init; } = string.Empty;
@@ -4131,6 +4190,7 @@ public sealed class FireplaceQuoteDraft : ObservableObject
     public string Size { get; set; } = string.Empty;
     public string GlassHeight { get; set; } = string.Empty;
     public string Location { get; set; } = string.Empty;
+    public int Quantity { get; set; } = 1;
     public string LeadTime { get; set; } = string.Empty;
     public string FeaturesSummary { get; set; } = string.Empty;
     public string ClassicMediaSummary { get; set; } = string.Empty;
@@ -4154,6 +4214,7 @@ public sealed class FireplaceQuoteDraft : ObservableObject
     public string FeaturesLine => $"Features: {FeaturesSummary}";
     public string ClassicMediaLine => $"Classic Media: {ClassicMediaSummary}";
     public string PremiumMediaLine => $"Premium Media: {PremiumMediaSummary}";
+    public string QuantityDisplay => $"Qty {Math.Max(1, Quantity)}";
     // Compact "Front Facing · 60 · 16 glass" style line for the summary cards.
     public string DetailLine
     {
@@ -4177,6 +4238,7 @@ public sealed class QuotePreviewRow : ObservableObject
 {
     public string FireplaceLabel { get; set; } = string.Empty;
     public string FireplaceLocation { get; set; } = string.Empty;
+    public int Quantity { get; set; } = 1;
     public string LeadTime { get; set; } = string.Empty;
     public string Features { get; set; } = string.Empty;
     public string ClassicMedia { get; set; } = string.Empty;

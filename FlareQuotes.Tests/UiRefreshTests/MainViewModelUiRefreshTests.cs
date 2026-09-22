@@ -62,6 +62,41 @@ public sealed class MainViewModelUiRefreshTests
         Assert.Equal("Add the current fireplace to continue", viewModel.ReadinessText);
     }
 
+    [Fact]
+    public void FireplaceQuantitySurvivesAddEditAndSave()
+    {
+        var viewModel = CreateViewModel();
+        Assert.False(viewModel.DecreaseFireplaceQuantityCommand.CanExecute(null));
+        Assert.True(viewModel.IncreaseFireplaceQuantityCommand.CanExecute(null));
+
+        viewModel.IncreaseFireplaceQuantityCommand.Execute(null);
+        Assert.Equal(2, viewModel.FireplaceQuantity);
+        viewModel.DecreaseFireplaceQuantityCommand.Execute(null);
+        Assert.Equal(1, viewModel.FireplaceQuantity);
+
+        viewModel.Model = "Front Facing";
+        viewModel.Size = "60";
+        viewModel.GlassHeight = "16";
+        viewModel.FireplaceQuantity = 3;
+
+        viewModel.AddFireplaceCommand.Execute(null);
+
+        var original = Assert.Single(viewModel.Fireplaces);
+        Assert.Equal(3, original.Quantity);
+        Assert.Equal("3", viewModel.FireplaceCountText);
+
+        viewModel.EditFireplaceCommand.Execute(original);
+        Assert.Equal(3, viewModel.FireplaceQuantity);
+
+        viewModel.FireplaceQuantity = 2;
+        viewModel.AddFireplaceCommand.Execute(null);
+
+        var updated = Assert.Single(viewModel.Fireplaces);
+        Assert.Equal(2, updated.Quantity);
+        Assert.Equal("2", viewModel.FireplaceCountText);
+        Assert.Equal(1, viewModel.FireplaceQuantity);
+    }
+
 
 
     [Theory]

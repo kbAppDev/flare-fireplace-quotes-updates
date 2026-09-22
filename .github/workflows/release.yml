@@ -178,7 +178,7 @@ jobs:
             url = $installerUrl
             sha256 = $hash
             sizeBytes = $size
-            notes = "Flare Fireplace Quotes v$version adds clear location names throughout multi-fireplace quotes."
+            notes = "Flare Fireplace Quotes v$version adds configuration quantities, exact Passive Heat Flex framing guides, and customer-specific PDF filenames."
           }
           $manifestPath = Join-Path $artifactDir "flare-quotes-v1-latest.json"
           $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
@@ -187,10 +187,10 @@ jobs:
           $releaseNotes = @"
           Flare Fireplace Quotes v$version
 
-          - Names each fireplace by location throughout multi-fireplace quote cards, PDFs, specification links, email headings, and URL review.
-          - Keeps duplicate fireplace models clearly separated by room or project location.
-          - Includes the v1.6.6 pricing, media, parser, and estimated-total corrections.
-          - Removes obsolete packaged builds and legacy release helpers from the current source.
+          - Adds a compact quantity stepper for repeated, identical fireplace configurations.
+          - Extends base-fireplace, feature, and media quantities and MSRP totals throughout the quote workflow.
+          - Uses the exact model- and height-specific Passive Heat Flex framing guide and removes standard Free Flow framing guides when Passive Heat Flex is selected.
+          - Appends the customer's name to generated PDF filenames.
           "@
 
           gh release create $tag `

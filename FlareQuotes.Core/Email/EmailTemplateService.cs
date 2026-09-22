@@ -35,7 +35,7 @@ public sealed class EmailTemplateService
         var consultation = WebUtility.HtmlEncode(settings.ConsultationUrl);
         var specLinks = BuildSpecLinks(resourceLinks);
 
-        var fireplaceCount = priced.Fireplaces.Count;
+        var fireplaceCount = priced.TotalFireplaceQuantity;
         var firstSentence = fireplaceCount > 1 ? "Below are links to the product information with a quote for the " +
                                                      "fireplace(s) and their optional features."
                                                : "Below are links to the product information with a quote for the " +

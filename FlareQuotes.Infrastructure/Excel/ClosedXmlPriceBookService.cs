@@ -14,6 +14,9 @@ namespace FlareQuotes.Infrastructure.Excel;
 public sealed class ClosedXmlPriceBookService : IPriceBookService
 {
     private const long MaximumSharedWorkbookBytes = 10L * 1024 * 1024;
+    private const string PassiveHeatFlexFramingLabel = "Passive Heat Flex Framing Guide";
+    private const string PassiveHeatFlexFramingRoot =
+        "https://flarefireplaces.com/wp-content/uploads/Data/PassiveHF/Framing/";
     private const string SharedPricingExportUrl =
         "https://docs.google.com/spreadsheets/d/1kBfDyekOABQckF22v1mXzk59apccLBI1GCWi2CHO9zA/export?format=xlsx";
 
@@ -187,6 +190,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
         foreach (var input in fireplaceInputs)
         {
+            var fireplaceQuantity = Math.Max(1, input.Quantity);
             var inputModel = input.Model ?? string.Empty;
             var inputSize = input.Size ?? string.Empty;
             var inputGlassHeight = input.GlassHeight ?? string.Empty;
@@ -214,6 +218,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 GlassHeight = inputGlassHeight,
                 ModelNumber = modelNumber,
                 Description = baseRow?.Description ?? BuildDescription(type, inputModel, inputSize, inputGlassHeight),
+                Quantity = fireplaceQuantity,
                 LeadTime = string.IsNullOrWhiteSpace(input.LeadTime) ? "3-5 Business Days" : input.LeadTime,
                 ClassicMediaDisplay = !string.IsNullOrWhiteSpace(input.ClassicMediaDisplay)
                                           ? input.ClassicMediaDisplay
@@ -306,6 +311,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                     });
             }
 
+            ApplyFireplaceQuantity(priced, fireplaceQuantity);
+
             if (priced.BaseLine.Price is null)
             {
                 result.Success = false;
@@ -364,7 +371,15 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 ModelNumber = modelNumber,
                 FireplaceLocation = input.FireplaceLocation?.Trim() ?? string.Empty
             };
-            var columns = ResourceColumns(type);
+            var passiveHeatFlexFramingUrl = HasPassiveHeatFlexFeature(input.Features)
+                                                ? PassiveHeatFlexFramingUrl(type, inputModel, inputGlassHeight)
+                                                : string.Empty;
+            var usePassiveHeatFlexFraming = !string.IsNullOrWhiteSpace(passiveHeatFlexFramingUrl);
+            var columns = ResourceColumns(type)
+                         .Where(column => !usePassiveHeatFlexFraming || !IsStandardFramingResource(column))
+                         .ToList();
+            if (usePassiveHeatFlexFraming)
+                columns.Add(PassiveHeatFlexFramingLabel);
             var rowFallback = linkRow is not null ? CleanCellUrl(First(linkRow.RawValues, "Fallback URL", "Fallback",
                                                                        "Download Center", "Download Center URL"))
                                                   : string.Empty;
@@ -372,7 +387,9 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
             foreach (var col in columns)
             {
-                var url = linkRow is not null ? ResourceUrl(linkRow, col) : string.Empty;
+                var url = string.Equals(col, PassiveHeatFlexFramingLabel, StringComparison.OrdinalIgnoreCase)
+                              ? passiveHeatFlexFramingUrl
+                              : linkRow is not null ? ResourceUrl(linkRow, col) : string.Empty;
                 set.Links[col] = string.IsNullOrWhiteSpace(url) ? fallback : url;
                 set.Sources[col] = string.IsNullOrWhiteSpace(url) ? "fallback" : "specific";
             }
@@ -565,6 +582,13 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                                  $"{feature.Key} {feature.DisplayName} {feature.PdfDescription}")) == true;
     }
 
+    private static bool HasPassiveHeatFlexFeature(IEnumerable<FeatureSelection>? features)
+    {
+        return features?.Any(
+                   feature => Normalize($"{feature.Key} {feature.DisplayName} {feature.PdfDescription}")
+                       .Contains("passive heat flex", StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
     private static FireplaceType ApplyIndoorOutdoorSeeThroughForOutdoorKit(FireplaceType type, string? model,
                                                                            IEnumerable<FeatureSelection>? features)
     {
@@ -593,6 +617,47 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return null;
 
         return (basePrice ?? 0m) + (includedPrice ?? 0m);
+    }
+
+    private static void ApplyFireplaceQuantity(PricedFireplaceQuote priced, int fireplaceQuantity)
+    {
+        var quantity = Math.Max(1, fireplaceQuantity);
+        priced.Quantity = quantity;
+        ScalePriceLine(priced.BaseLine, quantity, scaleEmbeddedDescriptionQuantities: false);
+
+        foreach (var line in priced.OptionalFeatures)
+            ScalePriceLine(line, quantity, scaleEmbeddedDescriptionQuantities: true);
+    }
+
+    private static void ScalePriceLine(PriceLine line, int fireplaceQuantity, bool scaleEmbeddedDescriptionQuantities)
+    {
+        if (fireplaceQuantity <= 1)
+            return;
+
+        line.Quantity = checked(Math.Max(1, line.Quantity) * fireplaceQuantity);
+        if (line.Price.HasValue)
+            line.Price *= fireplaceQuantity;
+
+        if (!scaleEmbeddedDescriptionQuantities || string.IsNullOrWhiteSpace(line.Description))
+            return;
+
+        line.Description = Regex.Replace(
+            line.Description,
+            @"\b(?<quantity>\d+)\s+sets?\b",
+            match => int.TryParse(match.Groups["quantity"].Value, NumberStyles.None, CultureInfo.InvariantCulture,
+                                  out var setQuantity)
+                         ? $"{checked(setQuantity * fireplaceQuantity)} sets"
+                         : match.Value,
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        line.Description = Regex.Replace(
+            line.Description,
+            @"\b(?<quantity>\d+)\s+(?<size>Small|Large)\b",
+            match => int.TryParse(match.Groups["quantity"].Value, NumberStyles.None, CultureInfo.InvariantCulture,
+                                  out var componentQuantity)
+                         ? $"{checked(componentQuantity * fireplaceQuantity)} {match.Groups["size"].Value}"
+                         : match.Value,
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
     private static FireplaceQuote ToFireplace(QuoteRequest request) => new()
@@ -2186,6 +2251,49 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         FireplaceType.Large => ["3-Part Spec", "Product Sheet", "Dimensions", "Wood Framing", "Metal Framing"],
         _ => ["3-Part Spec", "CAD", "SketchUp", "Revit", "Wood Framing", "Metal Framing"]
     };
+
+    private static bool IsStandardFramingResource(string label)
+    {
+        return label.Equals("Framing Guide", StringComparison.OrdinalIgnoreCase) ||
+               label.Equals("Framing", StringComparison.OrdinalIgnoreCase) ||
+               label.Equals("Wood Framing", StringComparison.OrdinalIgnoreCase) ||
+               label.Equals("Metal Framing", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string PassiveHeatFlexFramingUrl(FireplaceType type, string model, string glassHeight)
+    {
+        if (IsPassageModel(model))
+        {
+            var passageFile = type == FireplaceType.IndoorOutdoorSeeThrough && IsSeeThroughPassageModel(model)
+                                  ? "framing-PASS-ST-IO-wood.pdf"
+                                  : IsSeeThroughPassageModel(model)
+                                      ? "framing-PASS-ST-wood.pdf"
+                                      : "framing-PASS-FF-wood.pdf";
+            return PassiveHeatFlexFramingRoot + passageFile;
+        }
+
+        if (type == FireplaceType.Traditional || StyleCode(type, model) == "TR")
+            return PassiveHeatFlexFramingRoot + "wood-TR.pdf";
+
+        if (type is not (FireplaceType.Indoor or FireplaceType.IndoorSeeThrough or
+                         FireplaceType.IndoorOutdoorSeeThrough))
+        {
+            return string.Empty;
+        }
+
+        var style = type == FireplaceType.IndoorOutdoorSeeThrough ? "ST-OD" : StyleCode(type, model);
+        if (style is not ("FF" or "ST" or "LC" or "RC" or "DC" or "RD" or "ST-OD"))
+            return string.Empty;
+
+        var suffix = GlassSuffix(EffectiveGlassHeight(glassHeight, model)) switch
+        {
+            "H" => "-H",
+            "EH" => "-EH",
+            _ => string.Empty
+        };
+
+        return $"{PassiveHeatFlexFramingRoot}framing-{style}{suffix}-wood.pdf";
+    }
 
     private static string FallbackUrl(FireplaceType type) =>
         type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough or FireplaceType.IndoorOutdoorSeeThrough

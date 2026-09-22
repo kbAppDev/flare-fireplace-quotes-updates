@@ -12,6 +12,7 @@ public sealed class FireplaceQuote
     public string ModelNumber { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public decimal? BaseMsrp { get; set; }
+    public int Quantity { get; set; } = 1;
     public string LeadTime { get; set; } = "3-5 Business Days";
     public string ClassicMediaDisplay { get; set; } = string.Empty;
     public List<FeatureSelection> Features { get; set; } = [];

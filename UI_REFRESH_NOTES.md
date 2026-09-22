@@ -1,12 +1,13 @@
-# Flare Quotes v1.6.7 — Audited UI Refresh
+# Flare Quotes v1.6.8 — Audited UI Refresh
 
-This candidate retains the audited three-pane design and adds explicit per-fireplace location handling across the builder, quote review, PDF, URL verification, and Gmail resource links.
+This candidate retains the audited three-pane design and adds a compact quantity selector for repeated, identical fireplace configurations.
 
 ## Production UI changes
 
 - Workflow stepper moved into the title bar.
 - Customer request, current-fireplace builder, and quote fireplace summary are visible together.
 - Fireplace cards can be edited and safely replaced in place. Canceling an edit retains the original.
+- Each saved fireplace card shows its configuration quantity, and the quote count reflects the total number of physical fireplaces.
 - Guarded burn-away animation for mouse removal. Keyboard removal remains immediate and accessible.
 - Readiness, count, and estimate indicators invalidate when quote inputs change.
 - Settings includes a manual update availability check. Installation remains in the verified startup updater flow.

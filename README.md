@@ -1,10 +1,10 @@
-# Flare Fireplace Quotes v1.6.7
+# Flare Fireplace Quotes v1.6.8
 
 Windows WPF application for turning fireplace quote requests into priced PDFs, verified specification links, and Gmail drafts.
 
 ## Release highlights
 
-v1.6.7 adds clear per-fireplace location names throughout multi-fireplace quotes while retaining the v1.6.6 pricing, media, and estimated-total fixes.
+v1.6.8 adds per-configuration fireplace quantities, quantity-aware PDF pricing, exact Passive Heat Flex framing-guide selection, and customer names in generated PDF filenames.
 
 The updater is pinned to the Flare-managed GitHub release lane. Every installer download must match the release version, exact asset path, declared byte size, and SHA-256 hash before launch. Optional RS256 manifest signatures fail closed whenever a signature is present but invalid.
 
@@ -27,11 +27,11 @@ dotnet list .\FlareQuotes.Tests\FlareQuotes.Tests.csproj package --vulnerable --
 Run these commands from the repository root after the validation commands pass:
 
 ```powershell
-$releaseVersion = "1.6.7"
+$releaseVersion = "1.6.8"
 $publishDir = Join-Path (Get-Location) "FlareQuotes.App\bin\Release\net10.0-windows\win-x64\publish"
 $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 
-dotnet restore .\FlareQuotes.App\FlareQuotes.App.csproj -r win-x64
+dotnet restore .\FlareQuotes.App\FlareQuotes.App.csproj -r win-x64 -p:PublishReadyToRun=true
 dotnet publish .\FlareQuotes.App\FlareQuotes.App.csproj -c Release -r win-x64 --self-contained true --no-restore -p:SelfContained=true -p:PublishSingleFile=false -p:PublishReadyToRun=true
 & $iscc "/DMyAppVersion=$releaseVersion" "/DSourceDir=$publishDir" "/FFlare.Fireplace.Quotes" .\FlareQuotes.App\Installer\FlareFireplacesQuotesInstaller.iss
 Compress-Archive -Path "$publishDir\*" -DestinationPath .\installer\Flare.Fireplace.Quotes-portable.zip -CompressionLevel Optimal -Force
@@ -41,7 +41,7 @@ If Inno Setup is installed elsewhere, replace `$iscc` with the full path to `ISC
 
 ## Publishing
 
-Publish only from a clean, passing commit tagged `v1.6.7`, matching `Directory.Build.props`. The tag-driven GitHub workflow performs formatting, tests, rendered Windows UI checks, CodeQL, packaging, and installer hash verification before publishing. The updater metadata points to that exact versioned installer and records its exact size and SHA-256.
+Publish only from a clean, passing commit tagged `v1.6.8`, matching `Directory.Build.props`. The tag-driven GitHub workflow performs formatting, tests, rendered Windows UI checks, CodeQL, packaging, and installer hash verification before publishing. The updater metadata points to that exact versioned installer and records its exact size and SHA-256.
 
 Current user-facing release deliverables:
 

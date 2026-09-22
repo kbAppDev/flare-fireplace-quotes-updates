@@ -1,6 +1,6 @@
 # Architecture Notes
 
-Flare Fireplace Quotes v1.6.7 is a C# / WPF / MVVM rebuild of the original Python quote application.
+Flare Fireplace Quotes v1.6.8 is a C# / WPF / MVVM rebuild of the original Python quote application.
 
 ## Project layout
 
@@ -32,4 +32,4 @@ Live Preview uses WebView2 lazily after a PDF exists. It must never be created i
 
 ## UI contract
 
-The v1.6.7 presentation layer uses shared dynamic resources in `FlareTheme.xaml`; views should not introduce standalone theme palettes. Changes to XAML or code-behind must preserve the named controls, bindings, commands, handlers, and updater surfaces required by the quote workflow. Validate UI changes with warnings-as-errors builds, automated tests, and the direct `FLARE_UI_SNAPSHOT_MODE=1` run documented in `UI_REFRESH_NOTES.md`.
+The v1.6.8 presentation layer uses shared dynamic resources in `FlareTheme.xaml`; views should not introduce standalone theme palettes. Changes to XAML or code-behind must preserve the named controls, bindings, commands, handlers, and updater surfaces required by the quote workflow. Validate UI changes with warnings-as-errors builds, automated tests, and the direct `FLARE_UI_SNAPSHOT_MODE=1` run documented in `UI_REFRESH_NOTES.md`.

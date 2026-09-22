@@ -41,15 +41,18 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                     {
                         if (fireplaces.Count == 0)
                         {
-                            container.Page(page =>
-                                               RenderFireplacePage(page, request, null, logo, quoteDate, quoteNumber));
+                            container.Page(
+                                page => RenderFireplacePage(page, request, null, null, logo, quoteDate, quoteNumber));
                             return;
                         }
 
-                        foreach (var fireplace in fireplaces)
+                        for (var index = 0; index < fireplaces.Count; index++)
                         {
+                            var fireplace = fireplaces[index];
+                            var resourceLinkSet = ResolvePageResourceLinkSet(priced.ResourceLinks, fireplace, index);
                             container.Page(
-                                page => RenderFireplacePage(page, request, fireplace, logo, quoteDate, quoteNumber));
+                                page => RenderFireplacePage(page, request, fireplace, resourceLinkSet, logo, quoteDate,
+                                                            quoteNumber));
                         }
                     })
             .GeneratePdf(outputPath);
@@ -58,12 +61,9 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
     }
 
     private static void RenderFireplacePage(PageDescriptor page, QuoteRequest request, PricedFireplaceQuote? fireplace,
-                                            string logo, string quoteDate, string quoteNumber)
+                                            ResourceLinkSet? resourceLinkSet, string logo, string quoteDate,
+                                            string quoteNumber)
     {
-        // PDF hyperlink resource context
-        var pricedContext = request.Tag as PricedQuoteResult;
-        var resourceLinkSet =
-            fireplace is null ? null : FindMatchingResourceLinkSet(pricedContext?.ResourceLinks, fireplace);
         page.Size(PageSizes.Letter);
         page.MarginTop(58);
         page.MarginBottom(52);
@@ -93,7 +93,8 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                     var optionalRows =
                         fireplace.OptionalFeatures
                             .Select(line => new OptionalPdfRow(PdfFeatureName(line.Feature), line.Description,
-                                                               line.Price, FeaturePdfUrl(line, resourceLinkSet)))
+                                                               Math.Max(1, line.Quantity), line.Price,
+                                                               FeaturePdfUrl(line, resourceLinkSet)))
                             .ToList();
 
                     if (optionalRows.Count > 0)
@@ -197,15 +198,17 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                         {
                             table.ColumnsDefinition(c =>
                                                     {
-                                                        c.RelativeColumn(.95f);
-                                                        c.RelativeColumn(2.2f);
-                                                        c.RelativeColumn(.75f);
-                                                        c.RelativeColumn(1.25f);
+                                                        c.RelativeColumn(.9f);
+                                                        c.RelativeColumn(1.9f);
+                                                        c.RelativeColumn(.42f);
+                                                        c.RelativeColumn(.78f);
+                                                        c.RelativeColumn(1.1f);
                                                     });
 
                             HeaderCell(table, "Model #");
                             HeaderCell(table, "Description");
-                            HeaderCell(table, "MSRP");
+                            HeaderCell(table, "Qty");
+                            HeaderCell(table, "Total MSRP");
                             HeaderCell(table, "Lead Time");
 
                             foreach (var fp in fireplaces)
@@ -215,6 +218,7 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                                 BodyCellLink(table, FirstNonBlank(fp.ModelNumber, fp.BaseLine.Sku), fireplaceUrl);
                                 BodyCellLink(table, FirstNonBlank(fp.Description, fp.BaseLine.Description),
                                              fireplaceUrl);
+                                BodyCell(table, Math.Max(1, fp.BaseLine.Quantity).ToString(CultureInfo.InvariantCulture));
                                 BodyCell(table, Money(fp.BaseLine.Price));
                                 BodyCell(table, fp.LeadTime);
                             }
@@ -227,19 +231,22 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                         {
                             table.ColumnsDefinition(c =>
                                                     {
-                                                        c.RelativeColumn(1.25f);
-                                                        c.RelativeColumn(2.35f);
-                                                        c.RelativeColumn(.75f);
+                                                        c.RelativeColumn(1.2f);
+                                                        c.RelativeColumn(2.1f);
+                                                        c.RelativeColumn(.42f);
+                                                        c.RelativeColumn(.78f);
                                                     });
 
                             HeaderCell(table, "Feature");
                             HeaderCell(table, "Description");
-                            HeaderCell(table, "MSRP");
+                            HeaderCell(table, "Qty");
+                            HeaderCell(table, "Total MSRP");
 
                             foreach (var row in rows)
                             {
                                 BodyCellLink(table, row.Feature, row.Url, accent: true);
                                 BodyCell(table, row.Description);
+                                BodyCell(table, row.Quantity.ToString(CultureInfo.InvariantCulture));
                                 BodyCell(table, Money(row.Price));
                             }
                         });
@@ -508,6 +515,15 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
         return sets.FirstOrDefault();
     }
 
+    private static ResourceLinkSet? ResolvePageResourceLinkSet(IReadOnlyList<ResourceLinkSet>? sets,
+                                                               PricedFireplaceQuote fireplace, int pageIndex)
+    {
+        if (sets is not null && pageIndex >= 0 && pageIndex < sets.Count)
+            return sets[pageIndex];
+
+        return FindMatchingResourceLinkSet(sets, fireplace);
+    }
+
     private static string FireplacePdfUrl(ResourceLinkSet? set, PricedFireplaceQuote fp)
     {
         return FirstValidUrl(fp.BaseLine.Url,
@@ -518,11 +534,11 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
 
     private static string FeaturePdfUrl(PriceLine line, ResourceLinkSet? set)
     {
-        return FirstValidUrl(line.Url, PreferredResourceUrl(set, line.Feature, line.Description, line.Sku),
+        return FirstValidUrl(line.Url, MatchingResourceUrl(set, line.Feature, line.Description, line.Sku),
                              FeatureFallbackUrl(line.Feature, line.Description, line.Sku));
     }
 
-    private static string PreferredResourceUrl(ResourceLinkSet? set, params string?[] preferredLabels)
+    private static string MatchingResourceUrl(ResourceLinkSet? set, params string?[] preferredLabels)
     {
         if (set?.Links is null || set.Links.Count == 0)
             return string.Empty;
@@ -532,6 +548,18 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
             if (TryGetResourceUrl(set, label!, out var direct))
                 return direct;
         }
+
+        return string.Empty;
+    }
+
+    private static string PreferredResourceUrl(ResourceLinkSet? set, params string?[] preferredLabels)
+    {
+        if (set?.Links is null || set.Links.Count == 0)
+            return string.Empty;
+
+        var direct = MatchingResourceUrl(set, preferredLabels);
+        if (!string.IsNullOrWhiteSpace(direct))
+            return direct;
 
         foreach (var label in new[] { "Product Sheet", "Product", "3-Part Spec", "Specification", "Spec",
                                       "Framing Guide", "Wood Framing", "Metal Framing", "Dimension File",
@@ -626,7 +654,7 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
     private static string FirstNonBlank(params string?[] values) =>
         values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim() ?? string.Empty;
 
-    private sealed record OptionalPdfRow(string Feature, string Description, decimal? Price, string Url);
+    private sealed record OptionalPdfRow(string Feature, string Description, int Quantity, decimal? Price, string Url);
     private sealed record IncludedCopy(string Header, string Body);
 
     private static string PdfContactLine()

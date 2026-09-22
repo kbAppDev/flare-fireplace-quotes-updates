@@ -1,3 +1,13 @@
+# 1.6.8
+
+- Added a quantity selector for each fireplace configuration and preserved it through add, edit, recall, preview, PDF generation, and Gmail draft creation.
+- Extended base-fireplace and optional-feature quantities and MSRP totals by the selected fireplace quantity, including media quantities such as glass sets and Driftwood piece counts.
+- Replaced standard Free Flow wood/metal framing links with the exact model- and height-specific Passive Heat Flex framing guide whenever Passive Heat Flex is selected.
+- Kept specification resources paired by fireplace position so duplicate models with different feature selections receive the correct guide on each PDF page.
+- Added quantity columns and clearly labeled total MSRP columns to generated quote PDFs.
+- Appended the sanitized customer name to generated PDF filenames.
+- Added regression coverage for the complete Passive Heat Flex guide matrix, quantity pricing, UI quantity persistence, and PDF filename generation.
+
 # 1.6.7
 
 - Made the existing per-fireplace location field explicit in the quote builder and easier to scan on saved fireplace cards.

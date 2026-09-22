@@ -1,10 +1,10 @@
-# Company Testing Checklist — v1.6.7
+# Company Testing Checklist — v1.6.8
 
 Use this checklist for each tester.
 
 ## 1. Startup and settings
 
-- App opens from the v1.6.7 installer or portable executable.
+- App opens from the v1.6.8 installer or portable executable.
 - Build shows `0 Warning(s), 0 Error(s)`.
 - Settings opens and each General, Integrations, Data & updates, and Lead times category is reachable.
 - Settings saves and reloads values.
@@ -32,6 +32,8 @@ Use this checklist for each tester.
 - Add Fireplace stores the current fireplace and clears per-fireplace fields while preserving customer/project fields.
 - Two fireplaces in one project can be named with distinct locations such as Living Room and Primary Bedroom.
 - Saved fireplace cards show the location as their primary name and retain it through edit and reorder.
+- Setting a fireplace quantity above one updates the saved-card quantity badge and the total fireplace count.
+- Editing a saved fireplace restores its quantity and saving the edit updates it in place.
 
 ## 4. Feature availability
 
@@ -53,9 +55,10 @@ Use this checklist for each tester.
 
 ## 6. PDF output
 
-- PDF filename follows: `Name - Model Size Height - Quote.pdf`.
+- PDF filename ends with the actual customer name, for example `Flare Fireplace Quote - FF60R - Customer Name.pdf`.
 - One fireplace quote renders per page.
 - Each named fireplace page includes its matching Fireplace Location without replacing the shared project name.
+- Base-fireplace and optional-feature quantity columns and total MSRP values reflect the selected configuration quantity.
 - PDF feature names are clean: Summit Burner, Double Glass, Reflective Black Back, Reflective Black Sides, RGB LEDs, Summer Kit, Active Heat Flex, Passive Heat Flex, Heat Release Louver, Air Intake Louver, Power Vent.
 - Description column has the informative wording.
 - Pricing appears for selected options.
@@ -71,6 +74,8 @@ Use this checklist for each tester.
 - Resource URLs do not fall back to Download Center when a specific row exists.
 - VFST70 with 16-inch glass shows the Outdoor Vent Free See Through (`VST`) card and only `/Data/Ventless/ST/` resources, never `ST-OD` resources.
 - Repeated models in different rooms show distinct location names on their URL-review cards.
+- Selecting Passive Heat Flex produces the exact model/height Passive Heat Flex framing guide and removes the standard Free Flow wood and metal framing guides.
+- Quotes without Passive Heat Flex retain their standard framing guides.
 
 ## 8. Gmail draft
 
@@ -100,4 +105,4 @@ Use this checklist for each tester.
 - A successful Gmail draft removes its app-owned temporary PDF.
 - A failed Gmail draft leaves the PDF available for retry.
 - Update checks reject a non-Flare host, mismatched release version, invalid SHA-256, or incorrect installer size.
-- The normal GitHub v1.6.7 release manifest downloads and launches only after verification.
+- The normal GitHub v1.6.8 release manifest downloads and launches only after verification.
