@@ -17,3 +17,31 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+# Curated correctness, security, and performance baseline. Keep this list focused:
+# style and globalization diagnostics are intentionally not enabled globally.
+[*.cs]
+dotnet_diagnostic.CA1827.severity = warning
+dotnet_diagnostic.CA1854.severity = warning
+dotnet_diagnostic.CA2012.severity = warning
+dotnet_diagnostic.CA2017.severity = warning
+dotnet_diagnostic.CA2022.severity = warning
+dotnet_diagnostic.CA2200.severity = warning
+dotnet_diagnostic.CA2300.severity = warning
+dotnet_diagnostic.CA2301.severity = warning
+dotnet_diagnostic.CA2326.severity = warning
+dotnet_diagnostic.CA2327.severity = warning
+dotnet_diagnostic.CA2328.severity = warning
+dotnet_diagnostic.CA3075.severity = warning
+dotnet_diagnostic.CA5350.severity = warning
+dotnet_diagnostic.CA5351.severity = warning
+dotnet_diagnostic.CA5364.severity = warning
+dotnet_diagnostic.CA5379.severity = warning
+dotnet_diagnostic.CA5387.severity = warning
+dotnet_diagnostic.CA5390.severity = warning
+dotnet_diagnostic.CA5400.severity = warning
+
+# xUnit v3's cancellation recommendation is useful for new tests, but bulk-enabling
+# it would turn the existing deterministic unit suite into analyzer churn.
+[FlareQuotes.Tests/**/*.cs]
+dotnet_diagnostic.xUnit1051.severity = suggestion

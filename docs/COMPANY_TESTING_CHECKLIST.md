@@ -1,10 +1,10 @@
-# Company Testing Checklist — v1.6.8
+# Company Testing Checklist — v1.6.9
 
 Use this checklist for each tester.
 
 ## 1. Startup and settings
 
-- App opens from the v1.6.8 installer or portable executable.
+- App opens from the v1.6.9 installer or portable executable.
 - Build shows `0 Warning(s), 0 Error(s)`.
 - Settings opens and each General, Integrations, Data & updates, and Lead times category is reachable.
 - Settings saves and reloads values.
@@ -14,7 +14,7 @@ Use this checklist for each tester.
 ## 2. Modern interface
 
 - The Windows title bar, minimize, maximize/restore, and close controls behave normally.
-- The Build quote, Preview, Verify links, and Gmail draft stepper remains legible at the minimum supported window size.
+- The Build quote, Preview, Review links, and Gmail draft stepper remains legible at the minimum supported window size.
 - Recent quotes opens a compact menu and recalls the chosen quote.
 - Dark and light themes update the main window, menus, Settings, and Update available surfaces consistently.
 - Normal startup never opens a system-health popup.
@@ -67,7 +67,7 @@ Use this checklist for each tester.
 - Live Preview loads the actual generated PDF.
 - Open Generated PDF works even if Live Preview fails.
 
-## 7. Spec URL verification
+## 7. Specification link review
 
 - Model/glass-height-specific URLs win over generic rows.
 - Example: FF-80-H resources are used before FF-80.
@@ -105,4 +105,4 @@ Use this checklist for each tester.
 - A successful Gmail draft removes its app-owned temporary PDF.
 - A failed Gmail draft leaves the PDF available for retry.
 - Update checks reject a non-Flare host, mismatched release version, invalid SHA-256, or incorrect installer size.
-- The normal GitHub v1.6.8 release manifest downloads and launches only after verification.
+- The normal GitHub v1.6.9 release manifest downloads and launches only after verification.

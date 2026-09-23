@@ -6,10 +6,10 @@ namespace FlareQuotes.Tests.EmailTests;
 public sealed class EmailAddressNormalizerTests
 {
     [Theory]
-    [InlineData("phildaloisio@gmail.com", "phildaloisio@gmail.com")]
-    [InlineData("  mailto:phildaloisio@gmail.com  ", "phildaloisio@gmail.com")]
-    [InlineData("Phil Daloisio <phildaloisio@gmail.com>", "phildaloisio@gmail.com")]
-    [InlineData("phildaloisio@gmail.com.", "phildaloisio@gmail.com")]
+    [InlineData("customer@example.com", "customer@example.com")]
+    [InlineData("  mailto:customer@example.com  ", "customer@example.com")]
+    [InlineData("Test Customer <customer@example.com>", "customer@example.com")]
+    [InlineData("customer@example.com.", "customer@example.com")]
     public void NormalizesCommonCopiedRecipientFormats(string input, string expected)
     {
         Assert.True(EmailAddressNormalizer.TryNormalizeSingle(input, out var actual));
@@ -19,10 +19,10 @@ public sealed class EmailAddressNormalizerTests
     [Fact]
     public void RemovesInvisibleAndFullWidthCharacters()
     {
-        const string input = "phil\u200Bdaloisio＠gmail．com\u00A0";
+        const string input = "cus\u200Btomer＠example．com\u00A0";
 
         Assert.True(EmailAddressNormalizer.TryNormalizeSingle(input, out var actual));
-        Assert.Equal("phildaloisio@gmail.com", actual);
+        Assert.Equal("customer@example.com", actual);
     }
 
     [Theory]

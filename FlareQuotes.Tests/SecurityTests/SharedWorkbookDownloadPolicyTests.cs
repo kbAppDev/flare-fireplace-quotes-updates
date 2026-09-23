@@ -29,6 +29,10 @@ public sealed class SharedWorkbookDownloadPolicyTests
             {
                 archive.CreateEntry("[Content_Types].xml");
                 archive.CreateEntry("xl/workbook.xml");
+                var worksheet = archive.CreateEntry("xl/worksheets/sheet1.xml");
+                using var writer = new StreamWriter(worksheet.Open());
+                writer.Write(
+                    "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData /></worksheet>");
             }
 
             Assert.True(ClosedXmlPriceBookService.IsXlsxPackage(path));

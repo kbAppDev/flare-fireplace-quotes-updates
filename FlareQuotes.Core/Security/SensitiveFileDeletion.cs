@@ -16,7 +16,9 @@ public static class SensitiveFileDeletion
         try
         {
             var info = new FileInfo(path);
-            if (info.Exists && info.Length is > 0 and <= MaximumOverwriteBytes)
+            if (info.Exists &&
+                !info.Attributes.HasFlag(FileAttributes.ReparsePoint) &&
+                info.Length is > 0 and <= MaximumOverwriteBytes)
             {
                 using var stream = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.None,
                                                   bufferSize: 4096, FileOptions.WriteThrough);

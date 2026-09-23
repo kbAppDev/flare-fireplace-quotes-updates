@@ -7,6 +7,7 @@ public interface IUpdateService
 
 public sealed class UpdateCheckResult
 {
+    public bool CheckSucceeded { get; set; }
     public bool UpdateAvailable { get; set; }
     public string LatestVersion { get; set; } = string.Empty;
     public string InstallerUrl { get; set; } = string.Empty;

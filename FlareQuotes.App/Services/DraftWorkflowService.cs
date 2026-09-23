@@ -38,6 +38,17 @@ public sealed class DraftWorkflowService
 
         try
         {
+            if (!input.PricedQuote.Success)
+            {
+                return new EmailDraftResult
+                {
+                    Success = false,
+                    Message = string.IsNullOrWhiteSpace(input.PricedQuote.Message)
+                                  ? "Gmail draft creation was blocked because pricing is incomplete."
+                                  : input.PricedQuote.Message
+                };
+            }
+
             if (string.IsNullOrWhiteSpace(input.PdfPath) || !File.Exists(input.PdfPath))
             {
                 return new EmailDraftResult

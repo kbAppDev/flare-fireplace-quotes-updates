@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using FlareQuotes.Core.Updates;
 using Xunit;
 
@@ -41,5 +42,19 @@ public sealed class UpdateTrustPolicyTests
         Assert.True(UpdateTrustPolicy.IsValidInstallerSize(90 * 1024 * 1024));
         Assert.False(UpdateTrustPolicy.IsValidInstallerSize(0));
         Assert.False(UpdateTrustPolicy.IsValidInstallerSize(UpdateTrustPolicy.MaxInstallerBytes + 1));
+    }
+
+    [Fact]
+    public void EmbeddedManifestKeyMatchesPinnedFingerprint()
+    {
+        using var rsa = RSA.Create();
+        rsa.ImportFromPem(UpdateTrustPolicy.ManifestSigningPublicKeyPem);
+
+        var fingerprint = Convert.ToHexString(SHA256.HashData(rsa.ExportSubjectPublicKeyInfo()))
+                                 .ToLowerInvariant();
+
+        Assert.Equal(UpdateTrustPolicy.ManifestSigningPublicKeySha256, fingerprint);
+        Assert.Contains("flare-quotes-v2-latest.json", UpdateTrustPolicy.ManifestUrl,
+                        StringComparison.Ordinal);
     }
 }

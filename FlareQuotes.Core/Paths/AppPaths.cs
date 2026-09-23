@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using FlareQuotes.Core.Security;
 
 namespace FlareQuotes.Core.Paths;
 
@@ -16,6 +18,12 @@ public static class AppPaths
     public static string Credentials => Ensure(Path.Combine(Root, "Credentials"));
     public static string GmailCredentialsFile => Path.Combine(Credentials, "gmail_credentials.json");
     public static string GmailTokenStore => Ensure(Path.Combine(Root, "GmailToken"));
+    public static string LegacyGoogleTokenStore => Path.Combine(Root, "GoogleToken");
+    public static string ObsoleteGoogleTokenCertBuilderStore => Path.Combine(Root, "GoogleTokenCertBuilder");
+    public static IReadOnlyList<string> LegacyGmailTokenStores =>
+        [LegacyGoogleTokenStore, .. LegacyRoots.Select(root => Path.Combine(root, "gmail-token"))];
+    public static IReadOnlyList<string> GmailTokenAuditStores =>
+        [Path.Combine(Root, "GmailToken"), .. LegacyGmailTokenStores, ObsoleteGoogleTokenCertBuilderStore];
     public static string Reports => Ensure(Path.Combine(Root, "Reports"));
     public static string WebView2 => Ensure(Path.Combine(Root, "WebView2"));
     public static string Updates => Ensure(Path.Combine(Root, "Updates"));
@@ -51,11 +59,20 @@ public static class AppPaths
 
     public static void ImportGmailCredentials(string? configuredPath = null)
     {
+        var legacyRootCredential = Path.Combine(Root, "gmail_credentials.json");
         if (File.Exists(GmailCredentialsFile))
+        {
+            TryDeleteMatchingLegacyGmailCredentials(GmailCredentialsFile, legacyRootCredential);
             return;
+        }
 
         var candidates =
-            new[] { configuredPath, Path.Combine(AppContext.BaseDirectory, "LocalData", "gmail_credentials.json") };
+            new[]
+            {
+                configuredPath,
+                legacyRootCredential,
+                Path.Combine(AppContext.BaseDirectory, "LocalData", "gmail_credentials.json")
+            };
 
         var source = candidates.FirstOrDefault(IsValidCredentialSource);
         if (source is null)
@@ -67,6 +84,7 @@ public static class AppPaths
         {
             File.Copy(source, temporaryPath, overwrite: true);
             File.Move(temporaryPath, GmailCredentialsFile, overwrite: false);
+            TryDeleteMatchingLegacyGmailCredentials(GmailCredentialsFile, legacyRootCredential);
         }
         finally
         {
@@ -86,6 +104,10 @@ public static class AppPaths
 
         try
         {
+            var info = new FileInfo(path);
+            if ((info.Attributes & FileAttributes.ReparsePoint) != 0)
+                return false;
+
             using var document = JsonDocument.Parse(File.ReadAllBytes(path),
                                                     new JsonDocumentOptions { MaxDepth = 8 });
             var root = document.RootElement;
@@ -102,6 +124,36 @@ public static class AppPaths
                    !string.IsNullOrWhiteSpace(clientSecret.GetString());
         }
         catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryDeleteMatchingLegacyGmailCredentials(string activePath, string legacyPath)
+    {
+        try
+        {
+            var active = new FileInfo(activePath);
+            var legacy = new FileInfo(legacyPath);
+            if (!active.Exists || !legacy.Exists ||
+                (active.Attributes & FileAttributes.ReparsePoint) != 0 ||
+                (legacy.Attributes & FileAttributes.ReparsePoint) != 0 ||
+                active.Length is <= 0 or > 1024 * 1024 || active.Length != legacy.Length ||
+                !IsValidCredentialSource(active.FullName) || !IsValidCredentialSource(legacy.FullName))
+            {
+                return false;
+            }
+
+            var activeHash = SHA256.HashData(File.ReadAllBytes(active.FullName));
+            var legacyHash = SHA256.HashData(File.ReadAllBytes(legacy.FullName));
+            if (!CryptographicOperations.FixedTimeEquals(activeHash, legacyHash))
+                return false;
+
+            SensitiveFileDeletion.DeletePlaintext(legacy.FullName);
+            return !File.Exists(legacy.FullName);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
+                                          CryptographicException)
         {
             return false;
         }

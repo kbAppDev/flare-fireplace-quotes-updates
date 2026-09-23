@@ -33,9 +33,14 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
 
     public async Task<string> ConnectAsync(CancellationToken cancellationToken = default)
     {
+        return await ConnectAsyncCore(cancellationToken, allowLegacyMigration: true).ConfigureAwait(false);
+    }
+
+    private async Task<string> ConnectAsyncCore(CancellationToken cancellationToken, bool allowLegacyMigration)
+    {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ApiTimeout);
-        var service = await GetServiceAsync(timeout.Token).ConfigureAwait(false);
+        var service = await GetServiceAsync(timeout.Token, allowLegacyMigration).ConfigureAwait(false);
         var profile = await service.Users.GetProfile("me").ExecuteAsync(timeout.Token).ConfigureAwait(false);
         return profile.EmailAddress ?? "Connected";
     }
@@ -49,14 +54,40 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
 
         try
         {
-            var emailAddress = await ConnectAsync(cancellationToken).ConfigureAwait(false);
+            var emailAddress = await ConnectAsyncCore(cancellationToken, allowLegacyMigration: false)
+                .ConfigureAwait(false);
+            try
+            {
+                var removedArchives = CleanupReconnectArchives(tokenDirectory, maxArchivesToKeep: 0);
+                _logger.Info($"Gmail reconnect cleanup completed. RemovedArchives={removedArchives}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning($"Gmail reconnected, but an old token archive could not be removed. Reason={SafeForUser(ex.Message)}");
+            }
+
             _logger.Info(
                 $"Gmail authorization reconnected. PreviousTokenArchived={archivedTokenDirectory is not null}.");
             return emailAddress;
         }
-        catch
+        catch (Exception reconnectException)
         {
             ResetCachedService();
+
+            try
+            {
+                RestoreArchivedTokenStore(tokenDirectory, archivedTokenDirectory);
+                _logger.Info(
+                    $"Gmail reconnection did not complete. PreviousTokenRestored={archivedTokenDirectory is not null}.");
+            }
+            catch (Exception rollbackException)
+            {
+                _logger.Error(rollbackException, "Gmail reconnection failed and the previous token store could not be restored.");
+                throw new InvalidOperationException(
+                    "Gmail reconnection failed, and the previous authorization could not be restored automatically. Try reconnecting again.",
+                    new AggregateException(reconnectException, rollbackException));
+            }
+
             throw;
         }
     }
@@ -109,7 +140,7 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
             var service = await GetServiceAsync(timeout.Token).ConfigureAwait(false);
             _logger.Info("Gmail service authenticated. Building MIME message.");
 
-            var raw = BuildRawMessage(request);
+            var raw = BuildRawMessage(request, timeout.Token);
             _logger.Info($"Gmail MIME message built. EncodedCharacters={raw.Length}.");
 
             var draft = new Draft { Message = new Message { Raw = raw } };
@@ -140,7 +171,11 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
                               : "Gmail draft created."
             };
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
         {
             _logger.Warning("Gmail draft creation timed out.");
             return new EmailDraftResult
@@ -173,7 +208,8 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
         }
     }
 
-    private async Task<GmailService> GetServiceAsync(CancellationToken cancellationToken)
+    private async Task<GmailService> GetServiceAsync(CancellationToken cancellationToken,
+                                                     bool allowLegacyMigration = true)
     {
         if (_service is not null)
             return _service;
@@ -189,7 +225,8 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
 
         var credential = await GoogleWebAuthorizationBroker
                              .AuthorizeAsync(GoogleClientSecrets.FromStream(stream).Secrets, Scopes, "user",
-                                             cancellationToken, new ProtectedFileDataStore(tokenDir))
+                                             cancellationToken,
+                                             new ProtectedFileDataStore(tokenDir, allowLegacyMigration))
                              .ConfigureAwait(false);
 
         _service = new GmailService(new BaseClientService.Initializer
@@ -230,6 +267,92 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
         return archiveDirectory;
     }
 
+    internal static void RestoreArchivedTokenStore(string tokenDirectory, string? archiveDirectory)
+    {
+        var fullTokenDirectory = Path.GetFullPath(tokenDirectory);
+        if (string.IsNullOrWhiteSpace(archiveDirectory))
+        {
+            DeleteRegularTokenDirectory(fullTokenDirectory);
+            return;
+        }
+
+        var fullArchiveDirectory = Path.GetFullPath(archiveDirectory);
+        if (!IsReconnectArchiveForTokenStore(fullTokenDirectory, fullArchiveDirectory))
+            throw new InvalidOperationException("The archived Gmail token store is outside the expected location.");
+
+        if (!Directory.Exists(fullArchiveDirectory))
+            throw new DirectoryNotFoundException("The previous Gmail token archive could not be found.");
+
+        var archiveInfo = new DirectoryInfo(fullArchiveDirectory);
+        if ((archiveInfo.Attributes & FileAttributes.ReparsePoint) != 0)
+            throw new InvalidOperationException("The previous Gmail token archive is not a regular folder.");
+
+        DeleteRegularTokenDirectory(fullTokenDirectory);
+
+        Directory.Move(fullArchiveDirectory, fullTokenDirectory);
+    }
+
+    internal static int CleanupReconnectArchives(string tokenDirectory, int maxArchivesToKeep)
+    {
+        if (maxArchivesToKeep < 0)
+            throw new ArgumentOutOfRangeException(nameof(maxArchivesToKeep));
+
+        var fullTokenDirectory = Path.GetFullPath(tokenDirectory);
+        var parentDirectory = Directory.GetParent(fullTokenDirectory)?.FullName ??
+                              throw new InvalidOperationException("The Gmail token directory has no parent folder.");
+        if (!Directory.Exists(parentDirectory))
+            return 0;
+
+        var tokenFolderName =
+            Path.GetFileName(fullTokenDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var archives = Directory.EnumerateDirectories(parentDirectory, $"{tokenFolderName}.reconnect-*",
+                                                       SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFullPath)
+            .Where(path => IsReconnectArchiveForTokenStore(fullTokenDirectory, path))
+            .OrderByDescending(Directory.GetLastWriteTimeUtc)
+            .ToArray();
+
+        var removed = 0;
+        foreach (var archive in archives.Skip(maxArchivesToKeep))
+        {
+            var archiveInfo = new DirectoryInfo(archive);
+            if ((archiveInfo.Attributes & FileAttributes.ReparsePoint) != 0)
+                continue;
+
+            Directory.Delete(archive, recursive: true);
+            removed++;
+        }
+
+        return removed;
+    }
+
+    private static bool IsReconnectArchiveForTokenStore(string tokenDirectory, string archiveDirectory)
+    {
+        var tokenParent = Directory.GetParent(tokenDirectory)?.FullName;
+        var archiveParent = Directory.GetParent(archiveDirectory)?.FullName;
+        if (string.IsNullOrWhiteSpace(tokenParent) ||
+            !string.Equals(tokenParent, archiveParent, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var tokenFolderName =
+            Path.GetFileName(tokenDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var archiveFolderName =
+            Path.GetFileName(archiveDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        return archiveFolderName.StartsWith($"{tokenFolderName}.reconnect-", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void DeleteRegularTokenDirectory(string tokenDirectory)
+    {
+        if (!Directory.Exists(tokenDirectory))
+            return;
+
+        var tokenInfo = new DirectoryInfo(tokenDirectory);
+        if ((tokenInfo.Attributes & FileAttributes.ReparsePoint) != 0)
+            throw new InvalidOperationException("The replacement Gmail token directory is not a regular folder.");
+
+        Directory.Delete(tokenDirectory, recursive: true);
+    }
+
     private void ResetCachedService()
     {
         var service = _service;
@@ -242,45 +365,55 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
         ResetCachedService();
     }
 
-    internal static string BuildRawMessage(EmailDraftRequest request)
+    internal static string BuildRawMessage(EmailDraftRequest request, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var toHeader = BuildAddressHeader(request.ToEmail, required: true);
         var bccHeader = BuildAddressHeader(request.BccEmail, required: false);
         var subjectHeader = EncodeHeader(request.Subject);
         var boundary = "----=_FlareQuotes_" + Guid.NewGuid().ToString("N");
 
-        var sb = new StringBuilder();
-        sb.AppendLine($"To: {toHeader}");
+        using var mimeStream = new MemoryStream();
+        using var writer = new StreamWriter(mimeStream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+                                            bufferSize: 16 * 1024, leaveOpen: true)
+        { NewLine = "\r\n" };
+        writer.WriteLine($"To: {toHeader}");
         if (!string.IsNullOrWhiteSpace(bccHeader))
-            sb.AppendLine($"Bcc: {bccHeader}");
+            writer.WriteLine($"Bcc: {bccHeader}");
 
-        sb.AppendLine($"Subject: {subjectHeader}");
-        sb.AppendLine("MIME-Version: 1.0");
-        sb.AppendLine($"Content-Type: multipart/mixed; boundary=\"{boundary}\"");
-        sb.AppendLine();
+        writer.WriteLine($"Subject: {subjectHeader}");
+        writer.WriteLine("MIME-Version: 1.0");
+        writer.WriteLine($"Content-Type: multipart/mixed; boundary=\"{boundary}\"");
+        writer.WriteLine();
 
-        sb.AppendLine($"--{boundary}");
-        sb.AppendLine("Content-Type: text/html; charset=UTF-8");
-        sb.AppendLine("Content-Transfer-Encoding: base64");
-        sb.AppendLine();
-        sb.AppendLine(Convert.ToBase64String(Encoding.UTF8.GetBytes(request.HtmlBody ?? string.Empty),
-                                             Base64FormattingOptions.InsertLineBreaks));
+        writer.WriteLine($"--{boundary}");
+        writer.WriteLine("Content-Type: text/html; charset=UTF-8");
+        writer.WriteLine("Content-Transfer-Encoding: base64");
+        writer.WriteLine();
+        WriteBase64Lines(writer, Encoding.UTF8.GetBytes(request.HtmlBody ?? string.Empty), cancellationToken);
         long attachedBytes = 0;
         attachedBytes +=
-            AppendQuoteAttachment(sb, boundary, request.PdfAttachmentPath, requirePdf: true, MaxTotalAttachmentBytes);
+            AppendQuoteAttachment(writer, boundary, request.PdfAttachmentPath, requirePdf: true,
+                                  MaxTotalAttachmentBytes, cancellationToken);
 
         foreach (var attachmentPath in request.AdditionalAttachmentPaths ?? [])
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var remainingBytes = MaxTotalAttachmentBytes - attachedBytes;
             if (remainingBytes <= 0)
                 break;
 
-            attachedBytes += AppendQuoteAttachment(sb, boundary, attachmentPath, requirePdf: false, remainingBytes);
+            attachedBytes += AppendQuoteAttachment(writer, boundary, attachmentPath, requirePdf: false, remainingBytes,
+                                                    cancellationToken);
         }
 
-        sb.AppendLine($"--{boundary}--");
-        var mime = sb.ToString().Replace(Environment.NewLine, "\r\n", StringComparison.Ordinal);
-        return Base64UrlEncode(Encoding.UTF8.GetBytes(mime));
+        writer.WriteLine($"--{boundary}--");
+        writer.Flush();
+
+        if (!mimeStream.TryGetBuffer(out var buffer))
+            throw new InvalidOperationException("The Gmail message buffer could not be created.");
+
+        return Base64UrlEncode(buffer.Array!, buffer.Offset, checked((int)mimeStream.Length));
     }
 
     internal static string BuildAddressHeader(string value, bool required)
@@ -316,11 +449,17 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
         return (value ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ').Trim();
     }
 
-    private static long AppendQuoteAttachment(StringBuilder sb, string boundary, string attachmentPath, bool requirePdf,
-                                              long remainingBytes)
+    private static long AppendQuoteAttachment(TextWriter writer, string boundary, string attachmentPath,
+                                               bool requirePdf, long remainingBytes,
+                                               CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(attachmentPath) || !File.Exists(attachmentPath))
+        {
+            if (requirePdf)
+                throw new InvalidOperationException("The quote PDF is missing and the Gmail draft was not created.");
+
             return 0;
+        }
 
         var fileInfo = new FileInfo(attachmentPath);
         var extension = fileInfo.Extension.ToLowerInvariant();
@@ -334,7 +473,7 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
         if (fileInfo.Length > MaxAttachmentBytes)
         {
             if (requirePdf)
-                throw new InvalidOperationException($"{fileInfo.Name} is too large to attach.");
+                throw new InvalidOperationException("The quote PDF is too large to attach.");
 
             return 0;
         }
@@ -349,25 +488,40 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
 
         var filename = SanitizeAttachmentFileName(fileInfo.Name);
         var contentType = requirePdf ? "application/pdf" : GetImageContentType(extension);
-        var bytes = File.ReadAllBytes(fileInfo.FullName);
+        writer.WriteLine($"--{boundary}");
+        writer.WriteLine($"Content-Type: {contentType}; name=\"{filename}\"");
+        writer.WriteLine("Content-Transfer-Encoding: base64");
+        writer.WriteLine($"Content-Disposition: attachment; filename=\"{filename}\"");
+        writer.WriteLine();
 
-        sb.AppendLine($"--{boundary}");
-        sb.AppendLine($"Content-Type: {contentType}; name=\"{filename}\"");
-        sb.AppendLine("Content-Transfer-Encoding: base64");
-        sb.AppendLine($"Content-Disposition: attachment; filename=\"{filename}\"");
-        sb.AppendLine();
-        AppendFlareBase64AttachmentLines(sb, bytes);
-        sb.AppendLine();
+        using var stream = new FileStream(fileInfo.FullName, FileMode.Open, FileAccess.Read, FileShare.Read,
+                                          bufferSize: 16 * 1024, FileOptions.SequentialScan);
+        if (stream.Length != fileInfo.Length || stream.Length > remainingBytes || stream.Length > MaxAttachmentBytes)
+            throw new IOException("An attachment changed while the Gmail draft was being prepared.");
+
+        WriteBase64Lines(writer, stream, cancellationToken);
+        writer.WriteLine();
         return fileInfo.Length;
     }
 
-    private static void AppendFlareBase64AttachmentLines(StringBuilder sb, byte[] bytes)
+    private static void WriteBase64Lines(TextWriter writer, byte[] bytes, CancellationToken cancellationToken)
     {
-        var base64 = Convert.ToBase64String(bytes);
+        using var stream = new MemoryStream(bytes, writable: false);
+        WriteBase64Lines(writer, stream, cancellationToken);
+    }
 
-        for (var i = 0; i < base64.Length; i += 76)
+    private static void WriteBase64Lines(TextWriter writer, Stream stream, CancellationToken cancellationToken)
+    {
+        // 57 input bytes encode to exactly 76 Base64 characters, the MIME line-length limit.
+        var buffer = new byte[57];
+        while (true)
         {
-            sb.AppendLine(base64.Substring(i, Math.Min(76, base64.Length - i)));
+            cancellationToken.ThrowIfCancellationRequested();
+            var read = stream.Read(buffer, 0, buffer.Length);
+            if (read == 0)
+                break;
+
+            writer.WriteLine(Convert.ToBase64String(buffer, 0, read));
         }
     }
 
@@ -406,9 +560,9 @@ public sealed class GmailDraftService : IGmailDraftService, IDisposable
         return sanitized;
     }
 
-    private static string Base64UrlEncode(byte[] bytes)
+    private static string Base64UrlEncode(byte[] bytes, int offset, int count)
     {
-        return Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+        return Convert.ToBase64String(bytes, offset, count).Replace('+', '-').Replace('/', '_').TrimEnd('=');
     }
 
     private static bool OpenGmailDrafts()

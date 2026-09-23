@@ -6,14 +6,24 @@ namespace FlareQuotes.Infrastructure.Updates;
 
 public sealed class HttpUpdateService : IUpdateService, IDisposable
 {
-    private readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private readonly HttpClient _httpClient;
     private readonly IAppLogger? _logger;
-    private readonly ISettingsService? _settingsService;
 
-    public HttpUpdateService(IAppLogger? logger = null, ISettingsService? settingsService = null)
+    public HttpUpdateService(IAppLogger? logger = null)
+        : this(new HttpClient(), logger)
     {
+    }
+
+    internal HttpUpdateService(HttpMessageHandler handler, IAppLogger? logger = null)
+        : this(new HttpClient(handler, disposeHandler: true), logger)
+    {
+    }
+
+    private HttpUpdateService(HttpClient httpClient, IAppLogger? logger)
+    {
+        _httpClient = httpClient;
+        _httpClient.Timeout = TimeSpan.FromSeconds(15);
         _logger = logger;
-        _settingsService = settingsService;
 
         var version = typeof(HttpUpdateService).Assembly.GetName().Version?.ToString(3) ?? "unknown";
         _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent",
@@ -28,15 +38,7 @@ public sealed class HttpUpdateService : IUpdateService, IDisposable
     {
         try
         {
-            var settings = _settingsService is null
-                               ? null
-                               : await _settingsService.LoadAsync(cancellationToken).ConfigureAwait(false);
-
-            var configuredUrl = string.IsNullOrWhiteSpace(settings?.UpdateManifestUrl)
-                                    ? UpdateTrustPolicy.ManifestUrl
-                                    : settings.UpdateManifestUrl;
-
-            if (!UpdateTrustPolicy.TryGetTrustedManifestUri(configuredUrl, out var manifestUri))
+            if (!UpdateTrustPolicy.TryGetTrustedManifestUri(UpdateTrustPolicy.ManifestUrl, out var manifestUri))
             {
                 _logger?.Warning("Update check blocked because the manifest URL is outside the trusted release lane.");
                 return new UpdateCheckResult { Message = "The configured update source is not trusted." };
@@ -46,20 +48,13 @@ public sealed class HttpUpdateService : IUpdateService, IDisposable
             if (manifest is null || !UpdateTrustPolicy.IsValidVersion(manifest.Version))
                 return new UpdateCheckResult { Message = "The update manifest version is invalid." };
 
-            var strictSignatureValidation = settings?.StrictManifestSignatureValidation == true;
-            var publicKeyPem = settings?.UpdateManifestPublicKeyPem;
-
-            if (!ManifestSignatureVerifier.Validate(manifest, publicKeyPem, strictSignatureValidation,
-                                                    out var signatureStatus))
+            if (!ManifestSignatureVerifier.Validate(manifest, out var signatureStatus))
             {
                 _logger?.Warning(signatureStatus);
                 return new UpdateCheckResult { Message = "The update manifest could not be verified." };
             }
 
-            if (signatureStatus.Contains("unsigned", StringComparison.OrdinalIgnoreCase))
-                _logger?.Warning(signatureStatus);
-            else
-                _logger?.Info(signatureStatus);
+            _logger?.Info(signatureStatus);
 
             var installerUrl = string.IsNullOrWhiteSpace(manifest.Url) ? manifest.Installer : manifest.Url;
             if (!UpdateTrustPolicy.TryGetTrustedInstallerUri(installerUrl, manifest.Version, out var installerUri))
@@ -81,6 +76,7 @@ public sealed class HttpUpdateService : IUpdateService, IDisposable
 
             return new UpdateCheckResult
             {
+                CheckSucceeded = true,
                 UpdateAvailable = updateAvailable,
                 LatestVersion = manifest.Version,
                 InstallerUrl = installerUri.AbsoluteUri,

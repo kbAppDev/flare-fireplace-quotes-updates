@@ -15,9 +15,21 @@ public sealed class JsonSettingsService : ISettingsService
         new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
 
     private readonly string _settingsPath;
+    private readonly IAppLogger? _logger;
 
     public JsonSettingsService(string? settingsPath = null)
+        : this(settingsPath, null)
     {
+    }
+
+    public JsonSettingsService(IAppLogger logger)
+        : this(null, logger)
+    {
+    }
+
+    private JsonSettingsService(string? settingsPath, IAppLogger? logger)
+    {
+        _logger = logger;
         AppPaths.MigrateLegacyData();
         _settingsPath = string.IsNullOrWhiteSpace(settingsPath) ? AppPaths.SettingsFile : settingsPath;
         MigrateLegacySettingsIfNeeded();
@@ -50,9 +62,9 @@ public sealed class JsonSettingsService : ISettingsService
                 return;
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Settings should never prevent startup.
+            _logger?.Warning($"Legacy settings migration was skipped. ErrorType={ex.GetType().Name}.");
         }
     }
 
@@ -69,7 +81,6 @@ public sealed class JsonSettingsService : ISettingsService
             if (!File.Exists(_settingsPath))
             {
                 var defaults = Normalize(new AppSettings());
-                AppSettingsRuntimeCache.Set(defaults);
                 return Task.FromResult(defaults);
             }
 
@@ -80,15 +91,14 @@ public sealed class JsonSettingsService : ISettingsService
             var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
             var normalized = Normalize(settings);
 
-            AppSettingsRuntimeCache.Set(normalized);
             return Task.FromResult(normalized);
         }
-        catch
+        catch (Exception ex)
         {
             TryBackupCorruptSettings();
+            _logger?.Warning($"Settings could not be loaded; safe defaults were applied. ErrorType={ex.GetType().Name}.");
 
             var defaults = Normalize(new AppSettings());
-            AppSettingsRuntimeCache.Set(defaults);
             return Task.FromResult(defaults);
         }
     }
@@ -117,8 +127,6 @@ public sealed class JsonSettingsService : ISettingsService
                 File.Delete(tempPath);
         }
 
-        AppSettingsRuntimeCache.Set(normalized);
-
         return Task.CompletedTask;
     }
 
@@ -139,7 +147,6 @@ public sealed class JsonSettingsService : ISettingsService
         settings.ConsultationUrl = TrimTo(settings.ConsultationUrl, 2048);
         settings.PricingFile = TrimTo(settings.PricingFile, 32767);
         settings.GmailCredentialsPath = TrimTo(settings.GmailCredentialsPath, 32767);
-        settings.UpdateManifestPublicKeyPem = TrimTo(settings.UpdateManifestPublicKeyPem, 16384);
         settings.RecallQuoteHistoryLimit = Math.Clamp(settings.RecallQuoteHistoryLimit, 1, 20);
 
         var presets = (settings.LeadTimePresets ?? [])

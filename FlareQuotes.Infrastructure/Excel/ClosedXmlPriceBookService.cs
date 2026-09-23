@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Xml;
 using ClosedXML.Excel;
 using FlareQuotes.Core.Features;
 using FlareQuotes.Core.Media;
@@ -13,15 +14,27 @@ namespace FlareQuotes.Infrastructure.Excel;
 
 public sealed class ClosedXmlPriceBookService : IPriceBookService
 {
-    private const long MaximumSharedWorkbookBytes = 10L * 1024 * 1024;
+    internal const long MaximumWorkbookBytes = 10L * 1024 * 1024;
+    private const int MaximumArchiveEntries = 2_048;
+    private const long MaximumArchiveEntryBytes = 32L * 1024 * 1024;
+    private const long MaximumArchiveExpandedBytes = 128L * 1024 * 1024;
+    private const long MinimumCompressionRatioCheckBytes = 1L * 1024 * 1024;
+    private const double MaximumCompressionRatio = 100d;
+    private const int MaximumWorksheets = 64;
+    private const int MaximumWorksheetRows = 100_000;
+    private const int MaximumWorksheetColumns = 256;
+    private const int MaximumWorksheetCells = 1_000_000;
+    private const int MaximumWorkbookCells = 2_000_000;
     private const string PassiveHeatFlexFramingLabel = "Passive Heat Flex Framing Guide";
     private const string PassiveHeatFlexFramingRoot =
         "https://flarefireplaces.com/wp-content/uploads/Data/PassiveHF/Framing/";
     private const string SharedPricingExportUrl =
         "https://docs.google.com/spreadsheets/d/1kBfDyekOABQckF22v1mXzk59apccLBI1GCWi2CHO9zA/export?format=xlsx";
 
-    private PriceBookWorkbook? _cached;
-    private string _loadedPath = string.Empty;
+    private readonly object _workbookCacheSync = new();
+    private readonly Dictionary<string, WorkbookCacheEntry> _workbookCache =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Action? _afterWorkbookSnapshotValidated;
 
     private static readonly Dictionary<string, decimal> LouverMsrpFallback =
         new(StringComparer.OrdinalIgnoreCase)
@@ -35,41 +48,82 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             ["200"] = 666.6666666666667m
         };
 
-    public Task<PriceBookWorkbook> LoadAsync(string path, CancellationToken cancellationToken = default)
+    public ClosedXmlPriceBookService()
     {
-        if (_cached is not null && string.Equals(_loadedPath, path, StringComparison.OrdinalIgnoreCase))
-            return Task.FromResult(_cached);
+    }
+
+    internal ClosedXmlPriceBookService(Action afterWorkbookSnapshotValidated)
+    {
+        _afterWorkbookSnapshotValidated = afterWorkbookSnapshotValidated ??
+                                          throw new ArgumentNullException(nameof(afterWorkbookSnapshotValidated));
+    }
+
+    public async Task<PriceBookWorkbook> LoadAsync(string path, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-            return Task.FromResult(new PriceBookWorkbook { SourcePath = path ?? string.Empty });
+            return new PriceBookWorkbook { SourcePath = path ?? string.Empty };
+
+        var canonicalPath = Path.GetFullPath(path);
+        return await Task.Run(
+                         () => LoadWorkbookCore(canonicalPath, path, cancellationToken),
+                         cancellationToken)
+                     .ConfigureAwait(false);
+    }
+
+    private PriceBookWorkbook LoadWorkbookCore(string canonicalPath, string sourcePath,
+                                               CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!TryGetFingerprint(canonicalPath, out var fingerprint) ||
+            fingerprint.Length > MaximumWorkbookBytes)
+        {
+            RemoveCachedWorkbook(canonicalPath);
+            return new PriceBookWorkbook { SourcePath = sourcePath };
+        }
+
+        lock (_workbookCacheSync)
+        {
+            if (_workbookCache.TryGetValue(canonicalPath, out var cached) && cached.Fingerprint == fingerprint)
+                return cached.Workbook;
+        }
 
         PriceBookWorkbook result;
         try
         {
-            using var workbookBuffer = new MemoryStream();
-            using (var sourceStream = new FileStream(
-                       path,
-                       FileMode.Open,
-                       FileAccess.Read,
-                       FileShare.ReadWrite | FileShare.Delete))
+            using var workbookBuffer = CreateValidatedWorkbookSnapshot(canonicalPath, cancellationToken);
+            if (workbookBuffer is null)
             {
-                sourceStream.CopyTo(workbookBuffer);
+                RemoveCachedWorkbook(canonicalPath);
+                return new PriceBookWorkbook { SourcePath = sourcePath };
             }
 
+            _afterWorkbookSnapshotValidated?.Invoke();
+            cancellationToken.ThrowIfCancellationRequested();
             workbookBuffer.Position = 0;
             using var workbook = new XLWorkbook(workbookBuffer);
-            result = new PriceBookWorkbook { SourcePath = path };
+            cancellationToken.ThrowIfCancellationRequested();
+
+            result = new PriceBookWorkbook { SourcePath = sourcePath };
             foreach (var worksheet in workbook.Worksheets)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 result.SheetNames.Add(worksheet.Name);
                 var headers = worksheet.Row(1)
-                                  .CellsUsed()
-                                  .Select((cell, index) => new { Name = cell.GetString(), Index = index + 1 })
-                                  .ToList();
+                                      .CellsUsed()
+                                      .Select((cell, index) => new { Name = cell.GetString(), Index = index + 1 })
+                                      .ToList();
+                var rowIndex = 0;
                 foreach (var row in worksheet.RowsUsed().Skip(1))
                 {
+                    if ((rowIndex++ & 0xFF) == 0)
+                        cancellationToken.ThrowIfCancellationRequested();
+
                     var priceRow = new PriceRow { SheetName = worksheet.Name };
-                    var lastColumn = worksheet.LastColumnUsed()?.ColumnNumber() ?? headers.Max(h => h.Index);
+                    var lastColumn = worksheet.LastColumnUsed()?.ColumnNumber() ??
+                                     (headers.Count == 0 ? 0 : headers.Max(h => h.Index));
                     for (var col = 1; col <= lastColumn; col++)
                     {
                         priceRow.RawValues[$"Column{col}"] = row.Cell(col).GetFormattedString().Trim();
@@ -107,23 +161,146 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                         }
                     }
                     if (!string.IsNullOrWhiteSpace(priceRow.Sku) || !string.IsNullOrWhiteSpace(priceRow.PartName) ||
-                        !string.IsNullOrWhiteSpace(priceRow.Description) || IsQuantityCalculationSheet(worksheet.Name))
+                        !string.IsNullOrWhiteSpace(priceRow.Description) ||
+                        IsQuantityCalculationSheet(worksheet.Name))
                         result.Rows.Add(priceRow);
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception)
         {
-            // Corrupt, locked, or partially-synced workbook: fail soft instead of crashing the quote flow.
-            return Task.FromResult(new PriceBookWorkbook { SourcePath = path });
+            // Do not cache failed parses. A corrected workbook at the same path must be loadable immediately.
+            RemoveCachedWorkbook(canonicalPath);
+            return new PriceBookWorkbook { SourcePath = sourcePath };
         }
 
         result.Rows.RemoveAll(row => IsDiscontinuedCommercialSku(row.Sku));
 
-        _cached = result;
-        _loadedPath = path;
-        return Task.FromResult(result);
+        // Cache only a stable file snapshot. A replacement during parsing is deliberately re-read next time.
+        lock (_workbookCacheSync)
+        {
+            if (TryGetFingerprint(canonicalPath, out var completedFingerprint) &&
+                completedFingerprint == fingerprint)
+                _workbookCache[canonicalPath] = new WorkbookCacheEntry(completedFingerprint, result);
+            else
+                _workbookCache.Remove(canonicalPath);
+        }
+
+        return result;
     }
+
+    private void RemoveCachedWorkbook(string canonicalPath)
+    {
+        lock (_workbookCacheSync)
+            _workbookCache.Remove(canonicalPath);
+    }
+
+    private static MemoryStream ReadWorkbookSnapshot(string path, long expectedLength,
+                                                     CancellationToken cancellationToken)
+    {
+        var capacity = (int)Math.Min(expectedLength, MaximumWorkbookBytes);
+        var buffer = new MemoryStream(capacity);
+        try
+        {
+            using var source = new FileStream(path, FileMode.Open, FileAccess.Read,
+                                              FileShare.ReadWrite | FileShare.Delete);
+            var copyBuffer = new byte[81920];
+            long totalBytes = 0;
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var bytesRead = source.Read(copyBuffer, 0, copyBuffer.Length);
+                if (bytesRead == 0)
+                    break;
+
+                totalBytes += bytesRead;
+                if (totalBytes > MaximumWorkbookBytes)
+                    throw new InvalidDataException("Workbook exceeds the maximum allowed size.");
+
+                buffer.Write(copyBuffer, 0, bytesRead);
+            }
+
+            buffer.Position = 0;
+            return buffer;
+        }
+        catch
+        {
+            buffer.Dispose();
+            throw;
+        }
+    }
+
+    internal static MemoryStream? CreateValidatedWorkbookSnapshot(
+        string path, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var file = new FileInfo(path);
+        if (!file.Exists || file.Length <= 0 || file.Length > MaximumWorkbookBytes)
+            return null;
+
+        MemoryStream? workbookBuffer = null;
+        try
+        {
+            workbookBuffer = ReadWorkbookSnapshot(path, file.Length, cancellationToken);
+            if (IsXlsxPackage(workbookBuffer, cancellationToken))
+                return workbookBuffer;
+
+            workbookBuffer.Dispose();
+            return null;
+        }
+        catch
+        {
+            workbookBuffer?.Dispose();
+            throw;
+        }
+    }
+
+    public void InvalidateCache(string? path = null)
+    {
+        lock (_workbookCacheSync)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                _workbookCache.Clear();
+                return;
+            }
+
+            _workbookCache.Remove(Path.GetFullPath(path));
+        }
+    }
+
+    private static bool TryGetFingerprint(string path, out WorkbookFingerprint fingerprint)
+    {
+        try
+        {
+            var file = new FileInfo(path);
+            if (!file.Exists)
+            {
+                fingerprint = default;
+                return false;
+            }
+
+            fingerprint = new WorkbookFingerprint(file.Length, file.LastWriteTimeUtc.Ticks);
+            return true;
+        }
+        catch (IOException)
+        {
+            fingerprint = default;
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            fingerprint = default;
+            return false;
+        }
+    }
+
+    private readonly record struct WorkbookFingerprint(long Length, long LastWriteTimeUtcTicks);
+    private sealed record WorkbookCacheEntry(WorkbookFingerprint Fingerprint, PriceBookWorkbook Workbook);
 
     private static bool IsDiscontinuedCommercialSku(string? sku)
     {
@@ -143,7 +320,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                                                          CancellationToken cancellationToken = default)
     {
         var path = GetDefaultPricingPath();
-        var result = await BuildPricedQuoteAsync(request, path, cancellationToken);
+        var result = await BuildPricedQuoteAsync(request, path, cancellationToken).ConfigureAwait(false);
         var first = result.Fireplaces.FirstOrDefault();
         return first?.BaseLine.Price is null
                    ? new PriceBookMatch { Found = false, Reason = result.Message }
@@ -163,7 +340,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     public async Task<PriceBookMatch> FindFeaturePriceAsync(QuoteRequest request, FeatureOption feature,
                                                             CancellationToken cancellationToken = default)
     {
-        var workbook = await LoadAsync(GetDefaultPricingPath(), cancellationToken);
+        var workbook = await LoadAsync(GetDefaultPricingPath(), cancellationToken).ConfigureAwait(false);
         var model = request.Model ?? string.Empty;
         var size = request.Size ?? string.Empty;
         var glassHeight = request.GlassHeight ?? string.Empty;
@@ -175,7 +352,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     public async Task<PricedQuoteResult> BuildPricedQuoteAsync(QuoteRequest request, string pricingPath,
                                                                CancellationToken cancellationToken = default)
     {
-        var workbook = await LoadAsync(pricingPath, cancellationToken);
+        var workbook = await LoadAsync(pricingPath, cancellationToken).ConfigureAwait(false);
         if (workbook.Rows.Count == 0)
             return new PricedQuoteResult
             {
@@ -190,13 +367,18 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
         foreach (var input in fireplaceInputs)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var fireplaceQuantity = Math.Max(1, input.Quantity);
             var inputModel = input.Model ?? string.Empty;
             var inputSize = input.Size ?? string.Empty;
             var inputGlassHeight = input.GlassHeight ?? string.Empty;
             // block invalid Large See Through resource links
             if (IsInvalidLargeSeeThroughModel(inputModel, inputSize))
+            {
+                result.Success = false;
+                result.Message += $"Cannot price {BuildLabel(input)} because that model and size combination is invalid. ";
                 continue;
+            }
             var type = input.Type == FireplaceType.Unknown ? DetectType(inputModel, inputSize) : input.Type;
             // Outdoor Kit type promotion
             type = ApplyIndoorOutdoorSeeThroughForOutdoorKit(type, inputModel, input.Features);
@@ -204,6 +386,12 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             // OD/IO included outdoor kit row
             var includedOutdoorKitRow =
                 FindIncludedOutdoorKitRow(workbook, type, inputModel, inputSize, inputGlassHeight);
+            var requiresOutdoorKitPrice = type == FireplaceType.IndoorOutdoorSeeThrough ||
+                                          IsIndoorOutdoorSeeThroughModelCode(inputModel);
+            var completeBasePrice = baseRow?.Price is not null &&
+                                    (!requiresOutdoorKitPrice || includedOutdoorKitRow?.Price is not null)
+                                        ? AddPrices(baseRow.Price, includedOutdoorKitRow?.Price)
+                                        : null;
             var modelNumber = ResolveModelNumber(workbook, type, inputModel, inputSize, inputGlassHeight) ??
                               BuildModelNumber(type, inputModel, inputSize, inputGlassHeight);
             var priced = new PricedFireplaceQuote
@@ -230,7 +418,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                         Description = baseRow?.Description ??
                                                   BuildDescription(type, inputModel, inputSize, inputGlassHeight),
                         Sku = FirstNonBlank(baseRow?.Sku, modelNumber),
-                        Price = AddPrices(baseRow?.Price, includedOutdoorKitRow?.Price),
+                        Price = completeBasePrice,
                         SourceSheet = baseRow?.SheetName ?? string.Empty,
                         Url = PriceLineUrl(baseRow)
                     }
@@ -238,6 +426,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
             foreach (var feature in input.Features)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 // skip manual Outdoor Kit optional feature
                 if (IsOutdoorKitFeature($"{feature.Key} {feature.DisplayName} {feature.PdfDescription}"))
                     continue;
@@ -272,6 +461,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
             foreach (var media in input.PremiumMedia)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (IsStoneBallsMedia(media))
                 {
                     priced.OptionalFeatures.Add(BuildStoneBallsPriceLine(media, inputSize));
@@ -313,15 +503,27 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
             ApplyFireplaceQuantity(priced, fireplaceQuantity);
 
-            if (priced.BaseLine.Price is null)
+            var missingPrices = new List<string>();
+            if (baseRow?.Price is null)
+                missingPrices.Add("base fireplace");
+            if (requiresOutdoorKitPrice && includedOutdoorKitRow?.Price is null)
+                missingPrices.Add("outdoor kit");
+            missingPrices.AddRange(
+                priced.OptionalFeatures
+                    .Where(line => !line.Price.HasValue)
+                    .Select(line => FirstNonBlank(line.Feature, line.Description, line.Sku, "selected option")));
+
+            if (missingPrices.Count > 0)
             {
                 result.Success = false;
-                result.Message += $"Could not price {priced.FireplaceLabel}. ";
+                result.Message += $"Missing price for {priced.FireplaceLabel}: " +
+                                  string.Join(", ", missingPrices.Distinct(StringComparer.OrdinalIgnoreCase)) + ". ";
             }
             result.Fireplaces.Add(priced);
         }
 
-        result.ResourceLinks = await ResolveResourceLinksAsync(request, pricingPath, cancellationToken);
+        result.ResourceLinks = await ResolveResourceLinksAsync(request, pricingPath, cancellationToken)
+                                    .ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(result.Message))
             result.Message = result.Success ? "Pricing complete." : "Pricing completed with missing rows.";
         return result;
@@ -330,13 +532,14 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     public async Task<IReadOnlyList<ResourceLinkSet>> ResolveResourceLinksAsync(
         QuoteRequest request, string pricingPath, CancellationToken cancellationToken = default)
     {
-        var workbook = await LoadResourceWorkbookAsync(pricingPath, cancellationToken);
+        var workbook = await LoadResourceWorkbookAsync(pricingPath, cancellationToken).ConfigureAwait(false);
         IEnumerable<FireplaceQuote> fireplaceInputs =
             request.Fireplaces.Count > 0 ? request.Fireplaces : new List<FireplaceQuote> { ToFireplace(request) };
         var results = new List<ResourceLinkSet>();
 
         foreach (var input in fireplaceInputs)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var inputModel = input.Model ?? string.Empty;
             var inputSize = input.Size ?? string.Empty;
             var inputGlassHeight = input.GlassHeight ?? string.Empty;
@@ -346,7 +549,12 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             var type = input.Type == FireplaceType.Unknown ? DetectType(inputModel, inputSize) : input.Type;
             // Outdoor Kit type promotion
             type = ApplyIndoorOutdoorSeeThroughForOutdoorKit(type, inputModel, input.Features);
-            var linkRow = TryGetOutdoorVentFreeResourceRowFromWorkbook(type, inputModel, inputSize, inputGlassHeight) ??
+            var outdoorLinkRow = await Task.Run(
+                                      () => TryGetOutdoorVentFreeResourceRowFromWorkbook(
+                                          type, inputModel, inputSize, inputGlassHeight, cancellationToken),
+                                      cancellationToken)
+                                  .ConfigureAwait(false);
+            var linkRow = outdoorLinkRow ??
                           TryGetLargeResourceRow(type, inputModel, inputSize, inputGlassHeight) ??
                           FindResourceRow(workbook, type, inputModel, inputSize, inputGlassHeight);
             // Requested resource input model marker
@@ -403,7 +611,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     private async Task<PriceBookWorkbook> LoadResourceWorkbookAsync(string pricingPath,
                                                                     CancellationToken cancellationToken)
     {
-        var primary = await LoadAsync(pricingPath, cancellationToken);
+        var primary = await LoadAsync(pricingPath, cancellationToken).ConfigureAwait(false);
         if (HasResourceLinks(primary))
             return primary;
 
@@ -412,15 +620,15 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             if (string.IsNullOrWhiteSpace(candidate) || !File.Exists(candidate))
                 continue;
 
-            var workbook = await LoadAsync(candidate, cancellationToken);
+            var workbook = await LoadAsync(candidate, cancellationToken).ConfigureAwait(false);
             if (HasResourceLinks(workbook))
                 return workbook;
         }
 
-        var downloaded = await TryDownloadSharedResourceWorkbookAsync(cancellationToken);
+        var downloaded = await TryDownloadSharedResourceWorkbookAsync(cancellationToken).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(downloaded) && File.Exists(downloaded))
         {
-            var workbook = await LoadAsync(downloaded, cancellationToken);
+            var workbook = await LoadAsync(downloaded, cancellationToken).ConfigureAwait(false);
             if (HasResourceLinks(workbook))
                 return workbook;
         }
@@ -477,7 +685,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 return string.Empty;
             }
 
-            if (response.Content.Headers.ContentLength is > MaximumSharedWorkbookBytes)
+            if (response.Content.Headers.ContentLength is > MaximumWorkbookBytes)
                 return string.Empty;
 
             if (File.Exists(downloadPath))
@@ -500,7 +708,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                         break;
 
                     totalBytes += bytesRead;
-                    if (totalBytes > MaximumSharedWorkbookBytes)
+                    if (totalBytes > MaximumWorkbookBytes)
                         throw new InvalidDataException("Shared workbook exceeds the maximum allowed size.");
 
                     await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken)
@@ -516,7 +724,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 throw;
             }
 
-            if (!IsXlsxPackage(downloadPath))
+            if (!IsXlsxPackage(downloadPath, cancellationToken))
             {
                 File.Delete(downloadPath);
                 return string.Empty;
@@ -525,6 +733,10 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             File.Move(downloadPath, cachePath, overwrite: true);
 
             return cachePath;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch
         {
@@ -544,18 +756,262 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                uri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase);
     }
 
-    internal static bool IsXlsxPackage(string path)
+    internal static bool IsXlsxPackage(string path) => IsXlsxPackage(path, CancellationToken.None);
+
+    private static bool IsXlsxPackage(string path, CancellationToken cancellationToken)
     {
         try
         {
-            using var archive = ZipFile.OpenRead(path);
-            return archive.GetEntry("[Content_Types].xml") is not null &&
-                   archive.GetEntry("xl/workbook.xml") is not null;
+            using var workbookBuffer = CreateValidatedWorkbookSnapshot(path, cancellationToken);
+            return workbookBuffer is not null;
         }
-        catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException or
+                                          UnauthorizedAccessException or XmlException)
         {
             return false;
         }
+    }
+
+    private static bool IsXlsxPackage(Stream workbookSnapshot, CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!workbookSnapshot.CanRead || !workbookSnapshot.CanSeek || workbookSnapshot.Length <= 0 ||
+                workbookSnapshot.Length > MaximumWorkbookBytes)
+            {
+                return false;
+            }
+
+            workbookSnapshot.Position = 0;
+            using var archive = new ZipArchive(workbookSnapshot, ZipArchiveMode.Read, leaveOpen: true);
+            if (archive.Entries.Count == 0 || archive.Entries.Count > MaximumArchiveEntries ||
+                archive.GetEntry("[Content_Types].xml") is null ||
+                archive.GetEntry("xl/workbook.xml") is null)
+            {
+                return false;
+            }
+
+            long totalExpandedBytes = 0;
+            var worksheetCount = 0;
+            var workbookCellCount = 0;
+
+            foreach (var entry in archive.Entries)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var entryName = entry.FullName.Replace('\\', '/');
+
+                if (HasUnsafeArchivePath(entryName) || entry.Length < 0 ||
+                    entry.Length > MaximumArchiveEntryBytes ||
+                    entry.Length > MaximumArchiveExpandedBytes - totalExpandedBytes)
+                {
+                    return false;
+                }
+
+                totalExpandedBytes += entry.Length;
+                if (entry.Length >= MinimumCompressionRatioCheckBytes &&
+                    (entry.CompressedLength <= 0 ||
+                     entry.Length / (double)entry.CompressedLength > MaximumCompressionRatio))
+                {
+                    return false;
+                }
+
+                if (IsUnsupportedWorkbookPart(entryName))
+                    return false;
+
+                if (entryName.EndsWith(".rels", StringComparison.OrdinalIgnoreCase) &&
+                    ContainsUnsupportedRelationship(entry, cancellationToken))
+                {
+                    return false;
+                }
+
+                if (!IsWorksheetXml(entryName))
+                    continue;
+
+                worksheetCount++;
+                if (worksheetCount > MaximumWorksheets ||
+                    !HasSafeWorksheetShape(entry, ref workbookCellCount, cancellationToken))
+                {
+                    return false;
+                }
+            }
+
+            return worksheetCount > 0;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException or
+                                          UnauthorizedAccessException or XmlException)
+        {
+            return false;
+        }
+        finally
+        {
+            if (workbookSnapshot.CanSeek)
+                workbookSnapshot.Position = 0;
+        }
+    }
+
+    private static bool HasUnsafeArchivePath(string entryName)
+    {
+        if (string.IsNullOrWhiteSpace(entryName) || entryName.StartsWith("/", StringComparison.Ordinal))
+            return true;
+
+        return entryName.Split('/', StringSplitOptions.RemoveEmptyEntries)
+                        .Any(segment => segment is "." or "..");
+    }
+
+    private static bool IsUnsupportedWorkbookPart(string entryName) =>
+        entryName.StartsWith("xl/externalLinks/", StringComparison.OrdinalIgnoreCase) ||
+        entryName.Equals("xl/connections.xml", StringComparison.OrdinalIgnoreCase) ||
+        entryName.Equals("xl/vbaProject.bin", StringComparison.OrdinalIgnoreCase) ||
+        entryName.StartsWith("xl/embeddings/", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsWorksheetXml(string entryName) =>
+        entryName.StartsWith("xl/worksheets/", StringComparison.OrdinalIgnoreCase) &&
+        !entryName.Contains("/_rels/", StringComparison.OrdinalIgnoreCase) &&
+        entryName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase);
+
+    private static bool ContainsUnsupportedRelationship(ZipArchiveEntry entry,
+                                                        CancellationToken cancellationToken)
+    {
+        using var stream = entry.Open();
+        using var reader = XmlReader.Create(
+            stream,
+            new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                IgnoreComments = true,
+                IgnoreWhitespace = true,
+                MaxCharactersInDocument = MaximumArchiveEntryBytes
+            });
+
+        while (reader.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (reader.NodeType != XmlNodeType.Element ||
+                !reader.LocalName.Equals("Relationship", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var relationshipType = reader.GetAttribute("Type") ?? string.Empty;
+            if (relationshipType.EndsWith("/externalLink", StringComparison.OrdinalIgnoreCase) ||
+                relationshipType.EndsWith("/connections", StringComparison.OrdinalIgnoreCase) ||
+                relationshipType.EndsWith("/oleObject", StringComparison.OrdinalIgnoreCase) ||
+                relationshipType.EndsWith("/package", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasSafeWorksheetShape(ZipArchiveEntry entry, ref int workbookCellCount,
+                                              CancellationToken cancellationToken)
+    {
+        using var stream = entry.Open();
+        using var reader = XmlReader.Create(
+            stream,
+            new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                IgnoreComments = true,
+                IgnoreWhitespace = true,
+                MaxCharactersInDocument = MaximumArchiveEntryBytes
+            });
+
+        var rows = 0;
+        var sheetCells = 0;
+        var cellsInCurrentRow = 0;
+
+        while (reader.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (reader.NodeType != XmlNodeType.Element)
+                continue;
+
+            if (reader.LocalName.Equals("dimension", StringComparison.OrdinalIgnoreCase) ||
+                reader.LocalName.Equals("mergeCell", StringComparison.OrdinalIgnoreCase) ||
+                reader.LocalName.Equals("autoFilter", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!IsWorksheetRangeReferenceSafe(reader.GetAttribute("ref")))
+                    return false;
+            }
+            else if (reader.LocalName.Equals("row", StringComparison.OrdinalIgnoreCase))
+            {
+                rows++;
+                cellsInCurrentRow = 0;
+                if (rows > MaximumWorksheetRows ||
+                    !IsWorksheetRowReferenceSafe(reader.GetAttribute("r")))
+                {
+                    return false;
+                }
+            }
+            else if (reader.LocalName.Equals("c", StringComparison.OrdinalIgnoreCase))
+            {
+                cellsInCurrentRow++;
+                sheetCells++;
+                workbookCellCount++;
+                if (cellsInCurrentRow > MaximumWorksheetColumns ||
+                    sheetCells > MaximumWorksheetCells ||
+                    workbookCellCount > MaximumWorkbookCells ||
+                    !IsWorksheetCellReferenceSafe(reader.GetAttribute("r")))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsWorksheetRowReferenceSafe(string? reference) =>
+        string.IsNullOrWhiteSpace(reference) ||
+        (int.TryParse(reference, NumberStyles.None, CultureInfo.InvariantCulture, out var row) &&
+         row is > 0 and <= MaximumWorksheetRows);
+
+    private static bool IsWorksheetCellReferenceSafe(string? reference)
+    {
+        if (string.IsNullOrWhiteSpace(reference))
+            return true;
+
+        reference = reference.Replace("$", string.Empty, StringComparison.Ordinal);
+
+        var column = 0;
+        var index = 0;
+        while (index < reference.Length && char.IsLetter(reference[index]))
+        {
+            column = checked(column * 26 + char.ToUpperInvariant(reference[index]) - 'A' + 1);
+            if (column > MaximumWorksheetColumns)
+                return false;
+            index++;
+        }
+
+        return index > 0 && column > 0 &&
+               int.TryParse(reference.AsSpan(index), NumberStyles.None, CultureInfo.InvariantCulture, out var row) &&
+               row is > 0 and <= MaximumWorksheetRows;
+    }
+
+    private static bool IsWorksheetRangeReferenceSafe(string? reference)
+    {
+        if (string.IsNullOrWhiteSpace(reference))
+            return true;
+
+        var separator = reference.IndexOf(':');
+        return separator < 0
+                   ? IsWorksheetCellReferenceSafe(reference)
+                   : IsWorksheetCellReferenceSafe(reference[..separator]) &&
+                     IsWorksheetCellReferenceSafe(reference[(separator + 1)..]);
     }
 
     private static bool HasResourceLinks(PriceBookWorkbook workbook) =>
@@ -1264,8 +1720,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         return "VFF";
     }
 
-    private static string NormalizeResourceKey(string? value) => Compact(value);
-
     private static PriceRow? FindOutdoorSafetyScreenRow(IReadOnlyList<PriceRow> rows, FireplaceType type, string model,
                                                         string sizeNum, string glassHeight)
     {
@@ -1618,7 +2072,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     }
 
     private static PriceRow? TryGetOutdoorVentFreeResourceRowFromWorkbook(FireplaceType type, string model, string size,
-                                                                          string glassHeight)
+                                                                          string glassHeight,
+                                                                          CancellationToken cancellationToken)
     {
         if (type is not (FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough) &&
             !IsOutdoorVentFreeResourceModel(model))
@@ -1643,7 +2098,15 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             if (string.IsNullOrWhiteSpace(workbookPath))
                 return null;
 
-            using var workbook = new XLWorkbook(workbookPath);
+            cancellationToken.ThrowIfCancellationRequested();
+            using var workbookBuffer = CreateValidatedWorkbookSnapshot(workbookPath, cancellationToken);
+            if (workbookBuffer is null)
+                return null;
+
+            cancellationToken.ThrowIfCancellationRequested();
+            workbookBuffer.Position = 0;
+            using var workbook = new XLWorkbook(workbookBuffer);
+            cancellationToken.ThrowIfCancellationRequested();
 
             var sheet = workbook.Worksheets.FirstOrDefault(
                 ws => ws.Name.Equals("App Resource Rows", StringComparison.OrdinalIgnoreCase));
@@ -1732,6 +2195,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
             foreach (var row in dataRows)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string Cell(int col)
                 {
                     if (col <= 0)
@@ -1783,6 +2247,10 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
                 return priceRow;
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch
         {
@@ -2664,10 +3132,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         return normalized.Contains("reflective black back") || normalized.Contains("reflective back") ||
                normalized.Contains("reflective black sides") || normalized.Contains("reflective sides");
     }
-    private static bool IsReflectiveBlackBackFeature(string feature)
-    {
-        return Normalize(feature).Contains("reflective black back") || Normalize(feature).Contains("reflective back");
-    }
     private static bool IsDoubleCorner(string model, string size, string glassHeight)
     {
         var combined = Normalize($"{model} {size} {glassHeight}");
@@ -3501,29 +3965,6 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         return "FF";
     }
 
-    private static string OutdoorResourceStyleCode(FireplaceType type, string model)
-    {
-        var value = Normalize(model);
-
-        // manual TR style-code override
-        var compactStyleModel = Regex.Replace(model ?? string.Empty, @"[^A-Za-z0-9]+", string.Empty).ToUpperInvariant();
-        if (compactStyleModel.Equals("TR", StringComparison.OrdinalIgnoreCase) ||
-            compactStyleModel.Equals("TRA", StringComparison.OrdinalIgnoreCase) ||
-            Regex.IsMatch(compactStyleModel, @"^(TR|TRA)\d{2,3}$"))
-            return "TR";
-        var indoorStyle = StyleCode(type, model ?? string.Empty);
-
-        if (type == FireplaceType.OutdoorSeeThrough || indoorStyle == "ST" || value.Contains("see") ||
-            value.Contains("st"))
-            return "VST";
-        if (indoorStyle == "LC" || value.Contains("left") || value.Contains("vlc"))
-            return "VLC";
-        if (indoorStyle == "RC" || value.Contains("right") || value.Contains("vrc"))
-            return "VRC";
-        if (indoorStyle == "DC" || value.Contains("double") || value.Contains("vdc"))
-            return "VDC";
-        return "VFF";
-    }
     private static string[] StyleWords(FireplaceType type, string model)
     {
         if (IsPassageModel(model))
@@ -3706,61 +4147,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                normalized.Contains("large see-through", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static FireplaceType DetectType(string model, string size = "")
-    {
-        // OD/IO model code type detection
-        if (IsIndoorOutdoorSeeThroughModelCode(model))
-            return FireplaceType.IndoorOutdoorSeeThrough;
-        // block invalid Large See Through type detection
-        if (IsInvalidLargeSeeThroughModel(model, size))
-            return FireplaceType.Unknown;
-        if (IsPassageModel(model))
-            return IsSeeThroughPassageModel(model) ? FireplaceType.IndoorSeeThrough : FireplaceType.Indoor;
-
-        var value = (model ?? string.Empty).ToLowerInvariant();
-        var normalized = Regex.Replace(value, @"[^a-z0-9]+", " ").Trim();
-        var compactModel = Regex.Replace(model ?? string.Empty, @"[^A-Za-z0-9]+", string.Empty).ToUpperInvariant();
-        var sizeDigits = Digits(size);
-
-        // Outdoor Vent Free compact model detection
-        if (IsOutdoorVentFreeResourceModel(compactModel))
-        {
-            return compactModel.StartsWith("VST", StringComparison.OrdinalIgnoreCase) ||
-                           compactModel.StartsWith("VFST", StringComparison.OrdinalIgnoreCase)
-                       ? FireplaceType.OutdoorSeeThrough
-                       : FireplaceType.Outdoor;
-        }
-        if (compactModel.Equals("TR", StringComparison.OrdinalIgnoreCase) ||
-            compactModel.Equals("TRA", StringComparison.OrdinalIgnoreCase) ||
-            Regex.IsMatch(compactModel, @"^(TR|TRA)\d{2,3}$") ||
-            compactModel.StartsWith("TRAD", StringComparison.OrdinalIgnoreCase) ||
-            compactModel.Contains("TRADITIONAL", StringComparison.OrdinalIgnoreCase))
-            return FireplaceType.Traditional;
-        if (int.TryParse(sizeDigits, out var sizeNumber) && sizeNumber >= 120)
-            return FireplaceType.Large;
-
-        if (normalized.Contains("traditional") || normalized.Contains("dvtra") || normalized.Contains("trabon") ||
-            normalized.Contains("tra bon") || Regex.IsMatch(normalized, @"\btr\b|\btra\b|\btrad\b"))
-            return FireplaceType.Traditional;
-        if (normalized.Contains("large") || normalized.Contains("long"))
-            return FireplaceType.Large;
-
-        var isSeeThrough =
-            normalized.Contains("see through") || Regex.IsMatch(normalized, @"\bst\b") || normalized.Contains("st od");
-        var isIndoorOutdoor = normalized.Contains("indoor outdoor") || normalized.Contains("indooroutdoor") ||
-                              normalized.Contains("st od");
-        var isVentFreeOutdoor =
-            normalized.Contains("vent free") || Regex.IsMatch(normalized, @"\bvf\b|\bvff\b|\bvst\b");
-        var isOutdoor = normalized.Contains("outdoor") || isVentFreeOutdoor;
-
-        if (isSeeThrough && isIndoorOutdoor)
-            return FireplaceType.IndoorOutdoorSeeThrough;
-        if (isOutdoor)
-            return isSeeThrough || normalized.Contains("vst") ? FireplaceType.OutdoorSeeThrough : FireplaceType.Outdoor;
-        if (isSeeThrough)
-            return FireplaceType.IndoorSeeThrough;
-        return FireplaceType.Indoor;
-    }
+    private static FireplaceType DetectType(string model, string size = "") =>
+        FireplaceModelClassifier.DetectType(model, size);
 
     private static string GetDefaultPricingPath()
     {

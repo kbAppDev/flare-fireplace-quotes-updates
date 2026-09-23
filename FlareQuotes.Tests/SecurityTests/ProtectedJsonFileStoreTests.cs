@@ -58,6 +58,37 @@ public sealed class ProtectedJsonFileStoreTests
         }
     }
 
+    [Fact]
+    public void VerifiedProtectedJsonRemovesAdditionalLegacyPlaintextCopies()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var protectedPath = Path.Combine(root, "history.json.dpapi");
+            var copiedLegacyPath = Path.Combine(root, "history.json");
+            var oldAppRoot = Path.Combine(root, "old-app");
+            var oldAppLegacyPath = Path.Combine(oldAppRoot, "recent_quotes.json");
+            Directory.CreateDirectory(oldAppRoot);
+            var source = new TestRecord { Email = "protected@example.com", Project = "Protected Project" };
+            var store = new ProtectedJsonFileStore("Quote History Legacy Cleanup Test");
+            store.Save(protectedPath, source);
+            File.WriteAllText(copiedLegacyPath, JsonSerializer.Serialize(source));
+            File.WriteAllText(oldAppLegacyPath, JsonSerializer.Serialize(source));
+
+            var loaded = store.LoadOrMigrate<TestRecord>(protectedPath, copiedLegacyPath,
+                                                         additionalLegacyPlaintextPaths: [oldAppLegacyPath]);
+
+            Assert.NotNull(loaded);
+            Assert.Equal(source.Email, loaded!.Email);
+            Assert.False(File.Exists(copiedLegacyPath));
+            Assert.False(File.Exists(oldAppLegacyPath));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string CreateTempDirectory()
     {
         var path = Path.Combine(Path.GetTempPath(), "flare-protected-json-tests", Guid.NewGuid().ToString("N"));

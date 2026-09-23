@@ -14,7 +14,7 @@ public sealed class EmailTemplateServiceTests
             {
                 FireplaceLocation = "Living & Dining",
                 ModelNumber = "DVFF60H",
-                Links = { ["Product Sheet"] = "https://example.com/product" }
+                Links = { ["Product Sheet"] = "https://flarefireplaces.com/product" }
             });
 
         Assert.Contains("<strong>Living &amp; Dining — DVFF60H Spec Files:</strong>", html);
@@ -28,11 +28,25 @@ public sealed class EmailTemplateServiceTests
             {
                 FireplaceLocation = "  ",
                 ModelNumber = "DVFF60H",
-                Links = { ["Product Sheet"] = "https://example.com/product" }
+                Links = { ["Product Sheet"] = "https://flarefireplaces.com/product" }
             });
 
         Assert.Contains("<strong>DVFF60H Spec Files:</strong>", html);
         Assert.DoesNotContain("— DVFF60H Spec Files", html);
+    }
+
+    [Fact]
+    public void UnapprovedResourceLinksAreNotIncludedInCustomerEmail()
+    {
+        var html = BuildHtml(
+            new ResourceLinkSet
+            {
+                ModelNumber = "DVFF60H",
+                Links = { ["Untrusted"] = "https://example.com/redirect" }
+            });
+
+        Assert.DoesNotContain("example.com", html, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("No verified resource links are available", html, StringComparison.Ordinal);
     }
 
     private static string BuildHtml(ResourceLinkSet resourceLinkSet)

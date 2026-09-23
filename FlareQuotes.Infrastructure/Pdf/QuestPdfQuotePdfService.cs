@@ -3,8 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using FlareQuotes.Core.Models;
-using FlareQuotes.Core.Paths;
-using FlareQuotes.Core.Settings;
+using FlareQuotes.Core.Security;
 using FlareQuotes.Core.Services;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -24,40 +23,89 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                                            CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        return Task.Run(
+            () => BuildQuotePdf(request, outputPath, cancellationToken),
+            cancellationToken);
+    }
+
+    private static string BuildQuotePdf(QuoteRequest request, string outputPath,
+                                        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         QuestPDF.Settings.License = LicenseType.Community;
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? Environment.CurrentDirectory);
 
         if (request.Tag is not PricedQuoteResult priced)
             throw new InvalidOperationException(
                 "QuoteRequest.Tag must contain PricedQuoteResult before PDF generation.");
+        if (!priced.Success)
+            throw new InvalidOperationException(
+                "Quote PDF generation was blocked because one or more selected items could not be priced.");
 
         var logo = FindLogoPath();
         var quoteDate = DisplayDateShort(request.QuoteDate);
-        var quoteNumber = FirstNonBlank(request.QuoteNumber, "0001");
+        var quoteNumber = FirstNonBlank(request.QuoteNumber, "Unassigned");
         var fireplaces = priced.Fireplaces;
+        var temporaryPath = $"{outputPath}.{Guid.NewGuid():N}.tmp";
 
-        Document
-            .Create(container =>
-                    {
-                        if (fireplaces.Count == 0)
+        try
+        {
+            Document
+                .Create(container =>
                         {
-                            container.Page(
-                                page => RenderFireplacePage(page, request, null, null, logo, quoteDate, quoteNumber));
-                            return;
-                        }
+                            cancellationToken.ThrowIfCancellationRequested();
+                            if (fireplaces.Count == 0)
+                            {
+                                container.Page(
+                                    page =>
+                                    {
+                                        cancellationToken.ThrowIfCancellationRequested();
+                                        RenderFireplacePage(page, request, null, null, logo, quoteDate, quoteNumber);
+                                    });
+                                return;
+                            }
 
-                        for (var index = 0; index < fireplaces.Count; index++)
-                        {
-                            var fireplace = fireplaces[index];
-                            var resourceLinkSet = ResolvePageResourceLinkSet(priced.ResourceLinks, fireplace, index);
-                            container.Page(
-                                page => RenderFireplacePage(page, request, fireplace, resourceLinkSet, logo, quoteDate,
-                                                            quoteNumber));
-                        }
-                    })
-            .GeneratePdf(outputPath);
+                            for (var index = 0; index < fireplaces.Count; index++)
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+                                var fireplace = fireplaces[index];
+                                var resourceLinkSet = ResolvePageResourceLinkSet(priced.ResourceLinks, fireplace, index);
+                                container.Page(
+                                    page =>
+                                    {
+                                        cancellationToken.ThrowIfCancellationRequested();
+                                        RenderFireplacePage(page, request, fireplace, resourceLinkSet, logo, quoteDate,
+                                                            quoteNumber);
+                                    });
+                            }
+                        })
+                .GeneratePdf(temporaryPath);
 
-        return Task.FromResult(outputPath);
+            cancellationToken.ThrowIfCancellationRequested();
+            File.Move(temporaryPath, outputPath, overwrite: true);
+            return outputPath;
+        }
+        finally
+        {
+            TryDeleteTemporaryPdf(temporaryPath);
+        }
+    }
+
+    private static void TryDeleteTemporaryPdf(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch (IOException)
+        {
+            // Preserve the original generation/cancellation result if best-effort cleanup cannot complete.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Preserve the original generation/cancellation result if best-effort cleanup cannot complete.
+        }
     }
 
     private static void RenderFireplacePage(PageDescriptor page, QuoteRequest request, PricedFireplaceQuote? fireplace,
@@ -69,14 +117,15 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
         page.MarginBottom(52);
         page.MarginLeft(74);
         page.MarginRight(74);
-        page.DefaultTextStyle(x => x.FontFamily("Arial").FontSize(7.2f).FontColor(TextDark));
+        // Lato ships with QuestPDF, so clean/offline installs never depend on a machine font.
+        page.DefaultTextStyle(x => x.FontFamily("Lato").FontSize(7.2f).FontColor(TextDark));
 
         page.Content().Column(
             col =>
             {
                 col.Spacing(8);
 
-                col.Item().Element(c => HeaderBlock(c, logo));
+                col.Item().Element(c => HeaderBlock(c, logo, request.Branding));
 
                 col.Item().PaddingTop(3).Text("Customer & Project Details").FontSize(8.2f).Bold();
                 col.Item().Element(c => CustomerProjectDetails(c, request, quoteDate, quoteNumber, fireplace));
@@ -115,7 +164,7 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
             });
     }
 
-    private static void HeaderBlock(IContainer container, string logo)
+    private static void HeaderBlock(IContainer container, string logo, QuoteBranding? branding)
     {
         container.Column(col =>
                          {
@@ -138,7 +187,7 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                                  });
 
                              col.Item().PaddingTop(2).LineHorizontal(.8f).LineColor(RuleGray);
-                             col.Item().AlignCenter().Text(PdfContactLine()).FontSize(7.7f).FontColor(TextMuted);
+                             col.Item().AlignCenter().Text(PdfContactLine(branding)).FontSize(7.7f).FontColor(TextMuted);
                              col.Item().PaddingTop(2).Text("Quote Request").FontSize(10.2f).Bold();
                          });
     }
@@ -630,12 +679,7 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
 
     private static string CleanPdfUrl(string? value)
     {
-        var text = (value ?? string.Empty).Trim();
-
-        return text.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                       text.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
-                   ? text
-                   : string.Empty;
+        return TrustedExternalLinkPolicy.TryNormalize(value, out var normalizedUrl) ? normalizedUrl : string.Empty;
     }
 
     private static string NormalizePdfKey(string? value) =>
@@ -657,96 +701,16 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
     private sealed record OptionalPdfRow(string Feature, string Description, int Quantity, decimal? Price, string Url);
     private sealed record IncludedCopy(string Header, string Body);
 
-    private static string PdfContactLine()
+    private static string PdfContactLine(QuoteBranding? branding)
     {
-        var email = PdfContactEmail();
-        var phone = PdfContactPhone();
-        var website = PdfContactWebsite();
+        var email = FirstNonBlank(branding?.SalesEmail);
+        var phone = FirstNonBlank(branding?.SalesPhone);
+        var website = CleanWebsiteValue(FirstNonBlank(branding?.Website, "https://flarefireplaces.com"));
 
         var parts = new[] { email, phone, website }.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray();
 
         return parts.Length == 0 ? "flarefireplaces.com" : string.Join(" | ", parts);
     }
-
-    private static string PdfContactEmail()
-    {
-        return PdfSettingsValue("kyle@flarefireplaces.com", "SalesEmail", "SenderEmail", "Email", "EmailAddress",
-                                "FromEmail", "GmailEmail", "UserEmail");
-    }
-
-    private static string PdfContactPhone()
-    {
-        return PdfSettingsValue("(512) 913-1687", "SalesPhone", "SenderPhone", "Phone", "PhoneNumber", "UserPhone",
-                                "ContactPhone");
-    }
-
-    private static string PdfContactWebsite()
-    {
-        return CleanWebsiteValue(PdfSettingsValue("flarefireplaces.com", "Website", "CompanyWebsite", "WebSite",
-                                                  "WebsiteUrl", "CompanyUrl", "FlareWebsite"));
-    }
-
-    private static string PdfSettingsValue(string fallback, params string[] propertyNames)
-    {
-        try
-        {
-            var liveValue = FirstSettingsProperty(AppSettingsRuntimeCache.Current, propertyNames);
-            if (!string.IsNullOrWhiteSpace(liveValue))
-                return liveValue.Trim();
-
-            var settingsPath = FindPdfSettingsPath();
-
-            if (string.IsNullOrWhiteSpace(settingsPath) || !File.Exists(settingsPath))
-                return fallback;
-
-            using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(settingsPath));
-            var root = document.RootElement;
-
-            foreach (var propertyName in propertyNames)
-            {
-                if (!root.TryGetProperty(propertyName, out var value))
-                    continue;
-
-                if (value.ValueKind != System.Text.Json.JsonValueKind.String)
-                    continue;
-
-                var text = value.GetString();
-
-                if (!string.IsNullOrWhiteSpace(text))
-                    return text.Trim();
-            }
-        }
-        catch
-        {
-            // PDF generation should never fail because settings are missing or malformed.
-        }
-
-        return fallback;
-    }
-
-    private static string? FirstSettingsProperty(AppSettings? settings, params string[] propertyNames)
-    {
-        if (settings is null)
-            return null;
-
-        var type = settings.GetType();
-
-        foreach (var propertyName in propertyNames)
-        {
-            var property = type.GetProperty(propertyName);
-            if (property is null)
-                continue;
-
-            var value = property.GetValue(settings) as string;
-
-            if (!string.IsNullOrWhiteSpace(value))
-                return value.Trim();
-        }
-
-        return null;
-    }
-
-    private static string? FindPdfSettingsPath() => AppPaths.SettingsFile;
 
     private static string CleanWebsiteValue(string? value)
     {

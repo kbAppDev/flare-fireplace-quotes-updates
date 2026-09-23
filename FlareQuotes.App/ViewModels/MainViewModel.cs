@@ -125,6 +125,13 @@ public sealed class MainViewModel : ObservableObject
             () => FireplaceQuantity < 100);
         RemoveFireplaceCommand = new RelayCommand<FireplaceQuoteDraft>(RemoveFireplace);
         EditFireplaceCommand = new RelayCommand<FireplaceQuoteDraft>(EditFireplace);
+        MoveFireplaceUpCommand = new RelayCommand<FireplaceQuoteDraft>(
+            fireplace => MoveFireplaceByOffset(fireplace, -1),
+            fireplace => CanMoveFireplaceByOffset(fireplace, -1));
+        MoveFireplaceDownCommand = new RelayCommand<FireplaceQuoteDraft>(
+            fireplace => MoveFireplaceByOffset(fireplace, 1),
+            fireplace => CanMoveFireplaceByOffset(fireplace, 1));
+        Fireplaces.CollectionChanged += (_, _) => NotifyFireplaceMoveCommandsChanged();
         NextToPreviewCommand = new AsyncRelayCommand(NextToPreviewAsync);
         BackToReviewCommand = new RelayCommand(() => WorkflowStage = QuoteWorkflowStage.Review);
         NextToSpecLinksCommand = new AsyncRelayCommand(NextToSpecLinksAsync);
@@ -514,14 +521,14 @@ public sealed class MainViewModel : ObservableObject
     {
         QuoteWorkflowStage.Review => "2. Review",
         QuoteWorkflowStage.PdfPreview => "2. Preview Quote PDF",
-        QuoteWorkflowStage.SpecLinks => "2. Verify Spec Files",
+        QuoteWorkflowStage.SpecLinks => "2. Review Spec Files",
         _ => "2. Review"
     };
     public string WorkflowSubtitle => WorkflowStage switch
     {
         QuoteWorkflowStage.Review => "Review fields, selections, and fireplaces before previewing the quote.",
-        QuoteWorkflowStage.PdfPreview => "Preview the generated quote PDF before verifying spec links.",
-        QuoteWorkflowStage.SpecLinks => "Verify spec file URLs before creating the Gmail draft.",
+        QuoteWorkflowStage.PdfPreview => "Preview the generated quote PDF before reviewing spec links.",
+        QuoteWorkflowStage.SpecLinks => "Review approved spec-file URLs before creating the Gmail draft.",
         _ => string.Empty
     };
 
@@ -651,25 +658,6 @@ public sealed class MainViewModel : ObservableObject
                                                 x => $"{x.FireplaceLabel} (Qty {Math.Max(1, x.Quantity)}): {x.LeadTime}"));
     public bool IsEditingFireplace => _editingFireplace is not null;
     public string AddFireplaceButtonText => IsEditingFireplace ? "Save Changes" : "Add Fireplace";
-    private static string NormalizeGlassHeightForQuote(string? value)
-    {
-        var text = (value ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(text))
-            return string.Empty;
-
-        var compact = Regex.Replace(text.ToUpperInvariant(), @"[^A-Z0-9]", string.Empty);
-
-        // Order matters: EH contains H, so Extra High must be checked first.
-        if (compact == "EH" || compact.Contains("EXTRAHIGH") || compact.Contains("30"))
-            return "30";
-        if (compact == "H" || compact.Contains("HIGH") || compact.Contains("24"))
-            return "24";
-        if (compact == "R" || compact.Contains("REGULAR") || compact.Contains("STANDARD") || compact.Contains("16"))
-            return "16";
-
-        var m = Regex.Match(text, @"\d+");
-        return m.Success ? m.Value : text;
-    }
     public string CurrentFireplaceLabel
     {
         get
@@ -794,6 +782,14 @@ public sealed class MainViewModel : ObservableObject
     {
         get;
     }
+    public RelayCommand<FireplaceQuoteDraft> MoveFireplaceUpCommand
+    {
+        get;
+    }
+    public RelayCommand<FireplaceQuoteDraft> MoveFireplaceDownCommand
+    {
+        get;
+    }
     public IAsyncRelayCommand NextToPreviewCommand
     {
         get;
@@ -831,9 +827,21 @@ public sealed class MainViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        var pricingFileChanged =
-            !string.Equals(_settings.PricingFile, settings.PricingFile, StringComparison.OrdinalIgnoreCase);
+        var quoteSnapshotChanged =
+            !string.Equals(_settings.PricingFile, settings.PricingFile, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(_settings.SalesEmail, settings.SalesEmail, StringComparison.Ordinal) ||
+            !string.Equals(_settings.SalesPhone, settings.SalesPhone, StringComparison.Ordinal) ||
+            !string.Equals(_settings.Website, settings.Website, StringComparison.Ordinal);
+        _settings.SalesEmail = settings.SalesEmail;
+        _settings.SalesPhone = settings.SalesPhone;
+        _settings.Website = settings.Website;
+        _settings.HubSpotBcc = settings.HubSpotBcc;
+        _settings.ConsultationUrl = settings.ConsultationUrl;
         _settings.PricingFile = settings.PricingFile;
+        _settings.UseGmailSignature = settings.UseGmailSignature;
+        _settings.CheckUpdatesOnStartup = settings.CheckUpdatesOnStartup;
+        _settings.UpdateManifestUrl = settings.UpdateManifestUrl;
+        _settings.GmailCredentialsPath = settings.GmailCredentialsPath;
         _settings.RecallQuoteHistoryLimit = settings.RecallQuoteHistoryLimit;
         _settings.LeadTimePresets = settings.LeadTimePresets.ToList();
 
@@ -847,7 +855,7 @@ public sealed class MainViewModel : ObservableObject
             RecentQuoteHistory.RemoveAt(RecentQuoteHistory.Count - 1);
 
         SaveRecallHistory();
-        if (pricingFileChanged)
+        if (quoteSnapshotChanged)
             InvalidatePricedSnapshot();
         OnPropertyChanged(nameof(LeadTimeDropdownButtonText));
         OnPropertyChanged(nameof(RecallQuoteHistoryLimit));
@@ -905,27 +913,26 @@ public sealed class MainViewModel : ObservableObject
         UpdateStatusCards();
     }
 
-    private static async Task<string> ResolveProjectAddressForQuoteAsync(string? parsedValue, string? rawRequest)
+    private static Task<string> ResolveProjectAddressForQuoteAsync(string? parsedValue, string? rawRequest)
     {
         var value = FirstNonBlank(parsedValue, ExtractLabeledProjectAddress(rawRequest), ExtractLooseUsZip(rawRequest));
 
         value = (value ?? string.Empty).Trim();
 
         if (string.IsNullOrWhiteSpace(value))
-            return string.Empty;
+            return Task.FromResult(string.Empty);
 
         // Full address already pasted. Keep it.
         if (!LooksLikeOnlyUsZip(value))
-            return value;
+            return Task.FromResult(value);
 
         var zip = ExtractLooseUsZip(value);
 
         if (string.IsNullOrWhiteSpace(zip))
-            return value;
+            return Task.FromResult(value);
 
-        var cityStateZip = await TryLookupUsZipCityStateAsync(zip);
-
-        return string.IsNullOrWhiteSpace(cityStateZip) ? zip : cityStateZip;
+        // Keep postal data local. A ZIP-only address remains a ZIP until the user supplies a full address.
+        return Task.FromResult(zip);
     }
 
     private static string ExtractLabeledProjectAddress(string? rawRequest)
@@ -957,40 +964,6 @@ public sealed class MainViewModel : ObservableObject
         return Regex.IsMatch((value ?? string.Empty).Trim(), @"^\d{5}(?:-\d{4})?$");
     }
 
-    private static async Task<string> TryLookupUsZipCityStateAsync(string zip)
-    {
-        try
-        {
-            using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(4) };
-
-            var url = "https://api.zippopotam.us/us/" + Uri.EscapeDataString(zip[..5]);
-            var json = await client.GetStringAsync(url);
-
-            using var document = System.Text.Json.JsonDocument.Parse(json);
-            var root = document.RootElement;
-
-            if (!root.TryGetProperty("places", out var places) ||
-                places.ValueKind != System.Text.Json.JsonValueKind.Array || places.GetArrayLength() == 0)
-                return string.Empty;
-
-            var place = places[0];
-
-            var city = place.TryGetProperty("place name", out var cityValue) ? cityValue.GetString() : string.Empty;
-
-            var state =
-                place.TryGetProperty("state abbreviation", out var stateValue) ? stateValue.GetString() : string.Empty;
-
-            if (string.IsNullOrWhiteSpace(city) || string.IsNullOrWhiteSpace(state))
-                return string.Empty;
-
-            return $"{city}, {state} {zip}";
-        }
-        catch
-        {
-            // If the lookup is unavailable/offline, keep the pasted ZIP rather than blocking quoting.
-            return string.Empty;
-        }
-    }
     private void Clear()
     {
         EndFireplaceEdit();
@@ -1001,10 +974,12 @@ public sealed class MainViewModel : ObservableObject
         Fireplaces.Clear();
         ClearFeatureSelections();
         ClearPremiumMediaSelections();
+        ClearAdditionalClassicMedia();
         ClassicMediaChoice = null;
-        FeatureSearch = ClassicMediaSearch = PremiumMediaSearch = CustomLeadTime = string.Empty;
-        IsFeatureDropdownOpen = IsClassicMediaDropdownOpen = IsPremiumMediaDropdownOpen = IsLeadTimeDropdownOpen =
-            false;
+        FeatureSearch = ClassicMediaSearch = AdditionalClassicMediaSearch = PremiumMediaSearch = CustomLeadTime =
+            string.Empty;
+        IsFeatureDropdownOpen = IsClassicMediaDropdownOpen = IsAdditionalClassicMediaDropdownOpen =
+            IsPremiumMediaDropdownOpen = IsLeadTimeDropdownOpen = false;
         QuotePreviewRows.Clear();
         SpecLinks.Clear();
         FireplacePhotoPaths.Clear();
@@ -1024,6 +999,7 @@ public sealed class MainViewModel : ObservableObject
         {
             CancelEstimatedTotalRefresh();
             StatusMessage = "Pricing quote and generating PDF...";
+            ApplySettings(await _settingsService.LoadAsync());
             var request = BuildQuoteRequest();
             if (request.Fireplaces.Count == 0 && string.IsNullOrWhiteSpace(request.Model))
             {
@@ -1038,9 +1014,22 @@ public sealed class MainViewModel : ObservableObject
             }
 
             var priced = await _priceBookService.BuildPricedQuoteAsync(request, PricingPath());
+            if (!priced.Success)
+            {
+                _lastRequest = null;
+                _lastPricedQuote = null;
+                GeneratedPdfPath = string.Empty;
+                QuotePreviewRows.Clear();
+                WorkflowStage = QuoteWorkflowStage.Review;
+                SetEstimatedTotalDisplay("—");
+                StatusMessage = string.IsNullOrWhiteSpace(priced.Message)
+                                    ? "Quote preview was blocked because one or more selected items could not be priced."
+                                    : priced.Message;
+                return;
+            }
+
             request.Tag = priced;
             var pdfPath = CreateFreshQuotePdfPath(request, priced);
-            await _settingsService.LoadAsync();
             await _quotePdfService.BuildQuotePdfAsync(request, pdfPath);
             _lastRequest = request;
             _lastPricedQuote = priced;
@@ -1137,6 +1126,16 @@ public sealed class MainViewModel : ObservableObject
                 return;
             }
 
+            if (!_lastPricedQuote.Success)
+            {
+                WorkflowStage = stageBeforeDraft;
+                StatusMessage = string.IsNullOrWhiteSpace(_lastPricedQuote.Message)
+                                    ? "Gmail draft was blocked because one or more selected items could not be priced."
+                                    : _lastPricedQuote.Message;
+                _logger.Warning($"Gmail draft blocked by incomplete pricing. Models={modelSummary}.");
+                return;
+            }
+
             if (!File.Exists(GeneratedPdfPath))
             {
                 WorkflowStage = stageBeforeDraft;
@@ -1146,7 +1145,7 @@ public sealed class MainViewModel : ObservableObject
             }
 
             var pdfInfo = new FileInfo(GeneratedPdfPath);
-            _logger.Info($"Draft PDF ready. File={pdfInfo.Name}; Bytes={pdfInfo.Length}; Models={modelSummary}.");
+            _logger.Info($"Draft PDF ready. Bytes={pdfInfo.Length}; Models={modelSummary}.");
 
             // Refresh the draft snapshot from the visible, normalized email field.
             // This prevents stale or copied hidden characters from reaching the MIME To header.
@@ -1154,7 +1153,7 @@ public sealed class MainViewModel : ObservableObject
 
             if (SpecLinks.Count == 0)
             {
-                StatusMessage = "Verifying spec links for Gmail draft...";
+                StatusMessage = "Preparing approved spec links for the Gmail draft...";
                 _logger.Info($"Resolving spec links. Models={modelSummary}.");
                 await NextToSpecLinksAsync();
             }
@@ -1425,18 +1424,6 @@ public sealed class MainViewModel : ObservableObject
         return string.IsNullOrWhiteSpace(parsed) ? value.Trim() : parsed;
     }
 
-    private static bool IsStartOfUrlVerificationFireplace(object row)
-    {
-        var label = GetObjectStringValue(row, "Label", "ResourceLabel", "ResourceType", "Type", "Name", "Title",
-                                         "DisplayName") ??
-                    string.Empty;
-        var url = GetObjectStringValue(row, "Url", "URL", "Link", "Href") ?? string.Empty;
-        var normalized = NormalizeForUrlVerification($"{label} {url}");
-
-        return normalized.Contains("3 part") || normalized.Contains("3-part") || normalized.Contains("three part") ||
-               normalized.Contains("product sheet") || normalized.Contains("product pdf") ||
-               normalized.Contains("product");
-    }
     private string ResolveUrlVerificationModelCode(List<object> rows, int index)
     {
         var explicitCode = rows.Select(row => GetObjectStringValue(row, "FireplaceCode", "ModelCode", "ModelNumber",
@@ -1478,9 +1465,9 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(url) || !url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        if (!TrustedExternalLinkPolicy.TryNormalize(url, out var trustedUrl))
         {
-            StatusMessage = "Enter a valid URL starting with http or https.";
+            StatusMessage = "Enter an approved HTTPS link from Flare Fireplaces or Flare Order.";
             return;
         }
 
@@ -1493,7 +1480,7 @@ public sealed class MainViewModel : ObservableObject
             FireplaceCode = fireplaceCode,
             FireplaceLocation = SelectedUrlVerificationFireplace.FireplaceLocation,
             Label = toolName,
-            Url = url,
+            Url = trustedUrl,
             Status = "manual"
         };
 
@@ -1569,7 +1556,7 @@ public sealed class MainViewModel : ObservableObject
                                 ? "pack://application:,,,/Assets/UrlStyleCards/PASS.png"
                                 : $"pack://application:,,,/Assets/UrlStyleCards/{styleKey}.png",
                 IsValid = isValid,
-                StatusText = isValid ? "Valid" : "Needs Attention",
+                StatusText = isValid ? "Approved" : "Needs Attention",
                 StatusGlyph = isValid ? "✓" : "✕",
                 Rows = groupRows.ToList()
             });
@@ -1604,29 +1591,13 @@ public sealed class MainViewModel : ObservableObject
                 {
                     Item = item,
                     Url = url,
-                    StatusText = valid ? "Valid" : "Needs Attention",
+                    StatusText = valid ? "Approved" : "Needs Attention",
                     StatusGlyph = valid ? "✓" : "✕",
                     IsValid = valid
                 });
         }
 
         OnPropertyChanged(nameof(SelectedUrlVerificationSummary));
-    }
-
-    private string GetUrlVerificationModelCode(object row)
-    {
-        var value = GetObjectStringValue(row, "FireplaceCode", "ModelCode", "ModelNumber", "Model", "FireplaceModel",
-                                         "Fireplace", "FireplaceLabel", "Code", "Unit", "Sku", "SKU");
-        if (!string.IsNullOrWhiteSpace(value))
-            return value.Trim();
-
-        if (!string.IsNullOrWhiteSpace(Model))
-        {
-            var type = ForceOutdoorVentFreeType(Model, DetectType(Model, Size));
-            return CanonicalModelForQuote(Model, type, Size, EffectiveGlassHeight(GlassHeight, Model));
-        }
-
-        return "Fireplace 1";
     }
 
     private static string? GetObjectStringValue(object source, params string[] propertyNames)
@@ -1674,6 +1645,10 @@ public sealed class MainViewModel : ObservableObject
 
     private static bool IsUrlVerificationRowValid(object row)
     {
+        var url = GetObjectStringValue(row, "Url", "URL", "Link", "Href");
+        if (!TrustedExternalLinkPolicy.TryNormalize(url, out _))
+            return false;
+
         var explicitValid = GetObjectBoolValue(row, "IsValid", "Valid", "IsMatched", "Matched");
         if (explicitValid.HasValue)
             return explicitValid.Value;
@@ -1682,9 +1657,7 @@ public sealed class MainViewModel : ObservableObject
         if (fallback.HasValue && fallback.Value)
             return false;
 
-        var url = GetObjectStringValue(row, "Url", "URL", "Link", "Href");
-        return !string.IsNullOrWhiteSpace(url) && url.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
-               !url.Contains("fallback", StringComparison.OrdinalIgnoreCase);
+        return !url!.Contains("fallback", StringComparison.OrdinalIgnoreCase);
     }
     private static string? TryParseUrlVerificationModelCode(object row)
     {
@@ -2079,7 +2052,13 @@ public sealed class MainViewModel : ObservableObject
                                              EffectiveGlassHeight(GlassHeight, Model)),
             Size = Size,
             GlassHeight = EffectiveGlassHeight(GlassHeight, Model),
-            FireplaceLocation = FireplaceLocation
+            FireplaceLocation = FireplaceLocation,
+            Branding = new QuoteBranding
+            {
+                SalesEmail = _settings.SalesEmail,
+                SalesPhone = _settings.SalesPhone,
+                Website = _settings.Website
+            }
         };
 
         if (ClassicMediaChoice is not null)
@@ -2452,6 +2431,35 @@ public sealed class MainViewModel : ObservableObject
         return true;
     }
 
+    private bool CanMoveFireplaceByOffset(FireplaceQuoteDraft? fireplace, int offset)
+    {
+        if (fireplace is null)
+            return false;
+
+        var currentIndex = Fireplaces.IndexOf(fireplace);
+        var requestedIndex = currentIndex + offset;
+        return currentIndex >= 0 && requestedIndex >= 0 && requestedIndex < Fireplaces.Count;
+    }
+
+    private void MoveFireplaceByOffset(FireplaceQuoteDraft? fireplace, int offset)
+    {
+        if (!CanMoveFireplaceByOffset(fireplace, offset) || fireplace is null)
+            return;
+
+        var oldIndex = Fireplaces.IndexOf(fireplace);
+        Fireplaces.Move(oldIndex, oldIndex + offset);
+        InvalidatePricedSnapshot();
+        OnPropertyChanged(nameof(FireplaceQuoteSummary));
+        NotifyFireplaceContextChanged();
+        StatusMessage = $"Moved {fireplace.FireplaceLabel} to position {Fireplaces.IndexOf(fireplace) + 1}.";
+    }
+
+    private void NotifyFireplaceMoveCommandsChanged()
+    {
+        MoveFireplaceUpCommand.NotifyCanExecuteChanged();
+        MoveFireplaceDownCommand.NotifyCanExecuteChanged();
+    }
+
     public bool MoveSelectedFeature(FeatureSelection? source, FeatureSelection? target)
     {
         var moved = MoveSelectionItem(SelectedFeatures, source, target);
@@ -2601,6 +2609,22 @@ public sealed class MainViewModel : ObservableObject
         string.Join("|", selections.Select(x => x.Key)
                              .Where(x => !string.IsNullOrWhiteSpace(x))
                              .Distinct(StringComparer.OrdinalIgnoreCase));
+
+    private void RestoreAdditionalClassicMediaSelections(
+        string? joinedKeys,
+        IEnumerable<MediaSelection>? chargeableMedia = null)
+    {
+        ClearAdditionalClassicMedia();
+
+        var persistedKeys = (joinedKeys ?? string.Empty)
+            .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var embeddedKeys = (chargeableMedia ?? [])
+            .Where(media => media.Key.StartsWith("additional_classic::", StringComparison.OrdinalIgnoreCase))
+            .Select(media => media.Key["additional_classic::".Length..]);
+
+        foreach (var key in persistedKeys.Concat(embeddedKeys).Distinct(StringComparer.OrdinalIgnoreCase))
+            SetAdditionalClassicMediaSelected(key, true);
+    }
 
     private void SyncAdditionalClassicMediaSelectionIndicator()
     {
@@ -2880,7 +2904,7 @@ public sealed class MainViewModel : ObservableObject
             Features = SelectedFeatures.Select(Clone).ToList(),
             PremiumMedia = CurrentChargeableMediaSelections(),
             ClassicMediaKey = ClassicMediaChoice?.Key ?? string.Empty,
-            AdditionalClassicMediaKey = AdditionalClassicMediaChoice?.Key ?? string.Empty
+            AdditionalClassicMediaKey = JoinAdditionalClassicMediaKeys(SelectedAdditionalClassicMedia)
         };
 
         if (_editingFireplace is not null)
@@ -2997,11 +3021,7 @@ public sealed class MainViewModel : ObservableObject
                 : ClassicMediaOptions.FirstOrDefault(
                       x => string.Equals(x.Key, fireplace.ClassicMediaKey, StringComparison.OrdinalIgnoreCase));
 
-        AdditionalClassicMediaChoice =
-            string.IsNullOrWhiteSpace(fireplace.AdditionalClassicMediaKey)
-                ? null
-                : AdditionalClassicMediaOptions.FirstOrDefault(
-                      x => string.Equals(x.Key, fireplace.AdditionalClassicMediaKey, StringComparison.OrdinalIgnoreCase));
+        RestoreAdditionalClassicMediaSelections(fireplace.AdditionalClassicMediaKey, fireplace.PremiumMedia);
 
         WorkflowStage = QuoteWorkflowStage.Review;
         InvalidatePricedSnapshot();
@@ -3032,6 +3052,7 @@ public sealed class MainViewModel : ObservableObject
             _lastRequest = null;
             _lastPricedQuote = null;
             GeneratedPdfPath = string.Empty;
+            WorkflowStage = QuoteWorkflowStage.Review;
         }
 
         // The estimate is independent from the generated-PDF snapshot. Reprice the current
@@ -3110,7 +3131,7 @@ public sealed class MainViewModel : ObservableObject
                 fireplace => fireplace.BaseLine.Price.HasValue ||
                              fireplace.OptionalFeatures.Any(feature => feature.Price.HasValue));
 
-            SetEstimatedTotalDisplay(hasAnyPricedLine ? priced.TotalMsrp.ToString("C0") : "—");
+            SetEstimatedTotalDisplay(priced.Success && hasAnyPricedLine ? priced.TotalMsrp.ToString("C0") : "—");
         }
         catch (OperationCanceledException)
         {
@@ -3482,24 +3503,24 @@ public sealed class MainViewModel : ObservableObject
                 return;
 
             var cutoff = DateTime.UtcNow.AddHours(-2);
-            foreach (var file in Directory.EnumerateFiles(tempDir, "*.pdf", SearchOption.AllDirectories))
-            {
-                try
-                {
-                    if (File.GetLastWriteTimeUtc(file) < cutoff)
-                        File.Delete(file);
-                }
-                catch
-                {
-                    // Best-effort cleanup. Never block startup.
-                }
-            }
-
             foreach (var directory in Directory.EnumerateDirectories(tempDir, "preview-*",
                                                                      SearchOption.TopDirectoryOnly))
             {
                 try
                 {
+                    var directoryInfo = new DirectoryInfo(directory);
+                    if ((directoryInfo.Attributes & FileAttributes.ReparsePoint) != 0)
+                        continue;
+
+                    foreach (var file in Directory.EnumerateFiles(directory, "*.pdf", SearchOption.TopDirectoryOnly))
+                    {
+                        if (TryResolveOwnedTemporaryQuotePdf(tempDir, file, out var ownedPdfPath, out _) &&
+                            File.GetLastWriteTimeUtc(ownedPdfPath) < cutoff)
+                        {
+                            File.Delete(ownedPdfPath);
+                        }
+                    }
+
                     if (!Directory.EnumerateFileSystemEntries(directory).Any())
                         Directory.Delete(directory, recursive: false);
                 }
@@ -3518,6 +3539,48 @@ public sealed class MainViewModel : ObservableObject
     private static string GetQuoteTempDirectory()
     {
         return AppPaths.Temp;
+    }
+
+    private static bool TryResolveOwnedTemporaryQuotePdf(string tempRoot, string pdfPath, out string fullPdfPath,
+                                                         out string previewDirectory)
+    {
+        fullPdfPath = string.Empty;
+        previewDirectory = string.Empty;
+
+        try
+        {
+            var fullTempRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(tempRoot));
+            var rootInfo = new DirectoryInfo(fullTempRoot);
+            if (!rootInfo.Exists || (rootInfo.Attributes & FileAttributes.ReparsePoint) != 0)
+                return false;
+
+            var candidate = Path.GetFullPath(pdfPath);
+            if (!string.Equals(Path.GetExtension(candidate), ".pdf", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var parent = Directory.GetParent(candidate);
+            if (parent is null || !parent.Name.StartsWith("preview-", StringComparison.OrdinalIgnoreCase) ||
+                parent.Parent is null ||
+                !string.Equals(Path.TrimEndingDirectorySeparator(parent.Parent.FullName), fullTempRoot,
+                               StringComparison.OrdinalIgnoreCase) ||
+                (parent.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                return false;
+            }
+
+            var fileInfo = new FileInfo(candidate);
+            if (fileInfo.Exists && (fileInfo.Attributes & FileAttributes.ReparsePoint) != 0)
+                return false;
+
+            fullPdfPath = candidate;
+            previewDirectory = parent.FullName;
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
+                                          ArgumentException or NotSupportedException)
+        {
+            return false;
+        }
     }
 
     private static string SafeForUser(string message)
@@ -3708,44 +3771,8 @@ public sealed class MainViewModel : ObservableObject
             _ => string.Empty
         };
     }
-    private static FireplaceType DetectType(string model, string size = "")
-    {
-        // OD/IO model code type detection
-        if (IsIndoorOutdoorSeeThroughModelCode(model))
-            return FireplaceType.IndoorOutdoorSeeThrough;
-        if (IsPassageModel(model))
-            return IsSeeThroughPassageModel(model) ? FireplaceType.IndoorSeeThrough : FireplaceType.Indoor;
-
-        var value = (model ?? string.Empty).ToLowerInvariant();
-        var normalized = System.Text.RegularExpressions.Regex.Replace(value, @"[^a-z0-9]+", " ").Trim();
-        var sizeDigits = System.Text.RegularExpressions.Regex.Match(size ?? string.Empty, @"\d+").Value;
-        if (int.TryParse(sizeDigits, out var sizeNumber) && sizeNumber >= 120)
-            return FireplaceType.Large;
-
-        if (normalized.Contains("traditional") || normalized.Contains("dvtra") || normalized.Contains("trabon") ||
-            normalized.Contains("tra bon") ||
-            System.Text.RegularExpressions.Regex.IsMatch(normalized, @"\btr\b|\btra\b|\btrad\b"))
-            return FireplaceType.Traditional;
-        if (normalized.Contains("large") || normalized.Contains("long"))
-            return FireplaceType.Large;
-
-        var isSeeThrough = normalized.Contains("see through") ||
-                           System.Text.RegularExpressions.Regex.IsMatch(normalized, @"\bst\b") ||
-                           normalized.Contains(" st od") || normalized.Contains("st od");
-        var isIndoorOutdoor = normalized.Contains("indoor outdoor") || normalized.Contains("indooroutdoor") ||
-                              normalized.Contains("st od");
-        var isVentFreeOutdoor = normalized.Contains("vent free") ||
-                                System.Text.RegularExpressions.Regex.IsMatch(normalized, @"\bvf\b|\bvff\b|\bvst\b");
-        var isOutdoor = normalized.Contains("outdoor") || isVentFreeOutdoor;
-
-        if (isSeeThrough && isIndoorOutdoor)
-            return FireplaceType.IndoorOutdoorSeeThrough;
-        if (isOutdoor)
-            return isSeeThrough || normalized.Contains("vst") ? FireplaceType.OutdoorSeeThrough : FireplaceType.Outdoor;
-        if (isSeeThrough)
-            return FireplaceType.IndoorSeeThrough;
-        return FireplaceType.Indoor;
-    }
+    private static FireplaceType DetectType(string model, string size = "") =>
+        FireplaceModelClassifier.DetectType(model, size);
     private static FeatureSelection Clone(FeatureSelection x) => new()
     {
         Key = x.Key,
@@ -3787,6 +3814,8 @@ public sealed class MainViewModel : ObservableObject
     }
     private static string RecallHistoryPath => AppPaths.RecentQuotesProtectedFile;
     private static string LegacyRecallHistoryPath => AppPaths.RecentQuotesFile;
+    private static IReadOnlyList<string> LegacyRecallHistorySourcePaths =>
+        AppPaths.LegacyRoots.Select(root => Path.Combine(root, "recent_quotes.json")).ToArray();
     private static readonly ProtectedJsonFileStore RecallHistoryStore =
         new("Recall Quote History");
 
@@ -3810,7 +3839,8 @@ public sealed class MainViewModel : ObservableObject
             }
 
             var items = RecallHistoryStore.LoadOrMigrate<List<LastQuoteSnapshot>>(
-                            RecallHistoryPath, LegacyRecallHistoryPath, RecallHistoryJsonOptions) ?? [];
+                            RecallHistoryPath, LegacyRecallHistoryPath, RecallHistoryJsonOptions,
+                            LegacyRecallHistorySourcePaths) ?? [];
 
             foreach (var item in items.Where(item => item is not null)
                          .OrderByDescending(item => item.CreatedAt)
@@ -3822,10 +3852,11 @@ public sealed class MainViewModel : ObservableObject
             _lastCompletedQuoteSnapshot = RecentQuoteHistory.FirstOrDefault();
             CanRecallLastQuote = RecentQuoteHistory.Count > 0;
         }
-        catch
+        catch (Exception ex)
         {
             RecentQuoteHistory.Clear();
             CanRecallLastQuote = false;
+            _logger.Warning($"Recall history could not be loaded. ErrorType={ex.GetType().Name}.");
         }
     }
 
@@ -3840,9 +3871,10 @@ public sealed class MainViewModel : ObservableObject
             if (File.Exists(LegacyRecallHistoryPath))
                 File.Delete(LegacyRecallHistoryPath);
         }
-        catch
+        catch (Exception ex)
         {
-            // Recall history should never block quote creation.
+            // Recall history is non-critical, but the failure remains diagnosable without logging customer data.
+            _logger.Warning($"Recall history could not be saved. ErrorType={ex.GetType().Name}.");
         }
     }
 
@@ -3901,18 +3933,13 @@ public sealed class MainViewModel : ObservableObject
 
         try
         {
-            var fullPdfPath = Path.GetFullPath(pdfPath);
-            var fullTempRoot = Path.GetFullPath(AppPaths.Temp).TrimEnd(Path.DirectorySeparatorChar) +
-                               Path.DirectorySeparatorChar;
-
-            // Only delete app-owned temporary PDFs. Never delete a user-saved copy.
-            if (!fullPdfPath.StartsWith(fullTempRoot, StringComparison.OrdinalIgnoreCase))
+            // Only delete a regular PDF directly inside an app-owned preview folder.
+            if (!TryResolveOwnedTemporaryQuotePdf(AppPaths.Temp, pdfPath, out var fullPdfPath, out var parent))
                 return;
 
             if (File.Exists(fullPdfPath))
                 File.Delete(fullPdfPath);
 
-            var parent = Path.GetDirectoryName(fullPdfPath);
             if (!string.IsNullOrWhiteSpace(parent) && Directory.Exists(parent) &&
                 !Directory.EnumerateFileSystemEntries(parent).Any())
             {
@@ -3999,11 +4026,7 @@ public sealed class MainViewModel : ObservableObject
                 : ClassicMediaOptions.FirstOrDefault(
                       x => string.Equals(x.Key, snapshot.ClassicMediaKey, StringComparison.OrdinalIgnoreCase));
 
-        AdditionalClassicMediaChoice = string.IsNullOrWhiteSpace(snapshot.AdditionalClassicMediaKey)
-                                           ? null
-                                           : AdditionalClassicMediaOptions.FirstOrDefault(
-                                                 x => string.Equals(x.Key, snapshot.AdditionalClassicMediaKey,
-                                                                    StringComparison.OrdinalIgnoreCase));
+        RestoreAdditionalClassicMediaSelections(snapshot.AdditionalClassicMediaKey);
 
         Fireplaces.Clear();
         foreach (var fireplace in snapshot.Fireplaces)

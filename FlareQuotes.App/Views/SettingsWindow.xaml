@@ -296,6 +296,34 @@
                                 </StackPanel>
                             </Border>
 
+                            <Border Style="{StaticResource GlassCard}" Margin="0,0,0,14">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="14" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="System health" Style="{StaticResource SectionTitleText}" />
+                                        <TextBlock x:Name="SystemHealthStatusText"
+                                                   Text="Check workbook structure, Gmail credential storage, update settings, and app packaging."
+                                                   Style="{StaticResource MutedText}"
+                                                   Margin="0,4,0,0"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Button x:Name="RunSystemHealthButton"
+                                            Grid.Column="2"
+                                            Content="Run system check"
+                                            Click="RunSystemHealth_Click"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Height="34"
+                                            MinWidth="142"
+                                            Padding="14,0"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.Name="Run security and system health check" />
+                                </Grid>
+                            </Border>
+
                             <Border Style="{StaticResource GlassCard}">
                                 <StackPanel>
                                     <TextBlock Text="Application updates" Style="{StaticResource SectionTitleText}" />
@@ -361,8 +389,8 @@
                                VerticalAlignment="Center"
                                TextTrimming="CharacterEllipsis"
                                Margin="0,0,18,0" />
-                    <Button x:Name="SettingsCancelButton" Grid.Column="1" Content="Cancel" Click="CancelButton_Click" Height="34" VerticalAlignment="Center" />
-                    <Button x:Name="SettingsSaveButton" Grid.Column="3" Content="Save settings" Click="SaveButton_Click" Style="{StaticResource PrimaryButton}" Height="34" VerticalAlignment="Center" />
+                    <Button x:Name="SettingsCancelButton" Grid.Column="1" Content="Cancel" Click="CancelButton_Click" Height="34" VerticalAlignment="Center" AutomationProperties.Name="Cancel settings changes" />
+                    <Button x:Name="SettingsSaveButton" Grid.Column="3" Content="Save settings" Click="SaveButton_Click" Style="{StaticResource PrimaryButton}" Height="34" VerticalAlignment="Center" AutomationProperties.Name="Save settings" />
                 </Grid>
             </Border>
         </Grid>
