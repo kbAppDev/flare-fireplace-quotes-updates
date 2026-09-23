@@ -100,6 +100,15 @@ jobs:
         shell: pwsh
         run: choco install innosetup --version=6.7.1 --no-progress -y
 
+      - name: Restore pinned ReadyToRun runtime pack
+        shell: pwsh
+        run: |
+          dotnet restore .\FlareQuotes.App\FlareQuotes.App.csproj `
+            -r win-x64 `
+            --locked-mode `
+            -p:PublishReadyToRun=true `
+            -p:ContinuousIntegrationBuild=true
+
       - name: Build unsigned release assets
         shell: pwsh
         run: |
