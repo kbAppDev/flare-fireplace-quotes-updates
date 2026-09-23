@@ -61,7 +61,7 @@
                     Padding="24,20">
                 <StackPanel>
                     <TextBlock Text="System readiness check" FontSize="22" FontWeight="SemiBold" />
-                    <TextBlock Text="Confirming that files and integrations required by the quote workflow are available."
+                    <TextBlock Text="Checking workbook structure, protected Gmail storage, updates, and release packaging."
                                Style="{StaticResource MutedText}"
                                Margin="0,5,0,0"
                                TextWrapping="Wrap" />

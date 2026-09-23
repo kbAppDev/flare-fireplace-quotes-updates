@@ -5,17 +5,26 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    <Version>1.6.8</Version>
-    <AssemblyVersion>1.6.8.0</AssemblyVersion>
-    <FileVersion>1.6.8.0</FileVersion>
-    <InformationalVersion>1.6.8</InformationalVersion>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</RestoreLockedMode>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <Version>1.6.9</Version>
+    <AssemblyVersion>1.6.9.0</AssemblyVersion>
+    <FileVersion>1.6.9.0</FileVersion>
+    <InformationalVersion>1.6.9</InformationalVersion>
     <Product>Flare Fireplace Quotes</Product>
-    <ProductVersion>1.6.8.0</ProductVersion>
+    <ProductVersion>1.6.9.0</ProductVersion>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers"
+                      PrivateAssets="all"
+                      IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>
     <DebugSymbols>false</DebugSymbols>
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 </Project>

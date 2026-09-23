@@ -10,11 +10,11 @@ public sealed class GmailMimeRecipientTests
     [Fact]
     public void BuildsCanonicalToHeaderFromCopiedAddress()
     {
-        const string copied = "Phil Daloisio <phil\u200Bdaloisio＠gmail．com\u00A0>";
+        const string copied = "Test Customer <cus\u200Btomer＠example．com\u00A0>";
 
         var header = GmailDraftService.BuildAddressHeader(copied, required: true);
 
-        Assert.Equal("phildaloisio@gmail.com", header);
+        Assert.Equal("customer@example.com", header);
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public sealed class GmailMimeRecipientTests
         {
             var raw = GmailDraftService.BuildRawMessage(new EmailDraftRequest
             {
-                ToEmail = "mailto:phil\u200Bdaloisio＠gmail．com.",
+                ToEmail = "mailto:cus\u200Btomer＠example．com.",
                 Subject = "Recipient regression test",
                 HtmlBody = "<p>Test</p>",
                 PdfAttachmentPath = pdfPath,
@@ -36,7 +36,7 @@ public sealed class GmailMimeRecipientTests
 
             var mime = Encoding.UTF8.GetString(DecodeBase64Url(raw));
 
-            Assert.StartsWith("To: phildaloisio@gmail.com\r\n", mime, StringComparison.Ordinal);
+            Assert.StartsWith("To: customer@example.com\r\n", mime, StringComparison.Ordinal);
             Assert.False(mime.Contains("\u200B", StringComparison.Ordinal));
             Assert.False(mime.Contains("＠", StringComparison.Ordinal));
             Assert.False(mime.Contains("．", StringComparison.Ordinal));
@@ -45,6 +45,35 @@ public sealed class GmailMimeRecipientTests
         {
             File.Delete(pdfPath);
         }
+    }
+
+    [Fact]
+    public void RawMimeBuildHonorsCancellationBeforeAllocatingAttachments()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+            GmailDraftService.BuildRawMessage(
+                new EmailDraftRequest { ToEmail = "quotes@example.com" }, cancellation.Token));
+    }
+
+    [Fact]
+    public void RawMimeBuildFailsClosedWhenRequiredQuotePdfIsMissing()
+    {
+        var missingPath = Path.Combine(Path.GetTempPath(), $"missing-quote-{Guid.NewGuid():N}.pdf");
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            GmailDraftService.BuildRawMessage(new EmailDraftRequest
+            {
+                ToEmail = "customer@example.com",
+                Subject = "Required attachment regression test",
+                HtmlBody = "<p>Test</p>",
+                PdfAttachmentPath = missingPath
+            }));
+
+        Assert.Contains("quote PDF is missing", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(missingPath, exception.Message, StringComparison.Ordinal);
     }
 
     private static byte[] DecodeBase64Url(string value)

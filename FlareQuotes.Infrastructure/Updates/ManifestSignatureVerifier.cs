@@ -6,14 +6,15 @@ namespace FlareQuotes.Infrastructure.Updates;
 
 public static class ManifestSignatureVerifier
 {
-    public static bool Validate(UpdateManifest manifest, string? publicKeyPem, bool strict, out string status)
+    public static bool Validate(UpdateManifest manifest, out string status) =>
+        ValidateWithPublicKey(manifest, UpdateTrustPolicy.ManifestSigningPublicKeyPem, out status);
+
+    internal static bool ValidateWithPublicKey(UpdateManifest manifest, string? publicKeyPem, out string status)
     {
         if (string.IsNullOrWhiteSpace(manifest.Signature))
         {
-            status = strict ? "Manifest signature is required but missing."
-                            : "Manifest is unsigned. SHA-256 installer validation will still run.";
-
-            return !strict;
+            status = "Manifest signature is required but missing.";
+            return false;
         }
 
         if (string.IsNullOrWhiteSpace(publicKeyPem))

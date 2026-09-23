@@ -19,17 +19,36 @@ public sealed class ProtectedFileDataStore : IDataStore
     private const long MaximumTokenBytes = 2L * 1024 * 1024;
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("Flare Fireplace Quotes Gmail OAuth Token Store");
     private readonly string _folderPath;
+    private readonly IReadOnlyList<string> _legacyTokenFolders;
+    private readonly IReadOnlyList<string> _obsoleteTokenFolders;
+    private readonly bool _allowLegacyMigration;
 
-    public ProtectedFileDataStore(string folderPath)
+    public ProtectedFileDataStore(string folderPath, bool allowLegacyMigration = true) :
+        this(folderPath, AppPaths.LegacyGmailTokenStores, [AppPaths.ObsoleteGoogleTokenCertBuilderStore],
+             allowLegacyMigration)
+    {
+    }
+
+    internal ProtectedFileDataStore(string folderPath, IEnumerable<string> legacyTokenFolders,
+                                    IEnumerable<string> obsoleteTokenFolders, bool allowLegacyMigration = true)
     {
         if (string.IsNullOrWhiteSpace(folderPath))
             throw new ArgumentException("Token store folder path is required.", nameof(folderPath));
 
-        _folderPath = folderPath;
+        _folderPath = Path.GetFullPath(folderPath);
+        _legacyTokenFolders = legacyTokenFolders.Select(Path.GetFullPath)
+            .Where(path => !string.Equals(path, _folderPath, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        _obsoleteTokenFolders = obsoleteTokenFolders.Select(Path.GetFullPath)
+            .Where(path => !string.Equals(path, _folderPath, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        _allowLegacyMigration = allowLegacyMigration;
         Directory.CreateDirectory(_folderPath);
     }
 
-    public Task StoreAsync<T>(string key, T value)
+    public async Task StoreAsync<T>(string key, T value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentNullException.ThrowIfNull(value);
@@ -66,7 +85,11 @@ public sealed class ProtectedFileDataStore : IDataStore
                 File.Delete(tempPath);
         }
 
-        return Task.CompletedTask;
+        var verified = await ReadProtectedAsync<T>(path).ConfigureAwait(false);
+        if (verified is null)
+            throw new CryptographicException("Encrypted Gmail token verification failed after storage.");
+
+        CleanupLegacyPlaintextTokens<T>(key);
     }
 
     public Task DeleteAsync<T>(string key)
@@ -90,7 +113,11 @@ public sealed class ProtectedFileDataStore : IDataStore
         {
             try
             {
-                return await ReadProtectedAsync<T>(path).ConfigureAwait(false);
+                var value = await ReadProtectedAsync<T>(path).ConfigureAwait(false);
+                if (value is not null)
+                    CleanupLegacyPlaintextTokens<T>(key);
+
+                return value;
             }
             catch
             {
@@ -100,8 +127,9 @@ public sealed class ProtectedFileDataStore : IDataStore
             }
         }
 
-        var migrated = await TryMigrateLegacyPlainTextTokenAsync<T>(key).ConfigureAwait(false);
-        return migrated;
+        return _allowLegacyMigration
+                   ? await TryMigrateLegacyPlainTextTokenAsync<T>(key).ConfigureAwait(false)
+                   : default!;
     }
 
     public Task ClearAsync()
@@ -125,7 +153,7 @@ public sealed class ProtectedFileDataStore : IDataStore
 
     private async Task<T> TryMigrateLegacyPlainTextTokenAsync<T>(string key)
     {
-        foreach (var legacyFile in LegacyTokenFiles().ToList())
+        foreach (var legacyFile in LegacyTokenFiles<T>(key).ToList())
         {
             try
             {
@@ -146,8 +174,6 @@ public sealed class ProtectedFileDataStore : IDataStore
                 if (verified is null)
                     throw new CryptographicException("Encrypted Gmail token verification failed after migration.");
 
-                SensitiveFileDeletion.DeletePlaintext(legacyFile);
-
                 return value;
             }
             catch
@@ -159,16 +185,107 @@ public sealed class ProtectedFileDataStore : IDataStore
         return default!;
     }
 
-    private IEnumerable<string> LegacyTokenFiles()
+    private IEnumerable<string> LegacyTokenFiles<T>(string key)
     {
-        var folders = new[] { _folderPath }
-            .Concat(AppPaths.LegacyRoots.Select(root => Path.Combine(root, "gmail-token")))
-            .Where(Directory.Exists)
+        var legacyFileName = $"{typeof(T).FullName}-{key}";
+        var folders = new[] { _folderPath }.Concat(_legacyTokenFolders)
+            .Where(IsRegularDirectory)
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
-        return folders.SelectMany(folder => Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly))
-                      .Where(path => !path.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase) &&
-                                     !path.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase));
+        return folders.Select(folder => Path.Combine(folder, legacyFileName)).Where(IsRegularBoundedFile);
+    }
+
+    private void CleanupLegacyPlaintextTokens<T>(string key)
+    {
+        foreach (var path in LegacyTokenFiles<T>(key).Concat(ObsoleteTokenFiles()).Distinct(
+                     StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                SensitiveFileDeletion.DeletePlaintext(path);
+            }
+            catch
+            {
+                // A verified protected token remains authoritative even when legacy cleanup is denied.
+            }
+        }
+
+        foreach (var folder in _legacyTokenFolders.Concat(_obsoleteTokenFolders).Distinct(
+                     StringComparer.OrdinalIgnoreCase))
+        {
+            TryDeleteEmptyRegularDirectory(folder);
+        }
+    }
+
+    private IEnumerable<string> ObsoleteTokenFiles()
+    {
+        foreach (var folder in _obsoleteTokenFolders.Where(IsRegularDirectory))
+        {
+            IEnumerable<string> files;
+            try
+            {
+                files = Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly).ToArray();
+            }
+            catch
+            {
+                continue;
+            }
+
+            foreach (var path in files.Where(IsRegularBoundedFile))
+            {
+                string text;
+                try
+                {
+                    text = File.ReadAllText(path);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (LooksLikeGoogleToken(text))
+                    yield return path;
+            }
+        }
+    }
+
+    private static bool IsRegularDirectory(string path)
+    {
+        try
+        {
+            var info = new DirectoryInfo(path);
+            return info.Exists && (info.Attributes & FileAttributes.ReparsePoint) == 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsRegularBoundedFile(string path)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            return info.Exists && (info.Attributes & FileAttributes.ReparsePoint) == 0 &&
+                   info.Length is > 0 and <= MaximumTokenBytes;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void TryDeleteEmptyRegularDirectory(string path)
+    {
+        try
+        {
+            if (IsRegularDirectory(path) && !Directory.EnumerateFileSystemEntries(path).Any())
+                Directory.Delete(path, recursive: false);
+        }
+        catch
+        {
+        }
     }
 
     private static async Task<T> ReadProtectedAsync<T>(string path)

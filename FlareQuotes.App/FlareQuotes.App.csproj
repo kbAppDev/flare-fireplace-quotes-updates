@@ -22,6 +22,7 @@
     <Content Include="Assets\header_logo-light.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\header_logo-dark.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\app_icon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\LocalData\pricing.xlsx" Link="LocalData\pricing.xlsx" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\LocalData\resource_links.xlsx" Link="LocalData\resource_links.xlsx" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\LocalData\outdoor_spec_center_extracted_links.xlsx" Link="LocalData\outdoor_spec_center_extracted_links.xlsx" CopyToOutputDirectory="PreserveNewest" />
@@ -30,14 +31,3 @@
     <Resource Include="Assets\UrlStyleCards\**\*" />
   </ItemGroup>
 </Project>
-
-
-
-
-
-
-
-
-
-
-

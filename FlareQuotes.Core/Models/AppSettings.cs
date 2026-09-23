@@ -7,17 +7,14 @@ public sealed class AppSettings
     public string SalesEmail { get; set; } = string.Empty;
     public string SalesPhone { get; set; } = string.Empty;
     public string Website { get; set; } = "https://flarefireplaces.com";
-    public string HubSpotBcc { get; set; } = "2646235@bcc.na2.hubspot.com";
-    public string ConsultationUrl { get; set; } = "https://meetings.hubspot.com/kyle533/jobsite-consultation";
+    public string HubSpotBcc { get; set; } = string.Empty;
+    public string ConsultationUrl { get; set; } = "https://flarefireplaces.com";
     public string PricingFile { get; set; } = string.Empty;
     public bool UseGmailSignature { get; set; } = true;
     public bool CheckUpdatesOnStartup { get; set; } = true;
     public string UpdateManifestUrl { get; set; } = UpdateTrustPolicy.ManifestUrl;
     public string GmailCredentialsPath { get; set; } = string.Empty;
     public int RecallQuoteHistoryLimit { get; set; } = 5;
-    public bool FirstRunHealthCheckCompleted { get; set; }
-    public bool StrictManifestSignatureValidation { get; set; }
-    public string UpdateManifestPublicKeyPem { get; set; } = string.Empty;
     public List<string> LeadTimePresets { get; set; } =
         ["3-5 Business Days", "1-2 Weeks", "2-4 Weeks", "4-6 Weeks", "6-8 Weeks", "8-10 Weeks", "10-12 Weeks", "TBD"];
 }

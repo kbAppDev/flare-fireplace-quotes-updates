@@ -2,6 +2,7 @@ using FlareQuotes.App.Services;
 using FlareQuotes.App.ViewModels;
 using FlareQuotes.Core.Email;
 using FlareQuotes.Core.Features;
+using FlareQuotes.Core.Media;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Parsing;
 using FlareQuotes.Core.Services;
@@ -97,6 +98,144 @@ public sealed class MainViewModelUiRefreshTests
         Assert.Equal(1, viewModel.FireplaceQuantity);
     }
 
+    [Fact]
+    public void MultipleAdditionalClassicMediaSurviveAddEditAndSave()
+    {
+        var viewModel = CreateViewModel(mediaService: new MediaSelectionService());
+        viewModel.Model = "Front Facing";
+        viewModel.Size = "60";
+        viewModel.GlassHeight = "16";
+
+        var selectedOptions = viewModel.AdditionalClassicMediaOptions.Take(2).ToList();
+        Assert.Equal(2, selectedOptions.Count);
+        foreach (var option in selectedOptions)
+            viewModel.SelectAdditionalClassicMediaCommand.Execute(option);
+
+        var expectedKeys = selectedOptions.Select(option => option.Key).OrderBy(key => key).ToList();
+        Assert.Equal(2, viewModel.SelectedAdditionalClassicMedia.Count);
+
+        viewModel.AddFireplaceCommand.Execute(null);
+
+        var original = Assert.Single(viewModel.Fireplaces);
+        Assert.Equal(expectedKeys, SplitKeys(original.AdditionalClassicMediaKey));
+        Assert.Equal(2, original.PremiumMedia.Count(media =>
+                         media.Key.StartsWith("additional_classic::", StringComparison.OrdinalIgnoreCase)));
+
+        viewModel.EditFireplaceCommand.Execute(original);
+
+        Assert.Equal(expectedKeys,
+                     viewModel.SelectedAdditionalClassicMedia.Select(media => media.Key).OrderBy(key => key).ToList());
+
+        viewModel.AddFireplaceCommand.Execute(null);
+
+        var updated = Assert.Single(viewModel.Fireplaces);
+        Assert.Equal(expectedKeys, SplitKeys(updated.AdditionalClassicMediaKey));
+        Assert.Equal(2, updated.PremiumMedia.Count(media =>
+                         media.Key.StartsWith("additional_classic::", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void MultipleAdditionalClassicMediaSurviveQuoteRecallAndEdit()
+    {
+        var viewModel = CreateViewModel(mediaService: new MediaSelectionService());
+        var snapshot = new MainViewModel.LastQuoteSnapshot
+        {
+            ProjectName = "Recalled project",
+            Fireplaces =
+            [
+                new FireplaceQuoteDraft
+                {
+                    FireplaceLabel = "Recalled fireplace",
+                    Model = "Front Facing",
+                    Size = "60",
+                    GlassHeight = "16",
+                    AdditionalClassicMediaKey = "fg_silver|fg_bronze",
+                    PremiumMedia =
+                    [
+                        new MediaSelection
+                        {
+                            Key = "additional_classic::fg_silver",
+                            DisplayName = "Reflective Silver Fire Glass",
+                            IsPremium = false
+                        },
+                        new MediaSelection
+                        {
+                            Key = "additional_classic::fg_bronze",
+                            DisplayName = "Reflective Bronze Fire Glass",
+                            IsPremium = false
+                        }
+                    ]
+                }
+            ]
+        };
+
+        viewModel.RecallQuoteCommand.Execute(snapshot);
+        var recalled = Assert.Single(viewModel.Fireplaces);
+        viewModel.EditFireplaceCommand.Execute(recalled);
+
+        Assert.Equal(
+            ["fg_bronze", "fg_silver"],
+            viewModel.SelectedAdditionalClassicMedia.Select(media => media.Key).OrderBy(key => key).ToList());
+    }
+
+    [Fact]
+    public async Task IncompletePricingBlocksPdfPreviewGeneration()
+    {
+        var pdf = new TrackingPdfService();
+        var viewModel = CreateViewModel(
+            priceBookService: new IncompletePriceBookService(),
+            quotePdfService: pdf);
+        viewModel.Model = "Front Facing";
+        viewModel.Size = "60";
+        viewModel.GlassHeight = "16";
+
+        await viewModel.NextToPreviewCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, pdf.BuildCallCount);
+        Assert.Equal(QuoteWorkflowStage.Review, viewModel.WorkflowStage);
+        Assert.True(string.IsNullOrWhiteSpace(viewModel.GeneratedPdfPath));
+        Assert.Contains("Missing price", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task PdfPreviewUsesBrandingSavedAfterViewModelWasCreated()
+    {
+        var settings = new MemorySettingsService();
+        var pdf = new TrackingPdfService();
+        var viewModel = CreateViewModel(quotePdfService: pdf, settingsService: settings);
+        viewModel.Model = "Front Facing";
+        viewModel.Size = "60";
+        viewModel.GlassHeight = "16";
+
+        await settings.SaveAsync(
+            new AppSettings
+            {
+                PricingFile = "test-pricing.xlsx",
+                SalesEmail = "updated@example.com",
+                SalesPhone = "312-555-0199",
+                Website = "https://flarefireplaces.com/updated"
+            });
+
+        await viewModel.NextToPreviewCommand.ExecuteAsync(null);
+
+        Assert.NotNull(pdf.LastRequest);
+        Assert.Equal("updated@example.com", pdf.LastRequest.Branding.SalesEmail);
+        Assert.Equal("312-555-0199", pdf.LastRequest.Branding.SalesPhone);
+        Assert.Equal("https://flarefireplaces.com/updated", pdf.LastRequest.Branding.Website);
+
+        viewModel.ApplySettings(
+            new AppSettings
+            {
+                PricingFile = "test-pricing.xlsx",
+                SalesEmail = "newer@example.com",
+                SalesPhone = "312-555-0100",
+                Website = "https://flarefireplaces.com/newer"
+            });
+
+        Assert.True(string.IsNullOrWhiteSpace(viewModel.GeneratedPdfPath));
+        Assert.Equal(QuoteWorkflowStage.Review, viewModel.WorkflowStage);
+    }
+
 
 
     [Theory]
@@ -175,6 +314,38 @@ public sealed class MainViewModelUiRefreshTests
         Assert.Same(second, viewModel.Fireplaces[2]);
         Assert.Equal("Third", viewModel.Fireplaces[0].FireplaceLabel);
         Assert.Contains("position 1", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void KeyboardMoveCommandsRespectBoundariesAndReorderFireplaceCards()
+    {
+        var viewModel = CreateViewModel();
+        var first = new FireplaceQuoteDraft { FireplaceLabel = "First", Model = "FF50" };
+        var second = new FireplaceQuoteDraft { FireplaceLabel = "Second", Model = "ST60" };
+        var third = new FireplaceQuoteDraft { FireplaceLabel = "Third", Model = "VDC70" };
+
+        viewModel.Fireplaces.Add(first);
+        viewModel.Fireplaces.Add(second);
+        viewModel.Fireplaces.Add(third);
+
+        Assert.False(viewModel.MoveFireplaceUpCommand.CanExecute(first));
+        Assert.True(viewModel.MoveFireplaceDownCommand.CanExecute(first));
+        Assert.True(viewModel.MoveFireplaceUpCommand.CanExecute(second));
+        Assert.True(viewModel.MoveFireplaceDownCommand.CanExecute(second));
+        Assert.True(viewModel.MoveFireplaceUpCommand.CanExecute(third));
+        Assert.False(viewModel.MoveFireplaceDownCommand.CanExecute(third));
+
+        viewModel.MoveFireplaceDownCommand.Execute(first);
+
+        Assert.Equal([second, first, third], viewModel.Fireplaces);
+        Assert.Contains("position 2", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.True(viewModel.MoveFireplaceUpCommand.CanExecute(first));
+
+        viewModel.MoveFireplaceUpCommand.Execute(first);
+
+        Assert.Equal([first, second, third], viewModel.Fireplaces);
+        Assert.Contains("position 1", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.False(viewModel.MoveFireplaceUpCommand.CanExecute(first));
     }
 
     [Fact]
@@ -409,15 +580,26 @@ public sealed class MainViewModelUiRefreshTests
     private static MainViewModel CreateViewModel(
         IQuoteRequestParser? parser = null,
         IFeatureSelectionService? featureService = null,
-        IPriceBookService? priceBookService = null)
+        IPriceBookService? priceBookService = null,
+        IMediaSelectionService? mediaService = null,
+        IQuotePdfService? quotePdfService = null,
+        ISettingsService? settingsService = null)
     {
         var logger = new NullLogger();
         var draftWorkflow = new DraftWorkflowService(new NullGmailDraftService(), new EmailTemplateService(), logger);
 
         return new MainViewModel(parser ?? new EmptyParser(), featureService ?? new EmptyFeatureService(),
-                                 new EmptyMediaService(), priceBookService ?? new EmptyPriceBookService(),
-                                 new EmptyPdfService(), new MemorySettingsService(), draftWorkflow, logger);
+                                 mediaService ?? new EmptyMediaService(),
+                                 priceBookService ?? new EmptyPriceBookService(),
+                                 quotePdfService ?? new EmptyPdfService(), settingsService ?? new MemorySettingsService(),
+                                 draftWorkflow,
+                                 logger);
     }
+
+    private static List<string> SplitKeys(string value) =>
+        value.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .OrderBy(key => key)
+            .ToList();
 
     private sealed class EmptyParser : IQuoteRequestParser
     {
@@ -527,6 +709,48 @@ public sealed class MainViewModelUiRefreshTests
                 }).ToList();
 
             return Task.FromResult(links);
+        }
+    }
+
+    private sealed class IncompletePriceBookService : IPriceBookService
+    {
+        public Task<PriceBookWorkbook> LoadAsync(string path, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PriceBookWorkbook { SourcePath = path });
+
+        public Task<PriceBookMatch> FindBaseModelAsync(QuoteRequest request,
+                                                       CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PriceBookMatch());
+
+        public Task<PriceBookMatch> FindFeaturePriceAsync(QuoteRequest request, FeatureOption feature,
+                                                          CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PriceBookMatch());
+
+        public Task<PricedQuoteResult> BuildPricedQuoteAsync(QuoteRequest request, string pricingPath,
+                                                             CancellationToken cancellationToken = default) =>
+            Task.FromResult(
+                new PricedQuoteResult
+                {
+                    Request = request,
+                    Success = false,
+                    Message = "Missing price for selected option."
+                });
+
+        public Task<IReadOnlyList<ResourceLinkSet>> ResolveResourceLinksAsync(
+            QuoteRequest request, string pricingPath, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ResourceLinkSet>>([]);
+    }
+
+    private sealed class TrackingPdfService : IQuotePdfService
+    {
+        public int BuildCallCount { get; private set; }
+        public QuoteRequest? LastRequest { get; private set; }
+
+        public Task<string> BuildQuotePdfAsync(QuoteRequest request, string outputPath,
+                                               CancellationToken cancellationToken = default)
+        {
+            BuildCallCount++;
+            LastRequest = request;
+            return Task.FromResult(outputPath);
         }
     }
 

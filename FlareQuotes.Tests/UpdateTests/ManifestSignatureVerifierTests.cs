@@ -9,16 +9,32 @@ namespace FlareQuotes.Tests.UpdateTests;
 public sealed class ManifestSignatureVerifierTests
 {
     [Fact]
-    public void AllowsUnsignedManifestOnlyWhenStrictModeIsDisabled()
+    public void RejectsUnsignedManifest()
     {
         var manifest = CreateManifest();
 
-        Assert.True(ManifestSignatureVerifier.Validate(manifest, null, strict: false, out _));
-        Assert.False(ManifestSignatureVerifier.Validate(manifest, null, strict: true, out _));
+        Assert.False(ManifestSignatureVerifier.Validate(manifest, out var status));
+        Assert.Contains("required", status, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void AcceptsValidRs256SignatureAndRejectsTampering()
+    public void EmbeddedReleaseKeyAcceptsKnownSignatureAndRejectsTampering()
+    {
+        var manifest = CreateManifest();
+        manifest.Signature =
+            "VJ6Rb0Ej9d1iUaI5pyUP83XlB7INwKfPRLapw8kmKC1M38ousNuUB0ObhR5cQ2uosU7E7vSY6QAKWNFpuCejQZln+kzkkNAhxUusVoUUdHAZUbo43XdmI7gBir16ztEzN7rA6qsELNwT0iC5j+6ahLvnpstK/p0rz8vA3GxHbITMw5zEwBVB31lnUGzBQ77MICgaHxCeIVjq0guke3jacg7x1EwQ795RVHaFR+uvIkzSZZMbsOShJ++aiYdNevEA//knmivHWFd3xwdHR5/ngArPSvdcwZQKBDUb+nQMHcRrFQDJYbyNcwkLNcd4wkkXLKOL9NCHy8B8ZmVFxlFYchQaczIcvVyzDPsWRGeWnx/DVWCRvfXLt6YQpGAtGyYSGohYL+kX/uDPNUh7HzJb2b0oL300ucwBkHmuevYmG0BK1FKheLNZkk3sTEYj4L96XltX35bdDf36US+yPyynPrf/v+2H65LN6spuAbfv7StDbNLXqqtywuGUDZz27Efc";
+
+        Assert.True(ManifestSignatureVerifier.Validate(manifest, out _));
+
+        manifest.SizeBytes++;
+        Assert.False(ManifestSignatureVerifier.Validate(manifest, out _));
+        manifest.SizeBytes--;
+        manifest.Notes = "tampered";
+        Assert.False(ManifestSignatureVerifier.Validate(manifest, out _));
+    }
+
+    [Fact]
+    public void CryptographicVerifierAcceptsRs256AndRejectsInvalidMetadata()
     {
         using var rsa = RSA.Create(2048);
         var manifest = CreateManifest();
@@ -27,35 +43,23 @@ public sealed class ManifestSignatureVerifierTests
                          HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1));
         var publicKey = rsa.ExportSubjectPublicKeyInfoPem();
 
-        Assert.True(ManifestSignatureVerifier.Validate(manifest, publicKey, strict: false, out _));
+        Assert.True(ManifestSignatureVerifier.ValidateWithPublicKey(manifest, publicKey, out _));
 
-        manifest.SizeBytes++;
-        Assert.False(ManifestSignatureVerifier.Validate(manifest, publicKey, strict: false, out _));
-        manifest.SizeBytes--;
-        manifest.Notes = "tampered";
-        Assert.False(ManifestSignatureVerifier.Validate(manifest, publicKey, strict: false, out _));
-    }
-
-    [Fact]
-    public void RejectsPresentButUnverifiableSignaturesEvenOutsideStrictMode()
-    {
-        var manifest = CreateManifest();
         manifest.Signature = "not-base64";
-
-        Assert.False(ManifestSignatureVerifier.Validate(manifest, null, strict: false, out _));
+        Assert.False(ManifestSignatureVerifier.ValidateWithPublicKey(manifest, publicKey, out _));
 
         manifest.SignatureAlgorithm = "none";
-        Assert.False(ManifestSignatureVerifier.Validate(manifest, "not-a-key", strict: false, out _));
+        Assert.False(ManifestSignatureVerifier.ValidateWithPublicKey(manifest, publicKey, out _));
     }
 
     private static UpdateManifest CreateManifest() => new()
     {
-        Version = "1.4.11",
+        Version = "9.9.9",
         Url =
-            "https://github.com/kbAppDev/flare-fireplace-quotes-updates/releases/download/v1.4.11/Flare.Fireplace.Quotes.exe",
+            "https://github.com/kbAppDev/flare-fireplace-quotes-updates/releases/download/v9.9.9/Flare.Fireplace.Quotes.exe",
         Sha256 = new string('a', 64),
-        SizeBytes = 1024,
-        Notes = "test",
+        SizeBytes = 123456789,
+        Notes = "Signed manifest fixture.",
         SignatureAlgorithm = "RS256"
     };
 }

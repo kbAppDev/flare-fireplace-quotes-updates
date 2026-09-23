@@ -9,8 +9,8 @@ public sealed class UpdateManifest
     public string Notes { get; set; } = string.Empty;
     public long SizeBytes { get; set; }
 
-    // Unsigned manifests remain compatible unless strict validation is enabled. If a signature
-    // is supplied, it must always be a verifiable RS256 signature; malformed signatures fail closed.
+    // Every production manifest must carry an RS256 signature from the private key whose public
+    // half is compiled into UpdateTrustPolicy. Unsigned or incorrectly signed manifests fail closed.
     public string Signature { get; set; } = string.Empty;
     public string SignatureAlgorithm { get; set; } = "RS256";
 }

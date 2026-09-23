@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using FlareQuotes.App.ViewModels;
@@ -38,7 +39,8 @@ public partial class App : Application
         collection.AddSingleton<IPriceBookService, ClosedXmlPriceBookService>();
         collection.AddSingleton<IQuotePdfService, QuestPdfQuotePdfService>();
         collection.AddSingleton<IGmailDraftService, GmailDraftService>();
-        collection.AddSingleton<ISettingsService, JsonSettingsService>();
+        collection.AddSingleton<ISettingsService>(provider =>
+            new JsonSettingsService(provider.GetRequiredService<IAppLogger>()));
         collection.AddSingleton<IUpdateService, HttpUpdateService>();
         collection.AddSingleton<EmailTemplateService>();
         collection.AddSingleton<DraftWorkflowService>();
@@ -64,13 +66,18 @@ public partial class App : Application
             var logger = Services.GetService<IAppLogger>();
             logger?.Error(args.Exception, "Unhandled UI exception.");
 
+            var canContinue = IsRecoverableUiException(args.Exception);
+            var fallback = canContinue
+                               ? "A recoverable problem occurred. The app logged it and can continue."
+                               : "The app encountered an unexpected problem and must close to protect the current quote state.";
+
             MessageBox.Show(
-                FriendlyErrorMessage.FromException(
-                    args.Exception,
-                    "Something unexpected happened. The app logged the issue and will keep running if possible."),
+                FriendlyErrorMessage.FromException(args.Exception, fallback),
                 "Flare Fireplace Quotes", MessageBoxButton.OK, MessageBoxImage.Warning);
 
             args.Handled = true;
+            if (!canContinue)
+                Dispatcher.BeginInvoke(() => Shutdown(1), DispatcherPriority.Send);
         };
 
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
@@ -81,5 +88,11 @@ public partial class App : Application
                 logger?.Error(ex, "Unhandled application exception.");
             }
         };
+    }
+
+    private static bool IsRecoverableUiException(Exception exception)
+    {
+        var root = exception.GetBaseException();
+        return root is IOException or UnauthorizedAccessException or FormatException;
     }
 }

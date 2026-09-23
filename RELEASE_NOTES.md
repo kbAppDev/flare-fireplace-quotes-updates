@@ -1,3 +1,15 @@
+# 1.6.9
+
+- Made pricing fail closed when a selected fireplace, required outdoor kit, optional feature, or chargeable media item cannot be matched exactly; unsuccessful pricing can no longer reach PDF or Gmail output.
+- Added mandatory RS256-signed v2 update manifests with an immutable in-app public key, exact release URL/size/hash verification, and an isolated sign-verify-publish workflow. The legacy unsigned feed remains only to upgrade installed v1.6.8 clients.
+- Hardened pricing and resource workbooks with file, archive, worksheet, dimension, relationship, expansion-ratio, macro, external-link, embedded-object, and cancellation limits before parsing.
+- Made PDF creation cancellable, off the UI thread, atomically published, and directly tied to the quote's captured branding rather than mutable global settings.
+- Added unique quote numbers and kept pricing, quantities, feature quantities, hyperlinks, customer-specific filenames, PDF content, and Gmail attachments consistent across add, edit, save, recall, and duplicate configurations.
+- Removed the external ZIP-code lookup, restricted clickable quote links to approved HTTPS Flare resource domains and the exact HubSpot consultation host, tightened log redaction and retention, and made Gmail reconnection transactional.
+- Added a user-run system check for workbook/configuration health, keyboard fireplace reordering, accessibility labels, and clearer link-review language.
+- Sanitized the shipped outdoor-resource workbook and added security, pricing, updater, PDF, privacy, workbook, health, and UI regression coverage.
+- Pinned the SDK, installer, dependencies, package locks, analyzers, test runner, SBOM generator, and third-party notices used by the release lane.
+
 # 1.6.8
 
 - Added a quantity selector for each fireplace configuration and preserved it through add, edit, recall, preview, PDF generation, and Gmail draft creation.

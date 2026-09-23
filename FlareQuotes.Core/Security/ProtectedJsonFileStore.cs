@@ -23,15 +23,15 @@ public sealed class ProtectedJsonFileStore
     }
 
     public T? LoadOrMigrate<T>(string protectedPath, string? legacyPlaintextPath = null,
-                               JsonSerializerOptions? options = null)
+                               JsonSerializerOptions? options = null,
+                               IEnumerable<string>? additionalLegacyPlaintextPaths = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(protectedPath);
 
         if (File.Exists(protectedPath))
         {
             var existing = ReadProtected<T>(protectedPath, options);
-            if (!string.IsNullOrWhiteSpace(legacyPlaintextPath) && File.Exists(legacyPlaintextPath))
-                SensitiveFileDeletion.DeletePlaintext(legacyPlaintextPath);
+            DeleteVerifiedLegacyPlaintextFiles(legacyPlaintextPath, additionalLegacyPlaintextPaths);
             return existing;
         }
 
@@ -53,7 +53,7 @@ public sealed class ProtectedJsonFileStore
         if (verified is null)
             throw new CryptographicException("Encrypted JSON verification failed after migration.");
 
-        SensitiveFileDeletion.DeletePlaintext(legacyPlaintextPath);
+        DeleteVerifiedLegacyPlaintextFiles(legacyPlaintextPath, additionalLegacyPlaintextPaths);
         return value;
     }
 
@@ -121,6 +121,34 @@ public sealed class ProtectedJsonFileStore
         finally
         {
             CryptographicOperations.ZeroMemory(clearBytes);
+        }
+    }
+
+    private static void DeleteVerifiedLegacyPlaintextFiles(
+        string? primaryPath, IEnumerable<string>? additionalPaths)
+    {
+        var candidates = new[] { primaryPath }.Concat(additionalPaths ?? [])
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => Path.GetFullPath(path!))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var path in candidates)
+        {
+            try
+            {
+                var info = new FileInfo(path);
+                if (!info.Exists || (info.Attributes & FileAttributes.ReparsePoint) != 0 ||
+                    info.Length is < 0 or > MaximumPayloadBytes)
+                {
+                    continue;
+                }
+
+                SensitiveFileDeletion.DeletePlaintext(path);
+            }
+            catch
+            {
+                // A verified protected history remains usable if a stale legacy copy is locked.
+            }
         }
     }
 

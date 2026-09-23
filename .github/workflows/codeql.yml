@@ -28,7 +28,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 10.0.303
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4
@@ -36,12 +36,12 @@ jobs:
           languages: csharp
           queries: security-extended,security-and-quality
 
-      - name: Restore
+      - name: Restore locked dependencies
         shell: pwsh
         run: |
-          dotnet restore .\FlareQuotes.App\FlareQuotes.App.csproj
+          dotnet restore .\FlareQuotes.App\FlareQuotes.App.csproj --locked-mode -p:ContinuousIntegrationBuild=true
           if ($LASTEXITCODE -ne 0) { throw "App restore failed." }
-          dotnet restore .\FlareQuotes.Tests\FlareQuotes.Tests.csproj
+          dotnet restore .\FlareQuotes.Tests\FlareQuotes.Tests.csproj --locked-mode -p:ContinuousIntegrationBuild=true
           if ($LASTEXITCODE -ne 0) { throw "Test restore failed." }
 
       - name: Audit direct and transitive NuGet dependencies
@@ -74,23 +74,8 @@ jobs:
 
       - name: Render and validate Windows UI snapshots
         shell: pwsh
-        run: |
-          $outputPath = Join-Path $PWD "artifacts\ui-snapshots"
-          if (Test-Path -LiteralPath $outputPath) { throw "UI snapshot output already exists." }
-          New-Item -ItemType Directory -Path $outputPath | Out-Null
-          $env:FLARE_UI_SNAPSHOT_MODE = "1"
-          $env:FLARE_UI_SNAPSHOT_DIR = $outputPath
-          dotnet run --project .\FlareQuotes.App\FlareQuotes.App.csproj -c Release --no-restore -p:DefineConstants=FLARE_UI_SNAPSHOTS -p:TreatWarningsAsErrors=true
-          if ($LASTEXITCODE -ne 0) { throw "UI snapshot process failed." }
-          foreach ($fileName in @("main-window-dark.png", "main-window-minimum.png", "settings-window-dark.png", "settings-window-minimum.png", "layout-metrics.json")) {
-            $path = Join-Path $outputPath $fileName
-            if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item -LiteralPath $path).Length -lt 2) {
-              throw "Required UI snapshot artifact is missing or empty: $fileName"
-            }
-          }
-          if (Test-Path -LiteralPath (Join-Path $outputPath "snapshot-error.txt")) {
-            throw (Get-Content -LiteralPath (Join-Path $outputPath "snapshot-error.txt") -Raw)
-          }
+        timeout-minutes: 3
+        run: .\scripts\Invoke-UiSnapshotGate.ps1 -OutputPath artifacts/ui-snapshots -TimeoutSeconds 120
 
       - name: Upload rendered UI review artifacts
         if: always()

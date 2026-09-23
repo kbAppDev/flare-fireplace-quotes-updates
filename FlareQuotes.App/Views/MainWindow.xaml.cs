@@ -2,6 +2,7 @@ using System;
 using FlareQuotes.Core.Services;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Paths;
+using FlareQuotes.Core.Security;
 using FlareQuotes.Core.Updates;
 using System.Windows.Threading;
 using System.Security.Cryptography;
@@ -34,6 +35,7 @@ public partial class MainWindow : Window
     private const string LightThemeName = "light";
     private bool _isApplyingTheme;
     private WebView2? _pdfPreviewWebView;
+    private Uri? _pdfPreviewDocumentUri;
     private bool _pdfPreviewInitializing;
     private bool _hasCheckedForStartupUpdates;
     private FrameworkElement? _selectedChipDragElement;
@@ -66,7 +68,7 @@ public partial class MainWindow : Window
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
 #if FLARE_UI_SNAPSHOTS
-        if (await UiSnapshotCapture.TryCaptureAsync(this))
+        if (await UiSnapshotCapture.TryCaptureAsync())
             return;
 #endif
         await TryLoadPdfPreviewAsync();
@@ -1167,6 +1169,7 @@ public partial class MainWindow : Window
 
             PdfPreviewFallback.Visibility = Visibility.Collapsed;
             _pdfPreviewWebView.Visibility = Visibility.Visible;
+            _pdfPreviewDocumentUri = pdfUri;
             _pdfPreviewWebView.Source = BuildPdfPreviewUri(pdfUri);
         }
         catch
@@ -1208,6 +1211,8 @@ public partial class MainWindow : Window
                 webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
                 webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
                 webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
+                webView.CoreWebView2.NavigationStarting += PdfPreview_NavigationStarting;
+                webView.CoreWebView2.NewWindowRequested += PdfPreview_NewWindowRequested;
             }
 
             _pdfPreviewWebView = webView;
@@ -1216,6 +1221,49 @@ public partial class MainWindow : Window
         {
             _pdfPreviewInitializing = false;
         }
+    }
+
+    private void PdfPreview_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+    {
+        if (IsAllowedPdfPreviewNavigation(e.Uri))
+            return;
+
+        e.Cancel = true;
+        OpenTrustedExternalPdfLink(e.Uri);
+    }
+
+    private void PdfPreview_NewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
+    {
+        e.Handled = true;
+        OpenTrustedExternalPdfLink(e.Uri);
+    }
+
+    private bool IsAllowedPdfPreviewNavigation(string? value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var requested))
+            return false;
+
+        if (requested.Scheme.Equals("about", StringComparison.OrdinalIgnoreCase) && requested.AbsolutePath == "blank")
+            return true;
+
+        return requested.IsFile && _pdfPreviewDocumentUri?.IsFile == true &&
+               string.Equals(Path.GetFullPath(requested.LocalPath), Path.GetFullPath(_pdfPreviewDocumentUri.LocalPath),
+                             StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void OpenTrustedExternalPdfLink(string? value)
+    {
+        if (!TrustedExternalLinkPolicy.TryNormalize(value, out var trustedUrl))
+        {
+            MessageBox.Show(this, "This PDF tried to open a link outside the approved Flare websites. The link was blocked.",
+                            "Link blocked", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var choice = MessageBox.Show(this, "Open this verified link in your default browser?\n\n" + trustedUrl,
+                                     "Open resource link", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (choice == MessageBoxResult.Yes)
+            Process.Start(new ProcessStartInfo(trustedUrl) { UseShellExecute = true });
     }
 
     private void ShowPdfPreviewFallback(string message)
@@ -1451,23 +1499,6 @@ public partial class MainWindow : Window
         public string Theme { get; set; } = DarkThemeName;
     }
 
-    private static string SafeForUser(string message)
-    {
-        var value = (message ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ').Trim();
-
-        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!string.IsNullOrWhiteSpace(userProfile))
-            value = value.Replace(userProfile, "%USERPROFILE%", StringComparison.OrdinalIgnoreCase);
-
-        // Redact absolute paths and emails so update errors never leak PII (matches MainViewModel.SafeForUser).
-        value = System.Text.RegularExpressions.Regex.Replace(value, @"[A-Z]:\\[^\s""]+", "%LOCAL_PATH%",
-                                                             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        value = System.Text.RegularExpressions.Regex.Replace(value, @"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", "[email]",
-                                                             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        return string.IsNullOrWhiteSpace(value) ? "Unexpected error." : value;
-    }
-
     private async Task CheckForUpdatesOnStartupAsync()
     {
         if (_hasCheckedForStartupUpdates)
@@ -1490,23 +1521,10 @@ public partial class MainWindow : Window
             var currentVersion = GetCurrentAppVersion();
             var result = await updateService.CheckAsync(currentVersion);
 
-            if (!result.UpdateAvailable || string.IsNullOrWhiteSpace(result.InstallerUrl))
+            if (!result.CheckSucceeded || !result.UpdateAvailable)
                 return;
 
-            if (!IsRemoteVersionNewerThanCurrent(result.LatestVersion))
-
-            {
-
-                return;
-            }
-
-            var updateWindow = new UpdateAvailableWindow(result.LatestVersion, result.Notes) { Owner = this };
-
-            if (updateWindow.ShowDialog() != true)
-                return;
-
-            await DownloadVerifyAndLaunchInstallerAsync(result.InstallerUrl, result.Sha256,
-                                                         result.ExpectedSizeBytes, result.LatestVersion);
+            await PromptAndInstallUpdateAsync(result, this);
         }
         catch
         {
@@ -1520,15 +1538,36 @@ public partial class MainWindow : Window
         return version is null ? "0.0.0" : $"{version.Major}.{version.Minor}.{version.Build}";
     }
 
-    private static async Task DownloadVerifyAndLaunchInstallerAsync(string installerUrl, string? expectedSha256,
-                                                                    long expectedSizeBytes,
-                                                                    string latestVersion)
+    internal static async Task<bool> PromptAndInstallUpdateAsync(UpdateCheckResult result, Window owner)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        ArgumentNullException.ThrowIfNull(owner);
+
+        if (!result.CheckSucceeded || !result.UpdateAvailable ||
+            string.IsNullOrWhiteSpace(result.InstallerUrl) ||
+            !IsRemoteVersionNewerThanCurrent(result.LatestVersion))
+        {
+            return false;
+        }
+
+        var updateWindow = new UpdateAvailableWindow(result.LatestVersion, result.Notes) { Owner = owner };
+        if (updateWindow.ShowDialog() != true)
+            return false;
+
+        return await DownloadVerifyAndLaunchInstallerAsync(result.InstallerUrl, result.Sha256,
+                                                            result.ExpectedSizeBytes, result.LatestVersion);
+    }
+
+    private static async Task<bool> DownloadVerifyAndLaunchInstallerAsync(string installerUrl,
+                                                                           string? expectedSha256,
+                                                                           long expectedSizeBytes,
+                                                                           string latestVersion)
     {
         if (!UpdateTrustPolicy.TryGetTrustedInstallerUri(installerUrl, latestVersion, out var uri))
         {
             MessageBox.Show("The update link is outside the trusted Flare GitHub release lane.", "Update Error",
                             MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
+            return false;
         }
 
         if (!UpdateTrustPolicy.IsValidSha256(expectedSha256) ||
@@ -1536,7 +1575,7 @@ public partial class MainWindow : Window
         {
             MessageBox.Show("The update manifest is missing valid installer verification data.",
                             "Update Verification Required", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            return false;
         }
 
         var normalizedSha256 = expectedSha256!.Trim().ToLowerInvariant();
@@ -1594,6 +1633,7 @@ public partial class MainWindow : Window
             File.Move(downloadPath, installerPath, overwrite: true);
             Process.Start(new ProcessStartInfo(installerPath) { UseShellExecute = true });
             Application.Current.Shutdown();
+            return true;
         }
         catch (Exception ex)
         {
@@ -1606,8 +1646,11 @@ public partial class MainWindow : Window
             {
             }
 
-            MessageBox.Show("The update could not be verified and was not installed. " + SafeForUser(ex.Message),
-                            "Update Verification Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(
+                FriendlyErrorMessage.FromException(
+                    ex, "The update could not be downloaded or verified. It was not installed."),
+                "Update Verification Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
         }
     }
 

@@ -18,15 +18,10 @@ public sealed class GmailEveryModelIntegrationTests
     private static readonly TimeSpan OverallTimeout = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan PerModelTimeout = TimeSpan.FromSeconds(75);
 
-    [Fact]
+    [Fact(Skip = "Live Gmail test: requires explicit credentials, network access, and permission to create/delete drafts.")]
+    [Trait("Category", "LiveGmail")]
     public async Task CreateConfirmDeleteDraftForEveryFireplaceModel()
     {
-        if (!string.Equals(Environment.GetEnvironmentVariable("FLARE_RUN_GMAIL_INTEGRATION"), "1",
-                           StringComparison.Ordinal))
-        {
-            return;
-        }
-
         using var overallTimeout = new CancellationTokenSource(OverallTimeout);
         var cancellationToken = overallTimeout.Token;
         var root = FindRepoRoot();

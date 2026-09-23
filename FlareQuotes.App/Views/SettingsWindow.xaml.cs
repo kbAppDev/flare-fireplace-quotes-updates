@@ -5,6 +5,7 @@ using System.Windows.Input;
 using FlareQuotes.App.ViewModels;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Core.Paths;
+using FlareQuotes.Core.Security;
 using FlareQuotes.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
@@ -15,22 +16,31 @@ namespace FlareQuotes.App.Views
     {
         private readonly ISettingsService _settingsService;
         private readonly IGmailDraftService? _gmailDraftService;
+        private readonly ISystemHealthService? _systemHealthService;
         private AppSettings _settings = new();
 
         public SettingsWindow() : this(
             App.Services.GetRequiredService<ISettingsService>(),
-            App.Services.GetRequiredService<IGmailDraftService>())
+            App.Services.GetRequiredService<IGmailDraftService>(),
+            App.Services.GetRequiredService<ISystemHealthService>())
         {
         }
 
-        internal SettingsWindow(ISettingsService settingsService) : this(settingsService, null)
+        internal SettingsWindow(ISettingsService settingsService) : this(settingsService, null, null)
         {
         }
 
-        internal SettingsWindow(ISettingsService settingsService, IGmailDraftService? gmailDraftService)
+        internal SettingsWindow(ISettingsService settingsService, IGmailDraftService? gmailDraftService) :
+            this(settingsService, gmailDraftService, null)
+        {
+        }
+
+        internal SettingsWindow(ISettingsService settingsService, IGmailDraftService? gmailDraftService,
+                                ISystemHealthService? systemHealthService)
         {
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
             _gmailDraftService = gmailDraftService;
+            _systemHealthService = systemHealthService;
             InitializeComponent();
             Loaded += async (_, _) => await LoadSettingsIntoFormAsync();
         }
@@ -66,7 +76,8 @@ namespace FlareQuotes.App.Views
             }
             catch (Exception ex)
             {
-                SettingsStatusText.Text = "Could not load settings: " + ex.Message;
+                SettingsStatusText.Text = FriendlyErrorMessage.FromException(
+                    ex, "Could not load settings. Close and reopen the window, then try again.");
             }
         }
 
@@ -163,7 +174,8 @@ namespace FlareQuotes.App.Views
             catch (Exception ex)
             {
                 // Inline status instead of a modal dialog, matching the rest of the app.
-                SettingsStatusText.Text = "Save failed: " + ex.Message;
+                SettingsStatusText.Text = FriendlyErrorMessage.FromException(
+                    ex, "Settings could not be saved. Check the values and try again.");
             }
         }
 
@@ -212,6 +224,11 @@ namespace FlareQuotes.App.Views
         }
         private async void CheckForUpdatesNow_Click(object sender, RoutedEventArgs e)
         {
+            if (!CheckUpdatesNowButton.IsEnabled)
+                return;
+
+            CheckUpdatesNowButton.IsEnabled = false;
+
             try
             {
                 UpdateStatusText.Text = "Checking for updates...";
@@ -228,15 +245,77 @@ namespace FlareQuotes.App.Views
 
                 var result = await updateService.CheckAsync(current);
 
-                if (result.UpdateAvailable && !string.IsNullOrWhiteSpace(result.LatestVersion))
-                    UpdateStatusText.Text =
-                        $"Update available: {result.LatestVersion}. Close Settings and restart the app with startup update checks enabled to open the verified installer prompt.";
-                else
+                if (!result.CheckSucceeded)
+                {
+                    UpdateStatusText.Text = string.IsNullOrWhiteSpace(result.Message)
+                                                ? "The update check could not be completed. Please try again."
+                                                : result.Message;
+                    return;
+                }
+
+                if (!result.UpdateAvailable)
+                {
                     UpdateStatusText.Text = $"You're on the latest version (v{current}).";
+                    return;
+                }
+
+                UpdateStatusText.Text = $"Update available: v{result.LatestVersion}.";
+                var started = await MainWindow.PromptAndInstallUpdateAsync(result, this);
+                if (!started)
+                    UpdateStatusText.Text = $"Update v{result.LatestVersion} is available whenever you're ready.";
             }
             catch (Exception ex)
             {
-                UpdateStatusText.Text = "Update check failed: " + ex.Message;
+                UpdateStatusText.Text = FriendlyErrorMessage.FromException(
+                    ex, "The update check could not be completed. Please try again.");
+            }
+            finally
+            {
+                CheckUpdatesNowButton.IsEnabled = true;
+            }
+        }
+
+        private async void RunSystemHealth_Click(object sender, RoutedEventArgs e)
+        {
+            if (!RunSystemHealthButton.IsEnabled)
+                return;
+
+            var healthService = _systemHealthService ?? App.Services.GetService<ISystemHealthService>();
+            if (healthService is null)
+            {
+                SystemHealthStatusText.Text = "System checks are unavailable on this machine.";
+                return;
+            }
+
+            RunSystemHealthButton.IsEnabled = false;
+            SystemHealthStatusText.Text = "Checking workbooks, Gmail storage, updates, and packaging...";
+
+            try
+            {
+                var items = await healthService.CheckAsync();
+                var errors = items.Count(item => item.State == SystemHealthState.Error);
+                var warnings = items.Count(item => item.State == SystemHealthState.Warning);
+                SystemHealthStatusText.Text = errors > 0
+                                                  ? $"{errors} item(s) need attention."
+                                                  : warnings > 0
+                                                      ? $"Ready with {warnings} item(s) to review."
+                                                      : "All checks passed.";
+
+                var healthWindow = new SystemHealthWindow(items)
+                {
+                    Owner = this,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner
+                };
+                healthWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                SystemHealthStatusText.Text =
+                    FriendlyErrorMessage.FromException(ex, "System checks could not be completed.");
+            }
+            finally
+            {
+                RunSystemHealthButton.IsEnabled = true;
             }
         }
     }

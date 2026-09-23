@@ -134,7 +134,7 @@
                                     </TextBlock.Style>
                                 </TextBlock>
                             </Border>
-                            <TextBlock Text="Verify links" VerticalAlignment="Center" FontSize="12">
+                            <TextBlock Text="Review links" VerticalAlignment="Center" FontSize="12">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
                                         <Style.Triggers>
@@ -265,7 +265,7 @@
                                 <TextBlock Text="Request content" FontSize="11.5" FontWeight="SemiBold" />
                                 <TextBlock Text="Ctrl + V to paste" Style="{StaticResource MutedText}" FontSize="11" HorizontalAlignment="Right" />
                             </Grid>
-                            <TextBox Grid.Row="2" Text="{Binding RawRequest, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Padding="14,12" />
+                            <TextBox Grid.Row="2" Text="{Binding RawRequest, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Padding="14,12" AutomationProperties.Name="Pasted quote request" />
                         </Grid>
                         <Border Grid.Row="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="18,12">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
@@ -273,7 +273,8 @@
                                         Style="{StaticResource QuietButton}"
                                         Click="RecallLastQuoteButton_Click"
                                         IsEnabled="{Binding CanRecallLastQuote}"
-                                        Height="34" Margin="0,0,8,0" Padding="10,6">
+                                        Height="34" Margin="0,0,8,0" Padding="10,6"
+                                        AutomationProperties.Name="Open recent quotes">
                                     <StackPanel Orientation="Horizontal">
                                         <Viewbox Width="14" Height="14" Margin="0,0,7,0"><Path Data="{StaticResource RecentIconGeometry}" Stroke="{DynamicResource FlareMutedTextBrush}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Viewbox>
                                         <TextBlock Text="Recent quotes" VerticalAlignment="Center" />
@@ -389,12 +390,12 @@
                                             <RowDefinition Height="12" />
                                             <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
-                                        <StackPanel Grid.Column="0"><TextBlock Text="Project" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding ProjectName}" /></StackPanel>
-                                        <StackPanel Grid.Column="2"><TextBlock Text="Customer" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding ClientName}" /></StackPanel>
-                                        <StackPanel Grid.Column="4"><TextBlock Text="Email" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Email}" /></StackPanel>
-                                        <StackPanel Grid.Row="2" Grid.Column="0"><TextBlock Text="Phone" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Phone}" /></StackPanel>
-                                        <StackPanel Grid.Row="2" Grid.Column="2"><TextBlock Text="Project address" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Postal}" /></StackPanel>
-                                        <StackPanel Grid.Row="2" Grid.Column="4"><TextBlock Text="Install target" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding InstallDate}" /></StackPanel>
+                                        <StackPanel Grid.Column="0"><TextBlock Text="Project" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding ProjectName}" AutomationProperties.Name="Project name" /></StackPanel>
+                                        <StackPanel Grid.Column="2"><TextBlock Text="Customer" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding ClientName}" AutomationProperties.Name="Customer name" /></StackPanel>
+                                        <StackPanel Grid.Column="4"><TextBlock Text="Email" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Email}" AutomationProperties.Name="Customer email" /></StackPanel>
+                                        <StackPanel Grid.Row="2" Grid.Column="0"><TextBlock Text="Phone" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Phone}" AutomationProperties.Name="Customer phone" /></StackPanel>
+                                        <StackPanel Grid.Row="2" Grid.Column="2"><TextBlock Text="Project address" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Postal}" AutomationProperties.Name="Project address" /></StackPanel>
+                                        <StackPanel Grid.Row="2" Grid.Column="4"><TextBlock Text="Install target" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding InstallDate}" AutomationProperties.Name="Installation target date" /></StackPanel>
                                     </Grid>
                                     <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="0,16,0,0" Margin="0,16,0,0">
                                         <StackPanel>
@@ -410,8 +411,8 @@
                                                 </Grid.RowDefinitions>
                                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Current fireplace" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
                                                 <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                    <Button Content="Clear current" Command="{Binding ClearCurrentFireplaceCommand}" Style="{StaticResource QuietButton}" Height="32" Margin="0,0,6,0" />
-                                                    <Button Content="{Binding AddFireplaceButtonText}" Command="{Binding AddFireplaceCommand}" Style="{StaticResource PrimaryButton}" Height="32" />
+                                                    <Button Content="Clear current" Command="{Binding ClearCurrentFireplaceCommand}" Style="{StaticResource QuietButton}" Height="32" Margin="0,0,6,0" AutomationProperties.Name="Clear current fireplace" />
+                                                    <Button x:Name="AddFireplaceButton" Content="{Binding AddFireplaceButtonText}" Command="{Binding AddFireplaceCommand}" Style="{StaticResource PrimaryButton}" Height="32" AutomationProperties.Name="Add or save current fireplace" />
                                                 </StackPanel>
                                                 <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
                                                            Text="Build the current fireplace, then add it to the quote."
@@ -450,7 +451,8 @@
                                                                         <ColumnDefinition Width="36" />
                                                                         <ColumnDefinition Width="30" />
                                                                     </Grid.ColumnDefinitions>
-                                                                    <Button Grid.Column="0"
+                                                                    <Button x:Name="DecreaseFireplaceQuantityButton"
+                                                                            Grid.Column="0"
                                                                             Content="−"
                                                                             Command="{Binding DecreaseFireplaceQuantityCommand}"
                                                                             Style="{StaticResource QuietButton}"
@@ -463,13 +465,16 @@
                                                                             BorderBrush="{DynamicResource DividerBrush}"
                                                                             BorderThickness="1,0"
                                                                             Background="{DynamicResource SurfaceRaisedBrush}">
-                                                                        <TextBlock Text="{Binding FireplaceQuantity}"
+                                                                        <TextBlock x:Name="FireplaceQuantityValue"
+                                                                                   Text="{Binding FireplaceQuantity}"
                                                                                    HorizontalAlignment="Center"
                                                                                    VerticalAlignment="Center"
                                                                                    FontSize="12.5"
-                                                                                   FontWeight="SemiBold" />
+                                                                                   FontWeight="SemiBold"
+                                                                                   AutomationProperties.Name="Fireplace quantity" />
                                                                     </Border>
-                                                                    <Button Grid.Column="2"
+                                                                    <Button x:Name="IncreaseFireplaceQuantityButton"
+                                                                            Grid.Column="2"
                                                                             Content="+"
                                                                             Command="{Binding IncreaseFireplaceQuantityCommand}"
                                                                             Style="{StaticResource QuietButton}"
@@ -490,10 +495,10 @@
                                                             <ColumnDefinition Width="0.8*" /><ColumnDefinition Width="12" />
                                                             <ColumnDefinition Width="1.1*" />
                                                         </Grid.ColumnDefinitions>
-                                                        <StackPanel Grid.Column="0"><TextBlock Text="Model" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                                                        <StackPanel Grid.Column="2"><TextBlock Text="Size" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Size, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                                                        <StackPanel Grid.Column="4"><TextBlock Text="Glass height" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding GlassHeight, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                                                        <StackPanel Grid.Column="6"><TextBlock Text="Fireplace location" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding FireplaceLocation, UpdateSourceTrigger=PropertyChanged}" ToolTip="Name the room or area, for example Living Room or Patio" /></StackPanel>
+                                                        <StackPanel Grid.Column="0"><TextBlock Text="Model" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Fireplace model" /></StackPanel>
+                                                        <StackPanel Grid.Column="2"><TextBlock Text="Size" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Size, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Fireplace size" /></StackPanel>
+                                                        <StackPanel Grid.Column="4"><TextBlock Text="Glass height" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding GlassHeight, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Fireplace glass height" /></StackPanel>
+                                                        <StackPanel Grid.Column="6"><TextBlock Text="Fireplace location" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding FireplaceLocation, UpdateSourceTrigger=PropertyChanged}" ToolTip="Name the room or area, for example Living Room or Patio" AutomationProperties.Name="Fireplace location" /></StackPanel>
                                                     </Grid>
 
                                                     <Grid Margin="0,12,0,0">
@@ -506,13 +511,13 @@
                                                         <StackPanel Grid.Column="0">
                                                             <TextBlock Text="Lead time" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
                                                             <Grid>
-                                                                <ToggleButton x:Name="LeadTimeDropdownButton" Content="{Binding LeadTimeDropdownButtonText}" IsChecked="{Binding IsLeadTimeDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
+                                                                <ToggleButton x:Name="LeadTimeDropdownButton" Content="{Binding LeadTimeDropdownButtonText}" IsChecked="{Binding IsLeadTimeDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" AutomationProperties.Name="Select lead time" />
                                                                 <Popup x:Name="LeadTimeDropdownPopup" AllowsTransparency="True" IsOpen="{Binding IsLeadTimeDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=LeadTimeDropdownButton}" Placement="Bottom" StaysOpen="True">
                                                                     <Border Width="260" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0">
                                                                         <StackPanel>
                                                                             <ItemsControl ItemsSource="{Binding LeadTimePresets}"><ItemsControl.ItemTemplate><DataTemplate><Button Content="{Binding}" Command="{Binding DataContext.SelectLeadTimeCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6" /></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
                                                                             <TextBlock Text="Custom lead time" Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,4" />
-                                                                            <TextBox Text="{Binding CustomLeadTime, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+                                                                            <TextBox Text="{Binding CustomLeadTime, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" AutomationProperties.Name="Custom lead time" />
                                                                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="6" /><ColumnDefinition Width="*" /><ColumnDefinition Width="6" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearLeadTimeCommand}" Height="32" /><Button Grid.Column="2" Content="Use custom" Command="{Binding SelectLeadTimeCommand}" CommandParameter="" Height="32" /><Button Grid.Column="4" Content="Done" Command="{Binding CloseLeadTimeDropdownCommand}" Height="32" /></Grid>
                                                                         </StackPanel>
                                                                     </Border>
@@ -523,9 +528,9 @@
                                                         <StackPanel Grid.Column="2">
                                                             <TextBlock Text="Additional features" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
                                                             <Grid>
-                                                                <ToggleButton x:Name="FeatureDropdownButton" Content="{Binding FeatureDropdownButtonText}" IsChecked="{Binding IsFeatureDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
+                                                                <ToggleButton x:Name="FeatureDropdownButton" Content="{Binding FeatureDropdownButtonText}" IsChecked="{Binding IsFeatureDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" AutomationProperties.Name="Select additional features" />
                                                                 <Popup x:Name="FeatureDropdownPopup" AllowsTransparency="True" IsOpen="{Binding IsFeatureDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=FeatureDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
-                                                                    <Border Width="300" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding FeatureSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search features" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredFeatureOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.ToggleFeatureCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearFeaturesCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding CloseFeatureDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
+                                                                    <Border Width="300" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding FeatureSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search features" AutomationProperties.Name="Search additional features" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredFeatureOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.ToggleFeatureCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearFeaturesCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding CloseFeatureDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
                                                                 </Popup>
                                                             </Grid>
                                                         </StackPanel>
@@ -533,9 +538,9 @@
                                                         <StackPanel Grid.Column="4">
                                                             <TextBlock Text="Included classic media" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
                                                             <Grid>
-                                                                <ToggleButton x:Name="ClassicMediaDropdownButton" Content="{Binding ClassicMediaDropdownButtonText}" IsChecked="{Binding IsClassicMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
+                                                                <ToggleButton x:Name="ClassicMediaDropdownButton" Content="{Binding ClassicMediaDropdownButtonText}" IsChecked="{Binding IsClassicMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" AutomationProperties.Name="Select included classic media" />
                                                                 <Popup x:Name="ClassicMediaDropdownPopup" AllowsTransparency="True" IsOpen="{Binding IsClassicMediaDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=ClassicMediaDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
-                                                                    <Border Width="300" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding ClassicMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search classic media" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredClassicMediaOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.SelectClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearClassicMediaCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding CloseClassicMediaDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
+                                                                    <Border Width="300" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding ClassicMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search classic media" AutomationProperties.Name="Search included classic media" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredClassicMediaOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.SelectClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearClassicMediaCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding CloseClassicMediaDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
                                                                 </Popup>
                                                             </Grid>
                                                         </StackPanel>
@@ -546,27 +551,27 @@
                                                         <StackPanel Grid.Column="0">
                                                             <TextBlock Text="Additional classic media" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
                                                             <Grid>
-                                                                <ToggleButton x:Name="AdditionalClassicMediaDropdownButton" Content="{Binding AdditionalClassicMediaDropdownButtonText}" IsChecked="{Binding IsAdditionalClassicMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
+                                                                <ToggleButton x:Name="AdditionalClassicMediaDropdownButton" Content="{Binding AdditionalClassicMediaDropdownButtonText}" IsChecked="{Binding IsAdditionalClassicMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" AutomationProperties.Name="Select additional classic media" />
                                                                 <Popup x:Name="AdditionalClassicMediaDropdownPopup" AllowsTransparency="True" IsOpen="{Binding IsAdditionalClassicMediaDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=AdditionalClassicMediaDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
-                                                                    <Border Width="320" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding AdditionalClassicMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search additional classic media" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredAdditionalClassicMediaOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.SelectAdditionalClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearAdditionalClassicMediaCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding CloseAdditionalClassicMediaDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
+                                                                    <Border Width="320" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding AdditionalClassicMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search additional classic media" AutomationProperties.Name="Search additional classic media" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredAdditionalClassicMediaOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.SelectAdditionalClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearAdditionalClassicMediaCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding CloseAdditionalClassicMediaDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
                                                                 </Popup>
                                                             </Grid>
                                                         </StackPanel>
                                                         <StackPanel Grid.Column="2">
                                                             <TextBlock Text="Premium media" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
                                                             <Grid>
-                                                                <ToggleButton x:Name="PremiumMediaDropdownButton" Content="{Binding PremiumMediaDropdownButtonText}" IsChecked="{Binding IsPremiumMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" />
+                                                                <ToggleButton x:Name="PremiumMediaDropdownButton" Content="{Binding PremiumMediaDropdownButtonText}" IsChecked="{Binding IsPremiumMediaDropdownOpen, Mode=TwoWay}" HorizontalContentAlignment="Left" PreviewMouseLeftButtonDown="DropdownToggle_PreviewMouseLeftButtonDown" AutomationProperties.Name="Select premium media" />
                                                                 <Popup x:Name="PremiumMediaDropdownPopup" AllowsTransparency="True" IsOpen="{Binding IsPremiumMediaDropdownOpen, Mode=TwoWay}" PlacementTarget="{Binding ElementName=PremiumMediaDropdownButton}" Placement="Bottom" StaysOpen="True" Opened="DropdownPopup_Opened">
-                                                                    <Border Width="320" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding PremiumMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search premium media" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredPremiumMediaOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.TogglePremiumMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearPremiumMediaCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding ClosePremiumMediaDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
+                                                                    <Border Width="320" Background="{DynamicResource DropdownPopupBrush}" BorderBrush="{DynamicResource DropdownOptionBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,4,0,0"><StackPanel><TextBox Text="{Binding PremiumMediaSearch, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" ToolTip="Search premium media" AutomationProperties.Name="Search premium media" /><ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180"><ItemsControl ItemsSource="{Binding FilteredPremiumMediaOptions}"><ItemsControl.ItemTemplate><DataTemplate><Button Command="{Binding DataContext.TogglePremiumMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Margin="0,0,0,6"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" /></Button></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer><Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Button Content="Clear" Command="{Binding ClearPremiumMediaCommand}" Height="32" /><Button Grid.Column="2" Content="Done" Command="{Binding ClosePremiumMediaDropdownCommand}" Height="32" /></Grid></StackPanel></Border>
                                                                 </Popup>
                                                             </Grid>
                                                         </StackPanel>
                                                     </Grid>
 
                                                     <WrapPanel Margin="0,12,0,0">
-                                                        <ItemsControl ItemsSource="{Binding SelectedFeatures}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedFeatureChip" Cursor="SizeAll" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="#1B2A16" BorderBrush="#496529" BorderThickness="1" CornerRadius="14" Padding="10,4" Margin="0,0,7,7"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DisplayName}" FontSize="11" /><Button Content="×" Style="{StaticResource ChipRemoveButton}" Command="{Binding DataContext.RemoveFeatureCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,-5,0" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-                                                        <ItemsControl ItemsSource="{Binding SelectedAdditionalClassicMedia}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedAdditionalClassicMediaChip" Cursor="SizeAll" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,4" Margin="0,0,7,7"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DisplayName}" FontSize="11" /><Button Content="×" Style="{StaticResource ChipRemoveButton}" Command="{Binding DataContext.RemoveAdditionalClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,-5,0" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
-                                                        <ItemsControl ItemsSource="{Binding SelectedPremiumMedia}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedPremiumMediaChip" Cursor="SizeAll" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,4" Margin="0,0,7,7"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DisplayName}" FontSize="11" /><Button Content="×" Style="{StaticResource ChipRemoveButton}" Command="{Binding DataContext.RemovePremiumMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,-5,0" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                                        <ItemsControl ItemsSource="{Binding SelectedFeatures}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedFeatureChip" Cursor="SizeAll" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="#1B2A16" BorderBrush="#496529" BorderThickness="1" CornerRadius="14" Padding="10,4" Margin="0,0,7,7"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DisplayName}" FontSize="11" /><Button Content="×" Style="{StaticResource ChipRemoveButton}" Command="{Binding DataContext.RemoveFeatureCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,-5,0" AutomationProperties.Name="{Binding DisplayName, StringFormat='Remove {0}'}" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                                        <ItemsControl ItemsSource="{Binding SelectedAdditionalClassicMedia}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedAdditionalClassicMediaChip" Cursor="SizeAll" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,4" Margin="0,0,7,7"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DisplayName}" FontSize="11" /><Button Content="×" Style="{StaticResource ChipRemoveButton}" Command="{Binding DataContext.RemoveAdditionalClassicMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,-5,0" AutomationProperties.Name="{Binding DisplayName, StringFormat='Remove {0}'}" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                                        <ItemsControl ItemsSource="{Binding SelectedPremiumMedia}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate><Border Tag="SelectedPremiumMediaChip" Cursor="SizeAll" PreviewMouseLeftButtonDown="SelectedChip_PreviewMouseLeftButtonDown" PreviewMouseMove="SelectedChip_PreviewMouseMove" PreviewMouseLeftButtonUp="SelectedChip_PreviewMouseLeftButtonUp" LostMouseCapture="SelectedChip_LostMouseCapture" Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="14" Padding="10,4" Margin="0,0,7,7"><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding DisplayName}" FontSize="11" /><Button Content="×" Style="{StaticResource ChipRemoveButton}" Command="{Binding DataContext.RemovePremiumMediaCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="5,0,-5,0" AutomationProperties.Name="{Binding DisplayName, StringFormat='Remove {0}'}" /></StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
                                                     </WrapPanel>
                                                 </StackPanel>
                                             </Border>
@@ -632,7 +637,7 @@
                                 <TextBlock Grid.Column="0" Text="{Binding GeneratedPdfSummary}" Style="{StaticResource MutedText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,12,0" />
                                 <Button Grid.Column="1" Content="Back" Command="{Binding BackToReviewCommand}" Height="40" />
                                 <Button Grid.Column="3" Content="Open Generated PDF" Command="{Binding OpenGeneratedPdfCommand}" Height="40" Padding="16,0" />
-                                <Button Grid.Column="5" Content="Verify URLs" Command="{Binding NextToSpecLinksCommand}" Style="{StaticResource PrimaryButton}" Height="40" />
+                                <Button Grid.Column="5" Content="Review URLs" Command="{Binding NextToSpecLinksCommand}" Style="{StaticResource PrimaryButton}" Height="40" />
                             </Grid>
                         </Grid>
 
@@ -657,7 +662,7 @@
                             </Grid.RowDefinitions>
 
                             <StackPanel Grid.Row="0">
-                                <TextBlock Text="Verify URLs" FontSize="20" FontWeight="SemiBold" />
+                                <TextBlock Text="Review resource URLs" FontSize="20" FontWeight="SemiBold" />
                                 <TextBlock Text="Review the product/spec URLs before creating the Gmail draft." Style="{StaticResource MutedText}" Margin="0,4,0,0"  Visibility="Collapsed" />
                             </StackPanel>
 
@@ -854,7 +859,7 @@
                                             </Grid.ColumnDefinitions>
 
                                             <TextBlock Text="{Binding Item}" Foreground="{DynamicResource FlareTextBrush}" VerticalAlignment="Center" Margin="16,0,8,0" />
-                                            <TextBox Grid.Column="1" Text="{Binding Url}" VerticalAlignment="Center" Margin="6,3" Padding="8,4" IsReadOnly="True" BorderThickness="0" Background="{DynamicResource FlareInputBrush}" Foreground="{DynamicResource FlareTextBrush}" />
+                                            <TextBox Grid.Column="1" Text="{Binding Url}" VerticalAlignment="Center" Margin="6,3" Padding="8,4" IsReadOnly="True" BorderThickness="0" Background="{DynamicResource FlareInputBrush}" Foreground="{DynamicResource FlareTextBrush}" AutomationProperties.Name="Approved resource URL" />
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="14,0,0,0">
                                                 <Grid Width="22" Height="22" Margin="0,0,8,0">
                                                     <Ellipse Width="13" Height="13" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -917,14 +922,16 @@
                                          Height="32"
                                          Margin="0,0,8,0"
                                          Padding="8,4"
-                                         ToolTip="Tool name, for example Installation Manual or Custom Link" />
+                                         ToolTip="Tool name, for example Installation Manual or Custom Link"
+                                         AutomationProperties.Name="Custom resource name" />
 
                                 <TextBox Grid.Column="1"
                                          Text="{Binding ManualUrlValue, UpdateSourceTrigger=PropertyChanged}"
                                          Height="32"
                                          Margin="0,0,8,0"
                                          Padding="8,4"
-                                         ToolTip="Paste URL starting with https://" />
+                                         ToolTip="Paste URL starting with https://"
+                                         AutomationProperties.Name="Custom resource URL" />
 
                                 <Button Grid.Column="2"
                                         Content="Add URL"
@@ -1104,7 +1111,15 @@
                                 <ItemsControl ItemsSource="{Binding Fireplaces}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Button Command="{Binding DataContext.EditFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="0,0,0,10" HorizontalContentAlignment="Stretch" Cursor="Hand" ToolTip="Click to edit this fireplace">
+                                            <Button Command="{Binding DataContext.EditFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="0,0,0,10" HorizontalContentAlignment="Stretch" Cursor="Hand" ToolTip="Click to edit this fireplace" AutomationProperties.Name="{Binding DisplayName, StringFormat='Edit {0}'}" AutomationProperties.HelpText="Press Alt+Up or Alt+Down to reorder this fireplace.">
+                                                <Button.InputBindings>
+                                                    <KeyBinding Key="Up" Modifiers="Alt"
+                                                                Command="{Binding DataContext.MoveFireplaceUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}" />
+                                                    <KeyBinding Key="Down" Modifiers="Alt"
+                                                                Command="{Binding DataContext.MoveFireplaceDownCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}" />
+                                                </Button.InputBindings>
                                                 <Button.Template>
                                                     <ControlTemplate TargetType="Button">
                                                         <ContentPresenter HorizontalAlignment="Stretch" />
@@ -1150,7 +1165,8 @@
                                                             <Button Grid.Column="3" Content="×" Style="{StaticResource ChipRemoveButton}"
                                                                     PreviewMouseLeftButtonDown="FireplaceRemove_PreviewMouseLeftButtonDown"
                                                                     Command="{Binding DataContext.RemoveFireplaceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                    CommandParameter="{Binding}" Margin="8,0,0,0" ToolTip="Remove — burns away" />
+                                                                    CommandParameter="{Binding}" Margin="8,0,0,0" ToolTip="Remove — burns away"
+                                                                    AutomationProperties.Name="{Binding DisplayName, StringFormat='Remove {0}'}" />
                                                         </Grid>
                                                         <TextBlock Text="{Binding DetailLine}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
                                                         <WrapPanel Margin="0,9,0,-5">
@@ -1239,7 +1255,7 @@
                                         <TextBlock Text="{Binding EstimatedTotalDisplay}" FontSize="15" FontWeight="Bold" HorizontalAlignment="Right" />
                                     </StackPanel>
                                 </Grid>
-                                <Button x:Name="GeneratePreviewButton" Command="{Binding NextToPreviewCommand}" IsEnabled="{Binding CanGeneratePreview}" Height="40" HorizontalAlignment="Stretch">
+                                <Button x:Name="GeneratePreviewButton" Command="{Binding NextToPreviewCommand}" IsEnabled="{Binding CanGeneratePreview}" Height="40" HorizontalAlignment="Stretch" AutomationProperties.Name="Generate quote preview">
                                     <Button.Style>
                                         <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
                                             <Setter Property="Content" Value="Generate preview  →" />

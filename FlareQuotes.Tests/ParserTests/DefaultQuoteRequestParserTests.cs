@@ -36,14 +36,14 @@ public sealed class DefaultQuoteRequestParserTests
         var parser = new DefaultQuoteRequestParser();
         var result = parser.Parse("""
             Project Name: Hidden Character Test
-            Name: Phil Daloisio
-            Email: phil​daloisio＠gmail．com 
+            Name: Test Customer
+            Email: cus​tomer＠example．com 
             Model: FF
             Size: 60
             Glass Height: 24
             """);
 
-        Assert.Equal("phildaloisio@gmail.com", result.Email);
+        Assert.Equal("customer@example.com", result.Email);
     }
 
     [Theory]
@@ -102,7 +102,7 @@ public sealed class DefaultQuoteRequestParserTests
         var result = parser.Parse("""
             Project Name:
             Meg
-            meg.gh.usa@gmail.com
+            meg@example.com
             8186405359
             Postal: 91344
             Estimated Install Date:
@@ -114,7 +114,7 @@ public sealed class DefaultQuoteRequestParserTests
 
         Assert.Equal(string.Empty, result.ProjectName);
         Assert.Equal("Meg", result.ClientName);
-        Assert.Equal("meg.gh.usa@gmail.com", result.Email);
+        Assert.Equal("meg@example.com", result.Email);
         Assert.Equal("(818) 640-5359", result.Phone);
         Assert.Equal("91344", result.Postal);
         Assert.Equal(string.Empty, result.InstallDate);

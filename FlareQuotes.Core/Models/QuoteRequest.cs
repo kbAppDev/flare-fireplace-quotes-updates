@@ -14,7 +14,8 @@ public sealed class QuoteRequest
     public string Size { get; set; } = string.Empty;
     public string GlassHeight { get; set; } = string.Empty;
     public string QuoteDate { get; set; } = DateTime.Now.ToShortDateString();
-    public string QuoteNumber { get; set; } = string.Empty;
+    public string QuoteNumber { get; set; } = QuoteNumberGenerator.Create();
+    public QuoteBranding Branding { get; set; } = new();
     public string RawFeaturesText { get; set; } = string.Empty;
     public string RawRequestText { get; set; } = string.Empty;
     public List<FireplaceQuote> Fireplaces { get; set; } = [];

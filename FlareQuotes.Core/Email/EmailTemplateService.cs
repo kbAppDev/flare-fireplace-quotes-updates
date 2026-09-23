@@ -1,5 +1,6 @@
 using System.Net;
 using FlareQuotes.Core.Models;
+using FlareQuotes.Core.Security;
 
 namespace FlareQuotes.Core.Email;
 
@@ -32,7 +33,11 @@ public sealed class EmailTemplateService
                            ? "Hello,"
                            : $"<strong><em>{WebUtility.HtmlEncode(firstName)},</em></strong>";
 
-        var consultation = WebUtility.HtmlEncode(settings.ConsultationUrl);
+        var consultationUrl = TrustedExternalLinkPolicy.TryNormalizeConsultation(
+                                  settings.ConsultationUrl, out var trustedConsultation)
+                                  ? trustedConsultation
+                                  : "https://flarefireplaces.com/";
+        var consultation = WebUtility.HtmlEncode(consultationUrl);
         var specLinks = BuildSpecLinks(resourceLinks);
 
         var fireplaceCount = priced.TotalFireplaceQuantity;
@@ -80,14 +85,21 @@ public sealed class EmailTemplateService
 
             var label = $"<strong>{WebUtility.HtmlEncode(labelText)}:</strong>";
 
-            var links =
-                set.Links.Where(x => !string.IsNullOrWhiteSpace(x.Value))
-                    .Select(x => $"<a href=\"{WebUtility.HtmlEncode(x.Value)}\">{WebUtility.HtmlEncode(x.Key)}</a>");
+            var links = set.Links.Select(x =>
+                                TrustedExternalLinkPolicy.TryNormalize(x.Value, out var url)
+                                    ? new KeyValuePair<string, string>(x.Key, url)
+                                    : default)
+                           .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+                           .Select(x => $"<a href=\"{WebUtility.HtmlEncode(x.Value)}\">{WebUtility.HtmlEncode(x.Key)}</a>")
+                           .ToArray();
 
-            lines.Add(label + " " + string.Join(" | ", links));
+            if (links.Length > 0)
+                lines.Add(label + " " + string.Join(" | ", links));
         }
 
-        return string.Join(SectionSpacing, lines);
+        return lines.Count == 0
+                   ? "<strong>Spec Files:</strong> No verified resource links are available."
+                   : string.Join(SectionSpacing, lines);
     }
 
     private static string BuildSubjectModelSuffix(PricedFireplaceQuote? fireplace)

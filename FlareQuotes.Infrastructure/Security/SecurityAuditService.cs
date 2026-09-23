@@ -13,48 +13,113 @@ public sealed class SecurityAuditService : ISecurityAuditService
 
         var items = new List<SystemHealthItem>();
 
-        var currentTokenDirectory = Path.Combine(AppPaths.Root, "GmailToken");
-        var tokenDirectories = new[] { currentTokenDirectory }
-            .Concat(AppPaths.LegacyRoots.Select(root => Path.Combine(root, "gmail-token")))
-            .Where(Directory.Exists)
+        items.Add(AuditTokenStores(AppPaths.GmailTokenAuditStores));
+
+        var settingsPath = AppPaths.SettingsFile;
+
+        items.Add(AuditSettingsFile(settingsPath));
+        items.Add(AuditLegacyGmailCredentialCopy());
+
+        return Task.FromResult<IReadOnlyList<SystemHealthItem>>(items);
+    }
+
+    internal static SystemHealthItem AuditTokenStores(IEnumerable<string> tokenStorePaths)
+    {
+        var roots = tokenStorePaths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(Path.GetFullPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var activeDirectories = roots.Where(Directory.Exists).ToArray();
+        var archiveDirectories = roots.SelectMany(FindReconnectArchives)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var tokenDirectories = activeDirectories.Concat(archiveDirectories)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         if (tokenDirectories.Length == 0)
         {
-            items.Add(new SystemHealthItem
+            return new SystemHealthItem
             {
                 Name = "Gmail token store",
                 Detail = "No Gmail token store found yet. It will be created after Gmail is connected.",
                 State = SystemHealthState.Warning
-            });
+            };
         }
-        else
-        {
-            var tokenFiles = tokenDirectories
-                .SelectMany(directory => Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly))
-                .ToArray();
-            var protectedTokens = tokenFiles.Where(path =>
-                path.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase)).ToArray();
-            var plaintextTokens = tokenFiles.Where(path =>
-                !path.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase) && LooksLikePlaintextToken(path)).ToArray();
 
-            items.Add(new SystemHealthItem
+        var tokenFiles = tokenDirectories.SelectMany(GetTokenFiles).ToArray();
+        var protectedTokens = tokenFiles.Where(path =>
+            path.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase)).ToArray();
+        var plaintextTokens = tokenFiles.Where(path =>
+            !path.EndsWith(".dpapi", StringComparison.OrdinalIgnoreCase) && LooksLikePlaintextToken(path)).ToArray();
+
+        if (plaintextTokens.Length > 0)
+        {
+            return new SystemHealthItem
             {
                 Name = "Gmail token store",
-                Detail =
-                    plaintextTokens.Length == 0
-                        ? $"DPAPI token protection active. Protected token files found: {protectedTokens.Length}."
-                        : $"Plain-text token files found: {plaintextTokens.Length}. Reconnect Gmail to migrate/remove them.",
-                State = plaintextTokens.Length == 0 ? SystemHealthState.Ok : SystemHealthState.Error
-            });
+                Detail = $"Plain-text token files found: {plaintextTokens.Length}. Reconnect Gmail to replace them with protected credentials.",
+                State = SystemHealthState.Error
+            };
         }
 
-        var settingsPath = AppPaths.SettingsFile;
+        if (archiveDirectories.Length > 0)
+        {
+            return new SystemHealthItem
+            {
+                Name = "Gmail token store",
+                Detail = $"Protected token files: {protectedTokens.Length}. Reconnect archives awaiting cleanup: {archiveDirectories.Length}.",
+                State = SystemHealthState.Warning
+            };
+        }
 
-        items.Add(AuditSettingsFile(settingsPath));
+        if (protectedTokens.Length == 0)
+        {
+            return new SystemHealthItem
+            {
+                Name = "Gmail token store",
+                Detail = "The Gmail token folder exists but contains no protected authorization token. Reconnect Gmail.",
+                State = SystemHealthState.Warning
+            };
+        }
 
-        return Task.FromResult<IReadOnlyList<SystemHealthItem>>(items);
+        return new SystemHealthItem
+        {
+            Name = "Gmail token store",
+            Detail = $"DPAPI token protection active. Protected token files found: {protectedTokens.Length}.",
+            State = SystemHealthState.Ok
+        };
+    }
+
+    private static IEnumerable<string> FindReconnectArchives(string tokenStorePath)
+    {
+        var parent = Directory.GetParent(tokenStorePath)?.FullName;
+        if (string.IsNullOrWhiteSpace(parent) || !Directory.Exists(parent))
+            return [];
+
+        var folderName = Path.GetFileName(
+            tokenStorePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        try
+        {
+            return Directory.GetDirectories(parent, $"{folderName}.reconnect-*", SearchOption.TopDirectoryOnly);
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static IEnumerable<string> GetTokenFiles(string directory)
+    {
+        try
+        {
+            return Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly);
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     private static bool LooksLikePlaintextToken(string path)
@@ -124,6 +189,40 @@ public sealed class SecurityAuditService : ISecurityAuditService
             {
                 Name = "Settings storage",
                 Detail = "Settings file exists but could not be parsed. The app will rebuild defaults if needed.",
+                State = SystemHealthState.Warning
+            };
+        }
+    }
+
+    private static SystemHealthItem AuditLegacyGmailCredentialCopy()
+    {
+        var legacyPath = Path.Combine(AppPaths.Root, "gmail_credentials.json");
+        try
+        {
+            var info = new FileInfo(legacyPath);
+            if (!info.Exists)
+            {
+                return new SystemHealthItem
+                {
+                    Name = "Gmail credential storage",
+                    Detail = "No obsolete root-level Gmail credential copy was found.",
+                    State = SystemHealthState.Ok
+                };
+            }
+
+            return new SystemHealthItem
+            {
+                Name = "Gmail credential storage",
+                Detail = "An obsolete Gmail credential copy remains outside the protected Credentials folder.",
+                State = SystemHealthState.Warning
+            };
+        }
+        catch
+        {
+            return new SystemHealthItem
+            {
+                Name = "Gmail credential storage",
+                Detail = "The obsolete Gmail credential location could not be checked.",
                 State = SystemHealthState.Warning
             };
         }
