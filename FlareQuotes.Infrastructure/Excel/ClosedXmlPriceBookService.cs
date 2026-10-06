@@ -380,6 +380,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 continue;
             }
             var type = input.Type == FireplaceType.Unknown ? DetectType(inputModel, inputSize) : input.Type;
+            if (type == FireplaceType.Traditional)
+                inputSize = FirstNonBlank(inputSize, SizeDigitsFromModelCode(inputModel));
             // Outdoor Kit type promotion
             type = ApplyIndoorOutdoorSeeThroughForOutdoorKit(type, inputModel, input.Features);
             var baseRow = FindBaseRow(workbook, type, inputModel, inputSize, inputGlassHeight);
@@ -392,8 +394,9 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                                     (!requiresOutdoorKitPrice || includedOutdoorKitRow?.Price is not null)
                                         ? AddPrices(baseRow.Price, includedOutdoorKitRow?.Price)
                                         : null;
-            var modelNumber = ResolveModelNumber(workbook, type, inputModel, inputSize, inputGlassHeight) ??
-                              BuildModelNumber(type, inputModel, inputSize, inputGlassHeight);
+            var modelNumber = FirstNonBlank(
+                ResolveModelNumber(workbook, type, inputModel, inputSize, inputGlassHeight),
+                BuildModelNumber(type, inputModel, inputSize, inputGlassHeight));
             var priced = new PricedFireplaceQuote
             {
                 FireplaceLabel = BuildLabel(input),
@@ -462,15 +465,16 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             foreach (var media in input.PremiumMedia)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                var mediaSize = MediaCalculationSize(type, inputModel, inputSize);
                 if (IsStoneBallsMedia(media))
                 {
-                    priced.OptionalFeatures.Add(BuildStoneBallsPriceLine(media, inputSize));
+                    priced.OptionalFeatures.Add(BuildStoneBallsPriceLine(media, mediaSize));
                     continue;
                 }
 
                 if (IsDriftwoodMedia(media))
                 {
-                    var driftwoodLine = BuildDriftwoodPriceLine(workbook, type, inputSize, inputModel);
+                    var driftwoodLine = BuildDriftwoodPriceLine(workbook, type, mediaSize, inputModel);
                     if (!media.IsPremium)
                     {
                         driftwoodLine.Feature = "Add. Classic Media - Driftwood";
@@ -484,7 +488,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 }
 
                 var row = FindPremiumMediaRow(workbook, media.Key, media.DisplayName);
-                var quantity = CalculatePremiumMediaQuantity(workbook, type, media, inputSize, inputModel);
+                var quantity = CalculatePremiumMediaQuantity(workbook, type, media, mediaSize, inputModel);
                 var mediaFeatureName =
                     media.IsPremium ? media.DisplayName : $"Add. Classic Media - {media.DisplayName}";
                 priced.OptionalFeatures.Add(
@@ -547,6 +551,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             if (IsInvalidLargeSeeThroughModel(inputModel, inputSize))
                 continue;
             var type = input.Type == FireplaceType.Unknown ? DetectType(inputModel, inputSize) : input.Type;
+            if (type == FireplaceType.Traditional)
+                inputSize = FirstNonBlank(inputSize, SizeDigitsFromModelCode(inputModel));
             // Outdoor Kit type promotion
             type = ApplyIndoorOutdoorSeeThroughForOutdoorKit(type, inputModel, input.Features);
             var outdoorLinkRow = await Task.Run(
@@ -570,6 +576,9 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             if (string.IsNullOrWhiteSpace(modelNumber))
                 modelNumber = BuildModelNumber(type, inputModel, inputSize, inputGlassHeight);
 
+            if (type == FireplaceType.Traditional && TraditionalFireplaceModel.IsBonfire(inputModel))
+                modelNumber = BuildModelNumber(type, inputModel, inputSize, inputGlassHeight);
+
             // Passage resource model-number override
             if (IsPassageModel(inputModel))
                 modelNumber = PassageModelCode(inputModel);
@@ -586,6 +595,9 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             var columns = ResourceColumns(type)
                          .Where(column => !usePassiveHeatFlexFraming || !IsStandardFramingResource(column))
                          .ToList();
+            var bonfireProductSheet = BonfireProductSheetUrl(type, inputModel, inputSize);
+            if (!string.IsNullOrWhiteSpace(bonfireProductSheet))
+                columns.Insert(0, "Product Sheet");
             if (usePassiveHeatFlexFraming)
                 columns.Add(PassiveHeatFlexFramingLabel);
             var rowFallback = linkRow is not null ? CleanCellUrl(First(linkRow.RawValues, "Fallback URL", "Fallback",
@@ -597,6 +609,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             {
                 var url = string.Equals(col, PassiveHeatFlexFramingLabel, StringComparison.OrdinalIgnoreCase)
                               ? passiveHeatFlexFramingUrl
+                              : col == "Product Sheet" && !string.IsNullOrWhiteSpace(bonfireProductSheet)
+                                  ? bonfireProductSheet
                               : linkRow is not null ? ResourceUrl(linkRow, col) : string.Empty;
                 set.Links[col] = string.IsNullOrWhiteSpace(url) ? fallback : url;
                 set.Sources[col] = string.IsNullOrWhiteSpace(url) ? "fallback" : "specific";
@@ -1286,11 +1300,19 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         }
 
         if (type == FireplaceType.Traditional)
-            return Best(rows, r => Text(r).Contains("traditional", StringComparison.OrdinalIgnoreCase) &&
-                                   ContainsSize(r, sizeNum) &&
-                                   !Text(r).Contains("double glass", StringComparison.OrdinalIgnoreCase) &&
-                                   !Text(r).Contains("reflective", StringComparison.OrdinalIgnoreCase) &&
-                                   !Text(r).Contains("brick", StringComparison.OrdinalIgnoreCase));
+        {
+            if (string.IsNullOrWhiteSpace(sizeNum))
+                return null;
+
+            var isBonfire = TraditionalFireplaceModel.IsBonfire(model);
+            var exactSku = isBonfire ? $"TRABON{sizeNum}" : $"DVTRA{sizeNum}";
+            var exact = rows.FirstOrDefault(row => Eq(Compact(row.Sku), exactSku));
+            if (exact is not null)
+                return exact;
+
+            // A missing burner variant must remain a missing price, rather than borrowing the other model's row.
+            return Best(rows, row => IsTraditionalBasePriceRow(row, isBonfire, sizeNum));
+        }
 
         if (type == FireplaceType.Large)
         {
@@ -1314,6 +1336,32 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                                !Text(r).Contains("wind guard", StringComparison.OrdinalIgnoreCase) &&
                                !Text(r).Contains("rgb", StringComparison.OrdinalIgnoreCase));
     }
+
+    private static bool IsTraditionalBasePriceRow(PriceRow row, bool isBonfire, string size)
+    {
+        var text = Normalize($"{row.Sku} {row.PartName} {row.Description}");
+        if (Regex.IsMatch(text,
+                @"\b(?:logs?|kits?|covers?|accessor(?:y|ies)|replacement|retrofit|retro fit|media|bricks?|reflective|double glass|louvers?|fans?|switch|remote|power vent)\b",
+                RegexOptions.CultureInvariant))
+            return false;
+
+        var rowIsBonfire = TraditionalFireplaceModel.IsBonfire(row.Sku) ||
+                           TraditionalFireplaceModel.IsBonfire(row.PartName) ||
+                           TraditionalFireplaceModel.IsBonfire(row.Description);
+        if (rowIsBonfire != isBonfire || !ContainsSize(row, size))
+            return false;
+
+        var prefixes = isBonfire ? "(?:TRABON|TRBON|BONTR|BONTRA)" : "(?:DVTRA|TRA|TR)";
+        var baseIdentifier = $@"^(?:FLARE)?{prefixes}{Regex.Escape(size)}$";
+        var hasBaseIdentifier = Regex.IsMatch(Compact(row.Sku), baseIdentifier, RegexOptions.CultureInvariant) ||
+                                Regex.IsMatch(Compact(row.PartName), baseIdentifier, RegexOptions.CultureInvariant);
+        var description = Normalize(row.Description);
+        var describesFireplace = Regex.IsMatch(description, @"\btraditional\b.*\bfireplace\b|\bfireplace\b.*\btraditional\b",
+                                               RegexOptions.CultureInvariant) &&
+                                 !Regex.IsMatch(description, @"\bfor\b.*\bfireplace\b", RegexOptions.CultureInvariant);
+        return hasBaseIdentifier || describesFireplace;
+    }
+
     private static PriceRow? FindFeatureRow(PriceBookWorkbook wb, FireplaceType type, string model, string size,
                                             string glassHeight, string feature)
     {
@@ -1994,6 +2042,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (norm.Contains("aqua") && norm.Contains("glass"))
             return Best(rows, r => Text(r).Contains("Aqua", StringComparison.OrdinalIgnoreCase) &&
                                    Text(r).Contains("Glass", StringComparison.OrdinalIgnoreCase));
+        if ((norm.Contains("chestnut") && norm.Contains("glass")) || norm.Contains("pmdfgc"))
+            return BySku("PMDFGC", "PFG-Chestnut");
         if (norm.Contains("black stones") || norm.Contains("premium black"))
             return Best(rows, r => Text(r).Contains("Premium Black", StringComparison.OrdinalIgnoreCase));
         if (norm.Contains("white stones") || norm.Contains("cottage white stones"))
@@ -2400,6 +2450,9 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (scopedRows.Count == 0)
             scopedRows = rows;
 
+        if (type == FireplaceType.Traditional && !TraditionalFireplaceModel.IsBonfire(model))
+            scopedRows = scopedRows.Where(row => !TraditionalFireplaceModel.IsBonfire(ResourceModelKey(row))).ToList();
+
         // Passage resource row scoping
         if (IsPassageModel(model))
         {
@@ -2450,8 +2503,10 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
     private static string? ResolveModelNumber(PriceBookWorkbook wb, FireplaceType type, string model, string size,
                                               string glassHeight) =>
-        First(FindResourceRow(wb, type, model, size, glassHeight)?.RawValues ?? new Dictionary<string, string>(),
-              "Model #", "Model Number", "Model");
+        type == FireplaceType.Traditional && TraditionalFireplaceModel.IsBonfire(model)
+            ? BuildModelNumber(type, model, size, glassHeight)
+            : First(FindResourceRow(wb, type, model, size, glassHeight)?.RawValues ?? new Dictionary<string, string>(),
+                    "Model #", "Model Number", "Model");
 
     private static bool IsResourceLinksSheet(string sheetName) =>
         sheetName.Contains("Resource", StringComparison.OrdinalIgnoreCase) &&
@@ -2524,7 +2579,9 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     private static IEnumerable<string> ResourceModelCandidates(FireplaceType type, string model, string size,
                                                                string glassHeight)
     {
-        var digits = Digits(size);
+        var digits = type == FireplaceType.Traditional
+                         ? FirstNonBlank(Digits(size), SizeDigitsFromModelCode(model))
+                         : Digits(size);
         var suffix = GlassSuffix(glassHeight);
 
         if (IsPassageModel(model) && string.IsNullOrWhiteSpace(digits))
@@ -2584,11 +2641,17 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
         if (type == FireplaceType.Traditional)
         {
+            if (TraditionalFireplaceModel.IsBonfire(model))
+            {
+                yield return $"TRA-BON-{digits}";
+                yield return $"TRABON{digits}";
+                yield return $"BONTR{digits}";
+                yield return $"TRBON{digits}";
+                yield return $"BONTRA{digits}";
+            }
             yield return $"TR-{digits}";
             yield return $"TRA-{digits}";
             yield return $"DVTRA{digits}";
-            yield return $"BONTR{digits}";
-            yield return $"TRABON{digits}";
             yield break;
         }
 
@@ -2720,6 +2783,17 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         _ => ["3-Part Spec", "CAD", "SketchUp", "Revit", "Wood Framing", "Metal Framing"]
     };
 
+    private static string BonfireProductSheetUrl(FireplaceType type, string model, string size)
+    {
+        if (type != FireplaceType.Traditional || !TraditionalFireplaceModel.IsBonfire(model))
+            return string.Empty;
+
+        var digits = FirstNonBlank(Digits(size), SizeDigitsFromModelCode(model));
+        return digits is "42" or "46"
+                   ? $"https://flarefireplaces.com/wp-content/uploads/Data/TR/specs-TR{digits}BON.pdf"
+                   : string.Empty;
+    }
+
     private static bool IsStandardFramingResource(string label)
     {
         return label.Equals("Framing Guide", StringComparison.OrdinalIgnoreCase) ||
@@ -2844,6 +2918,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     {
         var combined = Normalize($"{media.Key} {media.DisplayName}");
         return combined.Contains("stone balls") || combined.Contains("balls 2") || combined.Contains("balls 4") ||
+               (combined.Contains("balls") && combined.Contains("mixed")) ||
                combined.Contains("psbgu") || combined.Contains("psbwu") || combined.Contains("psbbu") ||
                combined.Contains("psbgm") || combined.Contains("psbwm") || combined.Contains("psbbm");
     }
@@ -3095,6 +3170,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                                                             string size, string model)
     {
         type = ForceOutdoorVentFreeTypeFromModel(type, model);
+        size = MediaCalculationSize(type, model, size);
         var sizeNum = Digits(size);
         if (string.IsNullOrWhiteSpace(sizeNum))
             return 0;
@@ -3168,6 +3244,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                                                      string size, string model)
     {
         type = ForceOutdoorVentFreeTypeFromModel(type, model);
+        size = MediaCalculationSize(type, model, size);
         var group = MediaCalculationGroup(media);
         var sizeNum = Digits(size);
         var mediaKey = Normalize(media.Key);
@@ -3201,6 +3278,9 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
         return EstimatePremiumMediaQuantityFallback(media.Key, size, model);
     }
+
+    private static string MediaCalculationSize(FireplaceType type, string model, string size) =>
+        type == FireplaceType.Traditional && TraditionalFireplaceModel.IsBonfire(model) ? "45" : size;
 
     private static string MediaCalculationGroup(MediaSelection media)
     {
@@ -3849,7 +3929,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
         return type switch
         {
-            FireplaceType.Traditional => $"Traditional {Digits(size)}\"",
+            FireplaceType.Traditional =>
+                $"Traditional{(TraditionalFireplaceModel.IsBonfire(model) ? " Bonfire" : string.Empty)} {Digits(size)}\"",
             FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough =>
                 $"Outdoor {ReadableStyle(type, model)} {Digits(size)}\"",
             FireplaceType.IndoorOutdoorSeeThrough =>
@@ -3879,7 +3960,10 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         var digits = Digits(size);
 
         if (type == FireplaceType.Traditional)
-            return $"TR-{digits}";
+        {
+            digits = FirstNonBlank(digits, SizeDigitsFromModelCode(model));
+            return TraditionalFireplaceModel.IsBonfire(model) ? $"TRA-BON-{digits}" : $"TR-{digits}";
+        }
 
         if (type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough)
         {

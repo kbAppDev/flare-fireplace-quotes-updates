@@ -80,6 +80,36 @@ public sealed class QuotePdfSmokeTests
         }
     }
 
+    [Theory]
+    [InlineData("42")]
+    [InlineData("46")]
+    public async Task BonfirePdfPreservesModelAndIncludedBurner(string size)
+    {
+        var outputPath = TemporaryPdfPath();
+        try
+        {
+            var fireplace = BuildFireplace("Living Room", $"TRA-BON-{size}", 1,
+                                          size == "42" ? 11_313m : 13_574m, 0m);
+            fireplace.Type = FireplaceType.Traditional;
+            fireplace.Model = "Traditional Bonfire";
+            fireplace.Size = size;
+            fireplace.Description = $"Traditional Bonfire {size}\"";
+            fireplace.ClassicMediaDisplay = "Black Fire Glass";
+            var request = BuildRequest(fireplace);
+            await new QuestPdfQuotePdfService().BuildQuotePdfAsync(
+                request, outputPath, TestContext.Current.CancellationToken);
+            using var pdf = PdfDocument.Open(outputPath);
+            Assert.Equal(1, pdf.NumberOfPages);
+            AssertPdfText(pdf.GetPage(1).Text, $"TRA-BON-{size}", "Bonfire Traditional Fireplace",
+                          "Bonfire Burner", "Black Fire Glass", "RGB LEDs");
+            Assert.DoesNotContain("Birchwood Summit", pdf.GetPage(1).Text, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            TryDelete(outputPath);
+        }
+    }
+
     private static QuoteRequest BuildRequest(params PricedFireplaceQuote[] fireplaces)
     {
         var priced = new PricedQuoteResult

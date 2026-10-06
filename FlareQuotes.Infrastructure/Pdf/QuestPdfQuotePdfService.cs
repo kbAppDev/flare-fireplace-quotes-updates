@@ -358,6 +358,11 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
             return new IncludedCopy(
                 "Included With Every Indoor Outdoor See Through Fireplace Purchase: ",
                 $"Power Supply, Wall Switch, Remote Control, {media}, Outdoor Kit, and *Free Shipping (*Free shipping within the continental United States only)");
+        if (fp.Type == FireplaceType.Traditional &&
+            (TraditionalFireplaceModel.IsBonfire(fp.Model) || TraditionalFireplaceModel.IsBonfire(fp.ModelNumber)))
+            return new IncludedCopy(
+                "Included With Every Bonfire Traditional Fireplace Purchase: ",
+                $"Power Supply, Wall Switch, Remote Control, {media}, RGB LEDs, Bonfire Burner, and *Free Shipping (*Free shipping within the continental United States only)");
         return fp.Type switch
         {
             FireplaceType.IndoorOutdoorSeeThrough => new IncludedCopy(

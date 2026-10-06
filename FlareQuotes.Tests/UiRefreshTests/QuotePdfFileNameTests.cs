@@ -47,6 +47,35 @@ public sealed class QuotePdfFileNameTests
         Assert.Equal("Flare Fireplaces Quote - FF60R and ST70R - Taylor Morgan.pdf", fileName);
     }
 
+    [Theory]
+    [InlineData("42")]
+    [InlineData("46")]
+    public void BonfireFileNamePreservesItsModelDesignation(string size)
+    {
+        var fileName = BuildFileName(new QuoteRequest { ClientName = "Amanda Jensen" },
+            PricedQuote($"TRA-BON-{size}"));
+
+        Assert.Equal($"Flare Fireplace Quote - TRABON{size} - Amanda Jensen.pdf", fileName);
+    }
+
+    [Fact]
+    public void MixedTraditionalFileNameDistinguishesBonfireFromRegular()
+    {
+        var fileName = BuildFileName(new QuoteRequest(), PricedQuote("TRA-BON-42", "TR42"));
+
+        Assert.Equal("Flare Fireplaces Quote - TRABON42 and TR42.pdf", fileName);
+    }
+
+    [Theory]
+    [InlineData("42")]
+    [InlineData("46")]
+    public void BonfireFileNameFallbackKeepsItsModelDesignation(string size)
+    {
+        var fileName = BuildFileName(new QuoteRequest { Model = $"TRA-BON-{size}" }, new PricedQuoteResult());
+
+        Assert.Equal($"Flare Fireplace Quote - TRABON{size}.pdf", fileName);
+    }
+
     private static string BuildFileName(QuoteRequest request, PricedQuoteResult priced)
     {
         var method = typeof(MainViewModel).GetMethod(

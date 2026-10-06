@@ -1,3 +1,12 @@
+# 1.70.2
+
+- Completes Traditional Bonfire support for TRA-BON-42 and TRA-BON-46. Auto-fill recognizes the full part name and ordering SKU, infers the correct fireplace size, and preserves the Bonfire identity through pricing, PDFs, email drafts, and specification review.
+- Manual model entry recognizes TRA-42/TRA-46 as Traditional Summit and TRA-BON-42/TRA-BON-46 as Traditional Bonfire. The fireplace header shows the burner style, model-field hover help explains the Bonfire codes, and changing a full model code updates its size even within the same style.
+- Keeps the same available features as the corresponding TR-42 and TR-46. Resolves the exact TRABON42/TRABON46 base-price rows rather than falling back to the standard Traditional fireplace.
+- Offers general premium media for Bonfire, including Gold, Aqua, and Chestnut glass, premium stones and stone balls, Driftwood, and Birchwood, with 45-inch media quantities and price-book package sizes. Keeps the matching complete Traditional oak set available. Standard Traditional media rules remain unchanged.
+- Adds the manufacturer’s Bonfire product sheet while retaining the corresponding Traditional framing, CAD, SketchUp, Revit, and three-part specification links.
+- Delivered through the existing signed update feed and desktop app update workflow. Adds no paid publisher signing.
+
 # 1.70.1 (expanded 1.70 update)
 
 - Adds an integrated Text message workflow with personalized editable previews, reusable template add/edit/delete, Undo delete, and encrypted template storage. Supports customer, project, model, consultation, and sender-name tokens; copies the message and recipient number and opens Phone Link for review and sending.

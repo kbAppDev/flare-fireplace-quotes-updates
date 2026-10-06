@@ -428,7 +428,7 @@
                                                             <Path Data="M15,3 C16,7 21,8 21,14 C21,19 18,23 12,23 C7,23 4,19 4,14 C4,10 7,7 10,4 C10,8 12,10 14,11 C15,9 15,6 15,3 Z" Fill="{DynamicResource FlareAccentBrush}" Stretch="Uniform" Margin="6" />
                                                         </Border>
                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                            <TextBlock Text="Current fireplace" FontWeight="SemiBold" />
+                                                            <TextBlock Text="{Binding CurrentFireplaceHeading}" FontWeight="SemiBold" />
                                                             <TextBlock Text="{Binding CurrentFireplaceLabel}" Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" />
                                                         </StackPanel>
                                                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
@@ -490,7 +490,7 @@
                                                             <ColumnDefinition Width="0.8*" /><ColumnDefinition Width="12" />
                                                             <ColumnDefinition Width="1.1*" />
                                                         </Grid.ColumnDefinitions>
-                                                        <StackPanel Grid.Column="0"><TextBlock Text="Model" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Fireplace model" /></StackPanel>
+                                                        <StackPanel Grid.Column="0"><TextBlock Text="Model" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" ToolTip="Enter a model name or code. Traditional Bonfire uses TRA-BON-42 or TRA-BON-46." AutomationProperties.Name="Fireplace model" /></StackPanel>
                                                         <StackPanel Grid.Column="2"><TextBlock Text="Size" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding Size, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Fireplace size" /></StackPanel>
                                                         <StackPanel Grid.Column="4"><TextBlock Text="Glass height" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding GlassHeight, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Fireplace glass height" /></StackPanel>
                                                         <StackPanel Grid.Column="6"><TextBlock Text="Location" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" /><TextBox Text="{Binding FireplaceLocation, UpdateSourceTrigger=PropertyChanged}" ToolTip="Name the room or area, for example Living Room or Patio" AutomationProperties.Name="Fireplace location" /></StackPanel>

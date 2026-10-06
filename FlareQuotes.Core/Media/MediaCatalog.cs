@@ -39,6 +39,8 @@ public static class MediaCatalog
     public static readonly MediaOption[] Premium = [
         new("gold_glass", "Gold Crushed Glass", "Gold Glass", "fireglass", true, ["gold crushed glass", "pfg-gold"]),
         new("aqua_glass", "Aqua Crushed Glass", "Aqua Glass", "fireglass", true, ["aqua crushed glass", "pfg-aqua"]),
+        new("chestnut_glass", "Chestnut Crushed Glass", "Chestnut Glass", "fireglass", true,
+            ["chestnut crushed glass", "chestnut glass", "pfg-chestnut", "pmdfgc"]),
         new("black_stones", "Premium Black Stones", "Black Stones", "premium_stones", true,
             ["premium black stones", "black stones", "ps-bla"]),
         new("white_stones", "Cottage White Stones", "White Stones", "premium_stones", true,

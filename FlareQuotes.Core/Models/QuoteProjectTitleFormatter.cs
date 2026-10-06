@@ -41,6 +41,11 @@ public static class QuoteProjectTitleFormatter
 
     private static string ResolveStyle(PricedFireplaceQuote fireplace)
     {
+        if (TraditionalFireplaceModel.IsBonfire(fireplace.Model) ||
+            TraditionalFireplaceModel.IsBonfire(fireplace.ModelNumber) ||
+            TraditionalFireplaceModel.IsBonfire(fireplace.Description))
+            return "Traditional Bonfire";
+
         var value = string.Join(" ", fireplace.Model, fireplace.Description, fireplace.FireplaceLabel);
         var normalized = Regex.Replace(value.ToUpperInvariant(), @"[^A-Z0-9]+", " ");
 

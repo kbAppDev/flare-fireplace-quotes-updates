@@ -1,10 +1,12 @@
-# Flare Fireplace Quotes v1.70.1
+# Flare Fireplace Quotes v1.70.2
 
 Windows WPF application for turning fireplace quote requests into priced PDFs, reviewed specification links, and Gmail drafts.
 
 ## Release highlights
 
-v1.70.1 expands the requested 1.70 update with an integrated text-message template manager, encrypted unfinished-quote autosave, fireplace duplication, individual photo removal, and editable specification URLs with duplicate-name validation. Live totals and their background pricing work have been removed. Smaller product-image assets, contextual help bubbles, native rounded Windows frames, and restrained Acrylic backgrounds streamline the interface. Indoor email drafts use the requested opening and exact HubSpot project consultation link. This update starts from the verified GitHub v1.6.9 tag and retains its pricing, privacy, and update safeguards.
+v1.70.2 completes Traditional Bonfire quoting for TRA-BON-42 and TRA-BON-46. Enter either part name or ordering SKU (TRABON42/TRABON46) in Model or use Auto-fill; the app infers the size and preserves the Bonfire burner identity. Both models retain their corresponding Traditional feature choices and offer premium media sized to a 45-inch fireplace, plus the matching complete oak log set. Premium choices include Gold, Aqua, and Chestnut glass, stones, stone balls, Driftwood, and Birchwood. The model-specific Bonfire product sheet accompanies the shared Traditional engineering documents.
+
+The 1.70 improvements remain: an integrated text-message template manager, encrypted unfinished-quote autosave, fireplace duplication, individual photo removal, and editable specification URLs with duplicate-name validation. Live totals and their background pricing work have been removed. Smaller product-image assets, contextual help bubbles, native rounded Windows frames, and restrained Acrylic backgrounds streamline the interface. Indoor email drafts use the requested opening and exact HubSpot project consultation link.
 
 The Text message button uses the current quote's customer details. Immediately after creating a Gmail draft it uses that completed quote for follow-up. Templates support `{FirstName}`, `{Project}`, `{Model}`, `{Consultation}`, and `{SalesName}`. Preview edits affect only the current message; New, Edit, Delete, and Undo manage reusable templates. Copy the message and number, open Phone Link, and paste, review, and send there. Phone Link does not provide a documented recipient-and-body prefill API, so this workflow uses Microsoft's documented launch URI and requires the final Send action in Phone Link.
 
@@ -38,7 +40,7 @@ checked-in 45% aggregate line-coverage floor across production assemblies.
 Run these commands from the repository root after the validation commands pass:
 
 ```powershell
-$releaseVersion = "1.70.1"
+$releaseVersion = "1.70.2"
 $publishDir = Join-Path (Get-Location) "FlareQuotes.App\bin\Release\net10.0-windows\win-x64\publish"
 $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 
@@ -52,7 +54,7 @@ If Inno Setup is installed elsewhere, replace `$iscc` with the full path to `ISC
 
 ## Publishing
 
-Publish only from a clean, passing commit tagged `v1.70.1`, matching `Directory.Build.props`. The tag-driven GitHub
+Publish only from a clean, passing commit tagged `v1.70.2`, matching `Directory.Build.props`. The tag-driven GitHub
 workflow performs formatting, tests, rendered Windows UI checks, packaging, manifest signing, and installer hash
 verification before publishing. CodeQL continues independently on source changes. The updater metadata points to
 that exact versioned installer and records its exact size and SHA-256.
