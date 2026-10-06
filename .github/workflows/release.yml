@@ -190,13 +190,18 @@ jobs:
           $hash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
           $size = (Get-Item -LiteralPath $installer).Length
           $installerUrl = "https://github.com/$repo/releases/download/$tag/Flare.Fireplace.Quotes.exe"
+          $sourceNotes = Get-Content -LiteralPath (Join-Path $PWD "RELEASE_NOTES.md") -Raw
+          $notesPattern = '(?ms)^# ' + [regex]::Escape($version) + '(?:[ \t]+[^\r\n]*)?\r?\n(?<body>.*?)(?=^# |\z)'
+          $notesMatch = [regex]::Match($sourceNotes, $notesPattern)
+          if (-not $notesMatch.Success) { throw "Release notes for $version were not found." }
+          $releaseNotes = "Flare Fireplace Quotes v$version`n`n" + $notesMatch.Groups['body'].Value.Trim()
           $metadata = [ordered]@{
             version = $version
             installer = $installerUrl
             url = $installerUrl
             sha256 = $hash
             sizeBytes = $size
-            notes = "Flare Fireplace Quotes v$version includes correctness, security, and reliability improvements."
+            notes = $releaseNotes
           }
           $metadataPath = Join-Path $releaseDir "release-metadata.json"
           $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
@@ -374,9 +379,10 @@ jobs:
           $sbom = Join-Path $releaseDir "Flare.Fireplace.Quotes.spdx.json"
           $notices = Join-Path $releaseDir "THIRD-PARTY-NOTICES.md"
           $notes = Join-Path $releaseDir "release-notes.txt"
+          $metadata = Get-Content -LiteralPath (Join-Path $releaseDir "release-metadata.json") -Raw | ConvertFrom-Json
           [System.IO.File]::WriteAllText(
             $notes,
-            "Flare Fireplace Quotes v$version`n`n- Correctness, update-security, resilience, and quality improvements.`n- Update manifests are now cryptographically verified before installers can run.",
+            [string]$metadata.notes,
             [System.Text.UTF8Encoding]::new($false))
 
           $existingReleaseJson = gh release view $tag --repo $repo --json isDraft 2>$null

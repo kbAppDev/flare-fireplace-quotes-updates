@@ -40,6 +40,8 @@ _Diagnostics/
 **/*cache*.json
 **/recent_quotes.json
 **/recent_quotes.json.dpapi
+**/unfinished_quote.json.dpapi
+**/text-message-templates.json.dpapi
 **/Credentials/
 **/Tokens/
 .env

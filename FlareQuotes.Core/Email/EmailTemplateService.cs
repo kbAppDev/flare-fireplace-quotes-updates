@@ -7,6 +7,7 @@ namespace FlareQuotes.Core.Email;
 public sealed class EmailTemplateService
 {
     private const string SectionSpacing = "<br><br><br>";
+    private const string IndoorConsultationUrl = "https://meetings.hubspot.com/kyle533/jobsite-consultation";
 
     public string BuildSubject(QuoteRequest request, PricedQuoteResult priced)
     {
@@ -33,18 +34,25 @@ public sealed class EmailTemplateService
                            ? "Hello,"
                            : $"<strong><em>{WebUtility.HtmlEncode(firstName)},</em></strong>";
 
-        var consultationUrl = TrustedExternalLinkPolicy.TryNormalizeConsultation(
-                                  settings.ConsultationUrl, out var trustedConsultation)
-                                  ? trustedConsultation
-                                  : "https://flarefireplaces.com/";
+        var isIndoorQuote = IsIndoorQuote(request, priced);
+        var consultationUrl = isIndoorQuote
+                                  ? IndoorConsultationUrl
+                                  : TrustedExternalLinkPolicy.TryNormalizeConsultation(
+                                        settings.ConsultationUrl, out var trustedConsultation)
+                                      ? trustedConsultation
+                                      : "https://flarefireplaces.com/";
         var consultation = WebUtility.HtmlEncode(consultationUrl);
         var specLinks = BuildSpecLinks(resourceLinks);
 
         var fireplaceCount = priced.TotalFireplaceQuantity;
-        var firstSentence = fireplaceCount > 1 ? "Below are links to the product information with a quote for the " +
-                                                     "fireplace(s) and their optional features."
-                                               : "Below are links to the product information with a quote for the " +
-                                                     "fireplace and its optional features.";
+        var firstSentence = isIndoorQuote
+                                ? "Below are links to the product information, including a quote for the " +
+                                      "fireplace and its optional features."
+                                : fireplaceCount > 1
+                                    ? "Below are links to the product information with a quote for the " +
+                                          "fireplace(s) and their optional features."
+                                    : "Below are links to the product information with a quote for the " +
+                                          "fireplace and its optional features.";
 
         var firstParagraph = firstSentence + (" The listed prices are the Manufacturer's Suggested Retail Price " +
                                               "(MSRP), valid for 30 days, and do not include installation costs.");
@@ -63,6 +71,16 @@ public sealed class EmailTemplateService
             body += SectionSpacing + signatureHtml;
 
         return body;
+    }
+
+    private static bool IsIndoorQuote(QuoteRequest request, PricedQuoteResult priced)
+    {
+        var types = priced.Fireplaces.Count > 0
+                        ? priced.Fireplaces.Select(fireplace => fireplace.Type)
+                        : request.Fireplaces.Select(fireplace => fireplace.Type);
+
+        return types.Any() && types.All(type => type is FireplaceType.Indoor or FireplaceType.IndoorSeeThrough or
+                                                   FireplaceType.Traditional or FireplaceType.Large);
     }
 
     private static string BuildSpecLinks(IReadOnlyList<ResourceLinkSet> sets)

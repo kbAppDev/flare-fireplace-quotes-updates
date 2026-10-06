@@ -546,21 +546,18 @@ public sealed class MainViewModelUiRefreshTests
     }
 
     [Fact]
-    public async Task EstimatedTotalPricesCurrentQuoteBeforePreview()
+    public async Task EditingQuoteDoesNotPriceUntilPreviewIsRequested()
     {
-        var viewModel = CreateViewModel(priceBookService: new FixedEstimatePriceBookService(4321m));
-
+        var prices = new FixedEstimatePriceBookService(4321m);
+        var viewModel = CreateViewModel(priceBookService: prices);
         viewModel.Model = "Front Facing";
         viewModel.Size = "60";
         viewModel.GlassHeight = "24";
-
-        var deadline = DateTime.UtcNow.AddSeconds(3);
-        while (viewModel.EstimatedTotalDisplay == "—" && DateTime.UtcNow < deadline)
-            await Task.Delay(25);
-
-        Assert.Equal(4321m.ToString("C0"), viewModel.EstimatedTotalDisplay);
+        await Task.Delay(250);
+        Assert.Equal(0, prices.BuildCallCount);
+        await viewModel.NextToPreviewCommand.ExecuteAsync(null);
+        Assert.Equal(1, prices.BuildCallCount);
     }
-
     [Fact]
     public void GmailDraftButtonRequiresOneValidRecipient()
     {
@@ -575,6 +572,341 @@ public sealed class MainViewModelUiRefreshTests
         Assert.True(viewModel.CanCreateGmailDraft);
         Assert.True(viewModel.CreateDraftCommand.CanExecute(null));
         Assert.Contains("dealer@example.com", viewModel.GmailDraftRequirementText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void DuplicateFireplaceDeepCopiesConfigurationAndOpensItForEditing()
+    {
+        var viewModel = CreateViewModel(featureService: new FeatureSelectionService());
+        viewModel.Model = "Front Facing";
+        viewModel.Size = "60";
+        viewModel.GlassHeight = "24";
+        viewModel.FireplaceLocation = "Living Room";
+        viewModel.FireplaceQuantity = 3;
+        viewModel.ToggleFeatureCommand.Execute(viewModel.AllFeatureOptions.First());
+        viewModel.AddFireplaceCommand.Execute(null);
+        var original = Assert.Single(viewModel.Fireplaces);
+        viewModel.DuplicateFireplaceCommand.Execute(original);
+        Assert.Equal(2, viewModel.Fireplaces.Count);
+        var duplicate = viewModel.Fireplaces[1];
+        Assert.Equal(3, duplicate.Quantity);
+        Assert.Equal("Living Room (copy)", duplicate.Location);
+        Assert.Equal(original.Features.Select(feature => feature.Key), duplicate.Features.Select(feature => feature.Key));
+        Assert.NotSame(original.Features, duplicate.Features);
+        Assert.NotSame(original.Features[0], duplicate.Features[0]);
+        Assert.True(viewModel.IsEditingFireplace);
+        Assert.Equal("Save Changes", viewModel.AddFireplaceButtonText);
+        viewModel.FireplaceLocation = "Bedroom";
+        viewModel.AddFireplaceCommand.Execute(null);
+        Assert.Equal("Living Room", original.Location);
+        Assert.Equal("Bedroom", viewModel.Fireplaces[1].Location);
+        Assert.Equal(2, viewModel.Fireplaces.Count);
+    }
+
+    [Fact]
+    public void DuplicateDoesNotDiscardAnUnsavedFireplace()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.Model = "Front Facing";
+        viewModel.Size = "60";
+        viewModel.GlassHeight = "16";
+        viewModel.AddFireplaceCommand.Execute(null);
+        var original = Assert.Single(viewModel.Fireplaces);
+        viewModel.Model = "See Through";
+        Assert.False(viewModel.DuplicateFireplaceCommand.CanExecute(original));
+        viewModel.DuplicateFireplaceCommand.Execute(original);
+        Assert.Single(viewModel.Fireplaces);
+        Assert.Equal("See Through", viewModel.Model);
+    }
+
+    [Fact]
+    public void RemovingOnePhotoWithADuplicateFilenameKeepsTheOtherAndDoesNotDeleteFiles()
+    {
+        var firstPath = Path.Combine(Path.GetTempPath(), $"first-{Guid.NewGuid():N}");
+        var secondPath = Path.Combine(Path.GetTempPath(), $"second-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(firstPath);
+        Directory.CreateDirectory(secondPath);
+        var first = Path.Combine(firstPath, "fireplace.png");
+        var second = Path.Combine(secondPath, "fireplace.png");
+        File.WriteAllBytes(first, new byte[1024]);
+        File.WriteAllBytes(second, new byte[2048]);
+        try
+        {
+            var viewModel = CreateViewModel();
+            viewModel.FireplacePhotoPaths.Add(first);
+            viewModel.FireplacePhotoPaths.Add(second);
+            Assert.Equal(2, viewModel.FireplacePhotoItems.Count);
+            viewModel.RemoveFireplacePhotoCommand.Execute(viewModel.FireplacePhotoItems[0]);
+            Assert.Equal(second, Assert.Single(viewModel.FireplacePhotoPaths));
+            Assert.True(File.Exists(first));
+            Assert.True(File.Exists(second));
+            Assert.Equal("2 KB", Assert.Single(viewModel.FireplacePhotoItems).SizeText);
+        }
+        finally
+        {
+            File.Delete(first);
+            File.Delete(second);
+            Directory.Delete(firstPath);
+            Directory.Delete(secondPath);
+        }
+    }
+
+    [Fact]
+    public void DuplicateManualLinkLabelsAreRejectedWithinTheSameFireplace()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.SpecLinks.Add(new SpecLinkDraft { FireplaceGroupId = "one", FireplaceCode = "FF60R", Label = "Product Sheet", Url = "https://flarefireplaces.com/original.pdf" });
+        viewModel.ManualUrlToolName = " product sheet ";
+        viewModel.ManualUrlValue = "https://flarefireplaces.com/new.pdf";
+        viewModel.AddManualUrlCommand.Execute(null);
+        Assert.Single(viewModel.SpecLinks);
+        Assert.Contains("already has a link", viewModel.SpecLinkValidationMessage);
+        Assert.Equal("https://flarefireplaces.com/original.pdf", viewModel.SpecLinks[0].Url);
+        Assert.Equal(" product sheet ", viewModel.ManualUrlToolName);
+        viewModel.SpecLinks.Add(new SpecLinkDraft { FireplaceGroupId = "two", FireplaceCode = "FF60R", Label = "Other Guide", Url = "https://flarefireplaces.com/other.pdf" });
+        viewModel.SelectUrlVerificationFireplaceCommand.Execute(viewModel.UrlVerificationFireplaces[1]);
+        viewModel.AddManualUrlCommand.Execute(null);
+        Assert.Equal(3, viewModel.SpecLinks.Count);
+        Assert.Empty(viewModel.SpecLinkValidationMessage);
+    }
+
+    [Fact]
+    public void LinkEditingBlocksDraftAndValidatesWithoutOverwritingExistingLinks()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.Email = "customer@example.com";
+        var first = new SpecLinkDraft { FireplaceGroupId = "one", FireplaceCode = "FF60R", Label = "Product Sheet", Url = "https://flarefireplaces.com/original.pdf" };
+        var second = new SpecLinkDraft { FireplaceGroupId = "one", FireplaceCode = "FF60R", Label = "Guide", Url = "https://flarefireplaces.com/guide.pdf" };
+        viewModel.SpecLinks.Add(first);
+        viewModel.SpecLinks.Add(second);
+        var row = viewModel.SelectedUrlVerificationRows[0];
+        viewModel.EditSpecLinkCommand.Execute(row);
+        Assert.False(viewModel.CanCreateGmailDraft);
+        row.EditingLabel = "guide";
+        row.EditingUrl = "https://flarefireplaces.com/changed.pdf";
+        viewModel.SaveSpecLinkCommand.Execute(row);
+        Assert.True(row.IsEditing);
+        Assert.Contains("already has a link", row.ValidationMessage);
+        Assert.Equal("Product Sheet", first.Label);
+        row.EditingLabel = "Updated Product";
+        row.EditingUrl = "https://unapproved.example/changed.pdf";
+        viewModel.SaveSpecLinkCommand.Execute(row);
+        Assert.True(row.IsEditing);
+        Assert.Equal("https://flarefireplaces.com/original.pdf", first.Url);
+        row.EditingUrl = "https://flarefireplaces.com/changed.pdf";
+        viewModel.SaveSpecLinkCommand.Execute(row);
+        Assert.Equal("Updated Product", first.Label);
+        Assert.Equal("https://flarefireplaces.com/changed.pdf", first.Url);
+        Assert.Equal("Guide", second.Label);
+        Assert.True(viewModel.CanCreateGmailDraft);
+        Assert.False(viewModel.HasUnsavedSpecLinkEdits);
+    }
+
+    [Fact]
+    public void CancelLinkEditLeavesOriginalLabelAndUrlIntact()
+    {
+        var viewModel = CreateViewModel();
+        var link = new SpecLinkDraft { FireplaceGroupId = "one", FireplaceCode = "FF60R", Label = "Guide", Url = "https://flarefireplaces.com/guide.pdf" };
+        viewModel.SpecLinks.Add(link);
+        var row = Assert.Single(viewModel.SelectedUrlVerificationRows);
+        viewModel.EditSpecLinkCommand.Execute(row);
+        row.EditingLabel = "Unsaved";
+        row.EditingUrl = "https://flarefireplaces.com/unsaved.pdf";
+        viewModel.CancelSpecLinkEditCommand.Execute(row);
+        Assert.Equal("Guide", link.Label);
+        Assert.Equal("https://flarefireplaces.com/guide.pdf", link.Url);
+        Assert.False(row.IsEditing);
+    }
+
+    [Fact]
+    public void PendingLinkEditSurvivesAttemptsToSwitchCardsEditAnotherRowAddOrDeleteUrls()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.Email = "customer@example.com";
+        var editedLink = new SpecLinkDraft { FireplaceGroupId = "one", FireplaceCode = "FF60R", Label = "Guide", Url = "https://flarefireplaces.com/guide.pdf" };
+        viewModel.SpecLinks.Add(editedLink);
+        viewModel.SpecLinks.Add(new SpecLinkDraft { FireplaceGroupId = "one", FireplaceCode = "FF60R", Label = "Product", Url = "https://flarefireplaces.com/product.pdf" });
+        viewModel.SpecLinks.Add(new SpecLinkDraft { FireplaceGroupId = "two", FireplaceCode = "ST60R", Label = "Other Guide", Url = "https://flarefireplaces.com/other.pdf" });
+        var selectedCard = viewModel.SelectedUrlVerificationFireplace;
+        var otherCard = viewModel.UrlVerificationFireplaces[1];
+        var row = viewModel.SelectedUrlVerificationRows[0];
+        var otherRow = viewModel.SelectedUrlVerificationRows[1];
+        viewModel.EditSpecLinkCommand.Execute(row);
+        row.EditingLabel = "Still typing a name";
+        row.EditingUrl = "https://flarefireplaces.com/still-typing.pdf";
+        viewModel.ManualUrlToolName = "Extra";
+        viewModel.ManualUrlValue = "https://flarefireplaces.com/extra.pdf";
+
+        Assert.False(viewModel.SelectUrlVerificationFireplaceCommand.CanExecute(otherCard));
+        Assert.False(viewModel.EditSpecLinkCommand.CanExecute(otherRow));
+        Assert.False(viewModel.AddManualUrlCommand.CanExecute(null));
+        Assert.False(viewModel.RemoveSpecLinkCommand.CanExecute(otherRow));
+        Assert.True(viewModel.SaveSpecLinkCommand.CanExecute(row));
+        Assert.True(viewModel.CancelSpecLinkEditCommand.CanExecute(row));
+        Assert.False(viewModel.SaveSpecLinkCommand.CanExecute(otherRow));
+
+        // Guard direct execution too, so queued actions cannot replace the active editor.
+        viewModel.SelectUrlVerificationFireplaceCommand.Execute(otherCard);
+        viewModel.EditSpecLinkCommand.Execute(otherRow);
+        viewModel.AddManualUrlCommand.Execute(null);
+        viewModel.RemoveSpecLinkCommand.Execute(otherRow);
+
+        Assert.Same(selectedCard, viewModel.SelectedUrlVerificationFireplace);
+        Assert.Same(row, viewModel.SelectedUrlVerificationRows[0]);
+        Assert.True(row.IsEditing);
+        Assert.False(otherRow.IsEditing);
+        Assert.Equal("Still typing a name", row.EditingLabel);
+        Assert.Equal("https://flarefireplaces.com/still-typing.pdf", row.EditingUrl);
+        Assert.Equal("Guide", editedLink.Label);
+        Assert.Equal(3, viewModel.SpecLinks.Count);
+        Assert.Equal("Extra", viewModel.ManualUrlToolName);
+        Assert.False(viewModel.CanCreateGmailDraft);
+        Assert.Contains("Save or cancel", viewModel.StatusMessage, StringComparison.Ordinal);
+        Assert.Contains("Save or cancel", viewModel.GmailDraftRequirementText, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void SavingOrCancelingLinkEditReenablesReviewActionsAndRefreshesDraftRequirements(bool save)
+    {
+        var viewModel = CreateViewModel();
+        viewModel.Email = "customer@example.com";
+        var link = new SpecLinkDraft { FireplaceGroupId = "one", FireplaceCode = "FF60R", Label = "Guide", Url = "https://flarefireplaces.com/guide.pdf" };
+        viewModel.SpecLinks.Add(link);
+        viewModel.SpecLinks.Add(new SpecLinkDraft { FireplaceGroupId = "two", FireplaceCode = "ST60R", Label = "Product", Url = "https://flarefireplaces.com/product.pdf" });
+        var row = Assert.Single(viewModel.SelectedUrlVerificationRows);
+        viewModel.EditSpecLinkCommand.Execute(row);
+        row.EditingLabel = "Changed Guide";
+        row.EditingUrl = "https://flarefireplaces.com/changed.pdf";
+        var addCommandNotifications = 0;
+        var draftCommandNotifications = 0;
+        viewModel.AddManualUrlCommand.CanExecuteChanged += (_, _) => addCommandNotifications++;
+        viewModel.CreateDraftCommand.CanExecuteChanged += (_, _) => draftCommandNotifications++;
+        HashSet<string> changedProperties = [];
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName is not null)
+                changedProperties.Add(args.PropertyName);
+        };
+
+        if (save)
+            viewModel.SaveSpecLinkCommand.Execute(row);
+        else
+            viewModel.CancelSpecLinkEditCommand.Execute(row);
+
+        Assert.Equal(save ? "Changed Guide" : "Guide", link.Label);
+        Assert.Equal(save ? "https://flarefireplaces.com/changed.pdf" : "https://flarefireplaces.com/guide.pdf", link.Url);
+        Assert.False(viewModel.HasUnsavedSpecLinkEdits);
+        Assert.True(viewModel.AddManualUrlCommand.CanExecute(null));
+        Assert.True(viewModel.RemoveSpecLinkCommand.CanExecute(Assert.Single(viewModel.SelectedUrlVerificationRows)));
+        Assert.True(viewModel.SelectUrlVerificationFireplaceCommand.CanExecute(viewModel.UrlVerificationFireplaces[1]));
+        Assert.True(viewModel.CreateDraftCommand.CanExecute(null));
+        Assert.Contains("customer@example.com", viewModel.GmailDraftRequirementText, StringComparison.Ordinal);
+        Assert.Empty(viewModel.SpecLinkValidationMessage);
+        Assert.True(addCommandNotifications > 0);
+        Assert.True(draftCommandNotifications > 0);
+        Assert.Contains(nameof(MainViewModel.GmailDraftRequirementText), changedProperties);
+        Assert.Contains(nameof(MainViewModel.CanCreateGmailDraft), changedProperties);
+
+        viewModel.SelectUrlVerificationFireplaceCommand.Execute(viewModel.UrlVerificationFireplaces[1]);
+        Assert.Equal("two", viewModel.SelectedUrlVerificationFireplace?.GroupId);
+        Assert.True(viewModel.EditSpecLinkCommand.CanExecute(Assert.Single(viewModel.SelectedUrlVerificationRows)));
+    }
+
+    [Fact]
+    public void FreshMessageContextDoesNotUseLoadedQuoteHistory()
+    {
+        var viewModel = CreateViewModel();
+        SetCompletedMessageFixture(viewModel, useImmediately: false);
+
+        var context = viewModel.GetTextMessageContext();
+
+        Assert.Empty(context.ClientName);
+        Assert.Empty(context.Phone);
+        Assert.Equal("Current quote", context.SourceLabel);
+    }
+
+    [Fact]
+    public void TypedMessageContextTakesPrecedenceOverCompletedQuote()
+    {
+        var viewModel = CreateViewModel();
+        SetCompletedMessageFixture(viewModel, useImmediately: true);
+        viewModel.ClientName = "New Client";
+        viewModel.Phone = "3125550200";
+        viewModel.ProjectName = "New project";
+
+        var context = viewModel.GetTextMessageContext();
+
+        Assert.Equal("New Client", context.ClientName);
+        Assert.Equal("3125550200", context.Phone);
+        Assert.Equal("New project", context.ProjectName);
+        Assert.Equal("Current quote", context.SourceLabel);
+    }
+
+    [Fact]
+    public void ImmediatePostDraftMessageContextUsesCompletedQuote()
+    {
+        var viewModel = CreateViewModel();
+        SetCompletedMessageFixture(viewModel, useImmediately: true);
+
+        var context = viewModel.GetTextMessageContext();
+
+        Assert.Equal("Amanda Jensen", context.ClientName);
+        Assert.Equal("3125550184", context.Phone);
+        Assert.Equal("Lakeview Renovation", context.ProjectName);
+        Assert.Equal("Front Facing 60\"", context.Model);
+        Assert.Equal("Last quote", context.SourceLabel);
+    }
+
+    [Fact]
+    public void ExplicitClearRemovesCompletedMessageContextAndKeepsRecallHistory()
+    {
+        var viewModel = CreateViewModel();
+        var snapshot = SetCompletedMessageFixture(viewModel, useImmediately: true);
+        Assert.Equal("Amanda Jensen", viewModel.GetTextMessageContext().ClientName);
+
+        viewModel.ClearCommand.Execute(null);
+
+        Assert.Empty(viewModel.GetTextMessageContext().ClientName);
+        Assert.Empty(viewModel.GetTextMessageContext().Phone);
+        Assert.Contains(snapshot, viewModel.RecentQuoteHistory);
+    }
+
+    [Theory]
+    [InlineData(nameof(MainViewModel.Postal))]
+    [InlineData(nameof(MainViewModel.InstallDate))]
+    [InlineData(nameof(MainViewModel.Size))]
+    [InlineData(nameof(MainViewModel.GlassHeight))]
+    [InlineData(nameof(MainViewModel.FireplaceLocation))]
+    public void StartingAnotherManualQuoteDoesNotReusePreviousRecipients(string property)
+    {
+        var viewModel = CreateViewModel();
+        SetCompletedMessageFixture(viewModel, useImmediately: true);
+        typeof(MainViewModel).GetProperty(property)!.SetValue(viewModel, "60");
+
+        var context = viewModel.GetTextMessageContext();
+
+        Assert.Empty(context.ClientName);
+        Assert.Empty(context.Phone);
+        Assert.Equal("Current quote", context.SourceLabel);
+    }
+
+    private static MainViewModel.LastQuoteSnapshot SetCompletedMessageFixture(MainViewModel viewModel, bool useImmediately)
+    {
+        var snapshot = new MainViewModel.LastQuoteSnapshot
+        {
+            ClientName = "Amanda Jensen",
+            Phone = "3125550184",
+            ProjectName = "Lakeview Renovation",
+            Fireplaces = [new FireplaceQuoteDraft { Model = "Front Facing", Size = "60" }]
+        };
+        viewModel.RecentQuoteHistory.Add(snapshot);
+        // Configure history state without persisting fixture customers into the Windows profile.
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        typeof(MainViewModel).GetField("_lastCompletedQuoteSnapshot", flags)!.SetValue(viewModel, snapshot);
+        typeof(MainViewModel).GetField("_useCompletedQuoteForMessages", flags)!.SetValue(viewModel, useImmediately);
+        return snapshot;
     }
 
     private static MainViewModel CreateViewModel(
@@ -644,6 +976,7 @@ public sealed class MainViewModelUiRefreshTests
     private sealed class FixedEstimatePriceBookService : IPriceBookService
     {
         private readonly decimal _price;
+        public int BuildCallCount { get; private set; }
 
         public FixedEstimatePriceBookService(decimal price)
         {
@@ -664,6 +997,7 @@ public sealed class MainViewModelUiRefreshTests
         public Task<PricedQuoteResult> BuildPricedQuoteAsync(QuoteRequest request, string pricingPath,
                                                              CancellationToken cancellationToken = default)
         {
+            BuildCallCount++;
             var result = new PricedQuoteResult { Request = request, Success = true };
 
             var count = request.Fireplaces.Count;

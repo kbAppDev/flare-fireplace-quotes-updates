@@ -16,7 +16,7 @@ using FlareQuotes.App.Services;
 
 namespace FlareQuotes.App.ViewModels;
 
-public sealed class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject
 {
     private readonly IQuoteRequestParser _parser;
     private readonly IFeatureSelectionService _featureSelectionService;
@@ -60,12 +60,13 @@ public sealed class MainViewModel : ObservableObject
     private string _manualPhotoAttachmentPath = string.Empty;
     private QuoteRequest? _lastRequest;
     private PricedQuoteResult? _lastPricedQuote;
-    private CancellationTokenSource? _estimatedTotalRefreshCts;
-    private string _estimatedTotalDisplay = "—";
     private LastQuoteSnapshot? _lastCompletedQuoteSnapshot;
     private bool _canRecallLastQuote;
     private string _manualUrlToolName = string.Empty;
     private string _manualUrlValue = string.Empty;
+    private bool _specLinksReviewed;
+    private long _specLinkReviewGeneration;
+    private readonly List<SpecLinkDraft> _specLinkGroupMetadata = [];
     private FireplaceQuoteDraft? _editingFireplace;
 
     public MainViewModel(IQuoteRequestParser parser, IFeatureSelectionService featureSelectionService,
@@ -110,10 +111,18 @@ public sealed class MainViewModel : ObservableObject
         ClosePremiumMediaDropdownCommand = new RelayCommand(() => IsPremiumMediaDropdownOpen = false);
         CloseLeadTimeDropdownCommand = new RelayCommand(() => IsLeadTimeDropdownOpen = false);
         SelectUrlVerificationFireplaceCommand =
-            new RelayCommand<UrlVerificationFireplaceCard>(SelectUrlVerificationFireplace);
-        AddManualUrlCommand = new RelayCommand(AddManualUrl);
+            new RelayCommand<UrlVerificationFireplaceCard>(SelectUrlVerificationFireplace,
+                card => card is not null && CanChangeSpecReview);
+        AddManualUrlCommand = new RelayCommand(AddManualUrl, () => CanChangeSpecReview);
+        RemoveSpecLinkCommand = new RelayCommand<UrlVerificationRowVm>(
+            RemoveSpecLink,
+            row => row?.SourceLink is { } link && SpecLinks.Contains(link) && CanChangeSpecReview);
 
-        SpecLinks.CollectionChanged += (_, _) => RefreshUrlVerificationCards();
+        SpecLinks.CollectionChanged += (_, _) =>
+        {
+            RefreshUrlVerificationCards();
+            RemoveSpecLinkCommand.NotifyCanExecuteChanged();
+        };
         SelectLeadTimeCommand = new RelayCommand<string>(SelectLeadTime);
         AddFireplaceCommand = new RelayCommand(AddFireplaceToQuote);
         ClearCurrentFireplaceCommand = new RelayCommand(ClearCurrentFireplaceInputs);
@@ -137,8 +146,18 @@ public sealed class MainViewModel : ObservableObject
         NextToSpecLinksCommand = new AsyncRelayCommand(NextToSpecLinksAsync);
         BackToPreviewCommand = new RelayCommand(() => WorkflowStage = QuoteWorkflowStage.PdfPreview);
         CreateDraftCommand = new AsyncRelayCommand(CreateDraftAsync, () => CanCreateGmailDraft);
-        ChooseFireplacePhotoCommand = new RelayCommand(ChooseFireplacePhoto);
-        ClearFireplacePhotoCommand = new RelayCommand(ClearFireplacePhoto);
+        CreateDraftCommand.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(CreateDraftCommand.IsRunning))
+            {
+                AddManualUrlCommand.NotifyCanExecuteChanged();
+                RemoveSpecLinkCommand.NotifyCanExecuteChanged();
+                ChooseFireplacePhotoCommand?.NotifyCanExecuteChanged();
+                ClearFireplacePhotoCommand?.NotifyCanExecuteChanged();
+            }
+        };
+        ChooseFireplacePhotoCommand = new RelayCommand(ChooseFireplacePhoto, () => CanEditSpecLinks);
+        ClearFireplacePhotoCommand = new RelayCommand(ClearFireplacePhoto, () => CanEditSpecLinks);
         OpenGeneratedPdfCommand = new RelayCommand(OpenGeneratedPdf);
         FireplacePhotoPaths.CollectionChanged += (_, _) =>
         {
@@ -193,6 +212,9 @@ public sealed class MainViewModel : ObservableObject
 
         RefreshSelectionOptions(preserveSelected: false);
         UpdateStatusCards();
+        InitializeWorkflowPolish();
+        InitializeMessaging();
+        InitializeAutosave();
     }
 
     public string RawRequest
@@ -339,9 +361,10 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public bool CanCreateGmailDraft =>
-        EmailAddressNormalizer.TryNormalizeSingle(Email, out _);
+        !HasUnsavedSpecLinkEdits && EmailAddressNormalizer.TryNormalizeSingle(Email, out _);
 
     public string GmailDraftRequirementText =>
+        HasUnsavedSpecLinkEdits ? "Save or cancel the link being edited before creating the draft." :
         CanCreateGmailDraft
             ? $"Gmail draft recipient: {EmailAddressNormalizer.NormalizeSingleOrEmpty(Email)}"
             : "Add one valid customer email in Step 1 to enable Gmail draft creation.";
@@ -619,6 +642,9 @@ public sealed class MainViewModel : ObservableObject
     {
         get;
     }
+    public RelayCommand<UrlVerificationRowVm> RemoveSpecLinkCommand { get; }
+    private bool CanEditSpecLinks => !CreateDraftCommand.IsRunning;
+    private bool CanChangeSpecReview => CanEditSpecLinks && !HasUnsavedSpecLinkEdits;
 
     public string SelectedFeatureSummary =>
         SelectedFeatures.Count == 0 ? "None selected" : string.Join(", ", SelectedFeatures.Select(x => x.DisplayName));
@@ -966,6 +992,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void Clear()
     {
+        _useCompletedQuoteForMessages = false;
         EndFireplaceEdit();
         RawRequest = ProjectName = ClientName = Email = Phone = Postal = InstallDate = Model = Size = GlassHeight =
             FireplaceLocation = string.Empty;
@@ -981,7 +1008,7 @@ public sealed class MainViewModel : ObservableObject
         IsFeatureDropdownOpen = IsClassicMediaDropdownOpen = IsAdditionalClassicMediaDropdownOpen =
             IsPremiumMediaDropdownOpen = IsLeadTimeDropdownOpen = false;
         QuotePreviewRows.Clear();
-        SpecLinks.Clear();
+        ResetSpecLinkReview();
         FireplacePhotoPaths.Clear();
         WorkflowStage = QuoteWorkflowStage.Review;
         GeneratedPdfPath = string.Empty;
@@ -991,13 +1018,17 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(FireplaceQuoteSummary));
         StatusMessage = "Ready. Paste a quote request to begin.";
         UpdateStatusCards();
+        FireplacePhotoPaths.Clear();
+        ManualPhotoAttachmentPath = string.Empty;
+        ManualUrlToolName = ManualUrlValue = string.Empty;
+        SpecLinkValidationMessage = string.Empty;
+        ClearUnfinishedQuote();
     }
 
     private async Task NextToPreviewAsync()
     {
         try
         {
-            CancelEstimatedTotalRefresh();
             StatusMessage = "Pricing quote and generating PDF...";
             ApplySettings(await _settingsService.LoadAsync());
             var request = BuildQuoteRequest();
@@ -1021,7 +1052,6 @@ public sealed class MainViewModel : ObservableObject
                 GeneratedPdfPath = string.Empty;
                 QuotePreviewRows.Clear();
                 WorkflowStage = QuoteWorkflowStage.Review;
-                SetEstimatedTotalDisplay("—");
                 StatusMessage = string.IsNullOrWhiteSpace(priced.Message)
                                     ? "Quote preview was blocked because one or more selected items could not be priced."
                                     : priced.Message;
@@ -1033,7 +1063,6 @@ public sealed class MainViewModel : ObservableObject
             await _quotePdfService.BuildQuotePdfAsync(request, pdfPath);
             _lastRequest = request;
             _lastPricedQuote = priced;
-            SetEstimatedTotalDisplay(priced.TotalMsrp.ToString("C0"));
             GeneratedPdfPath = string.Empty;
             GeneratedPdfPath = pdfPath;
             BuildQuotePreviewRows(priced);
@@ -1049,16 +1078,35 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task NextToSpecLinksAsync()
     {
+        if (_specLinksReviewed)
+        {
+            WorkflowStage = QuoteWorkflowStage.SpecLinks;
+            StatusMessage = $"Spec link review ready with {SpecLinks.Count} URL(s).";
+            return;
+        }
+
+        var reviewGeneration = _specLinkReviewGeneration;
         try
         {
             var request = _lastRequest ?? BuildQuoteRequest();
             var links = await _priceBookService.ResolveResourceLinksAsync(request, PricingPath());
-            SpecLinks.Clear();
+            // Clear, recall, or a changed fireplace can invalidate the request while lookup awaits.
+            // An old response must never repopulate the new quote or its autosaved recovery state.
+            if (reviewGeneration != _specLinkReviewGeneration)
+                return;
+            ResetSpecLinkReview();
+            reviewGeneration = _specLinkReviewGeneration;
 
             for (var setIndex = 0; setIndex < links.Count; setIndex++)
             {
                 var set = links[setIndex];
                 var groupId = $"{setIndex + 1:D3}:{FirstNonBlank(set.ModelNumber, "Fireplace")}";
+                _specLinkGroupMetadata.Add(new SpecLinkDraft
+                {
+                    FireplaceGroupId = groupId,
+                    FireplaceCode = set.ModelNumber,
+                    FireplaceLocation = set.FireplaceLocation
+                });
 
                 foreach (var link in set.Links)
                 {
@@ -1074,16 +1122,25 @@ public sealed class MainViewModel : ObservableObject
                         });
                 }
             }
+            _specLinksReviewed = true;
+            RefreshUrlVerificationCards();
             WorkflowStage = QuoteWorkflowStage.SpecLinks;
             StatusMessage = $"Spec link review ready with {SpecLinks.Count} URL(s).";
         }
         catch (Exception ex)
         {
+            if (reviewGeneration != _specLinkReviewGeneration)
+                return;
             StatusMessage = "Spec link lookup failed: " + SafeForUser(ex.Message);
         }
     }
     private async Task CreateDraftAsync()
     {
+        if (HasUnsavedSpecLinkEdits)
+        {
+            StatusMessage = "Save or cancel the link being edited before creating the draft.";
+            return;
+        }
         var stageBeforeDraft = WorkflowStage;
         var modelSummary =
             string.Join(", ", (_lastRequest?.Fireplaces.Count > 0
@@ -1151,7 +1208,7 @@ public sealed class MainViewModel : ObservableObject
             // This prevents stale or copied hidden characters from reaching the MIME To header.
             _lastRequest.Email = normalizedRecipient;
 
-            if (SpecLinks.Count == 0)
+            if (!_specLinksReviewed)
             {
                 StatusMessage = "Preparing approved spec links for the Gmail draft...";
                 _logger.Info($"Resolving spec links. Models={modelSummary}.");
@@ -1161,7 +1218,7 @@ public sealed class MainViewModel : ObservableObject
             var currentSettings = await _settingsService.LoadAsync();
 
             IReadOnlyList<ResourceLinkSet> resourceSets =
-                SpecLinks.Count > 0 ? BuildResourceSetsFromEditableSpecLinks() : _lastPricedQuote.ResourceLinks;
+                _specLinksReviewed ? BuildResourceSetsFromEditableSpecLinks() : _lastPricedQuote.ResourceLinks;
 
             StatusMessage = "Creating Gmail draft...";
             var attachments = ResolveSelectedPhotoAttachments();
@@ -1222,6 +1279,9 @@ public sealed class MainViewModel : ObservableObject
 
     private void ChooseFireplacePhoto()
     {
+        if (!CanEditSpecLinks)
+            return;
+
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
             Title = "Select Fireplace Photos",
@@ -1269,6 +1329,9 @@ public sealed class MainViewModel : ObservableObject
 
     private void ClearFireplacePhoto()
     {
+        if (!CanEditSpecLinks)
+            return;
+
         var hadPhotos = FireplacePhotoPaths.Count > 0 || !string.IsNullOrWhiteSpace(ManualPhotoAttachmentPath);
 
         FireplacePhotoPaths.Clear();
@@ -1297,7 +1360,7 @@ public sealed class MainViewModel : ObservableObject
 
     private IReadOnlyList<ResourceLinkSet> BuildResourceSetsFromEditableSpecLinks()
     {
-        return SpecLinks
+        return _specLinkGroupMetadata.Concat(SpecLinks)
             .GroupBy(
                 x => FirstNonBlank(x.FireplaceGroupId, x.FireplaceCode),
                 StringComparer.OrdinalIgnoreCase)
@@ -1317,6 +1380,9 @@ public sealed class MainViewModel : ObservableObject
 
                         foreach (var item in group)
                         {
+                            if (_specLinkGroupMetadata.Contains(item))
+                                continue;
+
                             set.Links[item.Label] = item.Url;
                             set.Sources[item.Label] = item.Status;
                         }
@@ -1341,10 +1407,26 @@ public sealed class MainViewModel : ObservableObject
 
     private void SelectUrlVerificationFireplace(UrlVerificationFireplaceCard? card)
     {
-        if (card is null)
+        if (card is null || !TryChangeSpecReview())
             return;
 
         SelectedUrlVerificationFireplace = card;
+    }
+
+    private void ResetSpecLinkReview()
+    {
+        _specLinkReviewGeneration++;
+        _specLinksReviewed = false;
+        _specLinkGroupMetadata.Clear();
+        SpecLinks.Clear();
+    }
+
+    private void RemoveSpecLink(UrlVerificationRowVm? row)
+    {
+        if (!TryChangeSpecReview() || row?.SourceLink is not { } link || !SpecLinks.Remove(link))
+            return;
+
+        StatusMessage = $"Removed URL '{link.Label}' from {link.FireplaceCode}.";
     }
     private List<List<object>> BuildUrlVerificationRowGroups(List<object> rows)
     {
@@ -1450,6 +1532,9 @@ public sealed class MainViewModel : ObservableObject
     }
     private void AddManualUrl()
     {
+        if (!TryChangeSpecReview())
+            return;
+
         if (SelectedUrlVerificationFireplace is null)
         {
             StatusMessage = "Select a fireplace card before adding a manual URL.";
@@ -1459,21 +1544,17 @@ public sealed class MainViewModel : ObservableObject
         var toolName = (ManualUrlToolName ?? string.Empty).Trim();
         var url = (ManualUrlValue ?? string.Empty).Trim();
 
-        if (string.IsNullOrWhiteSpace(toolName))
-        {
-            StatusMessage = "Name the tool before adding a manual URL.";
-            return;
-        }
-
-        if (!TrustedExternalLinkPolicy.TryNormalize(url, out var trustedUrl))
-        {
-            StatusMessage = "Enter an approved HTTPS link from Flare Fireplaces or Flare Order.";
-            return;
-        }
-
         var fireplaceCode = FirstNonBlank(SelectedUrlVerificationFireplace.ModelCode, "Manual");
         var fireplaceGroupId =
             FirstNonBlank(SelectedUrlVerificationFireplace.GroupId, $"manual:{SelectedUrlVerificationFireplace.Index}");
+        if (!TryValidateSpecLink(toolName, url, fireplaceGroupId, null, out toolName,
+                                 out var trustedUrl, out var error))
+        {
+            SpecLinkValidationMessage = error;
+            StatusMessage = error;
+            return;
+        }
+        SpecLinkValidationMessage = string.Empty;
         var draft = new SpecLinkDraft
         {
             FireplaceGroupId = fireplaceGroupId,
@@ -1499,21 +1580,14 @@ public sealed class MainViewModel : ObservableObject
         ManualUrlToolName = string.Empty;
         ManualUrlValue = string.Empty;
 
-        var previousIndex = SelectedUrlVerificationFireplace.Index;
-        RefreshUrlVerificationCards();
-        SelectedUrlVerificationFireplace =
-            UrlVerificationFireplaces.FirstOrDefault(card => card.Index == previousIndex) ??
-            UrlVerificationFireplaces.FirstOrDefault(
-                card => string.Equals(card.ModelCode, fireplaceCode, StringComparison.OrdinalIgnoreCase)) ??
-            UrlVerificationFireplaces.FirstOrDefault();
-
         StatusMessage = $"Added manual URL '{toolName}' to {fireplaceCode}.";
     }
 
     private void RefreshUrlVerificationCards()
     {
-        var rows = SpecLinks.Cast<object>().ToList();
+        var rows = _specLinkGroupMetadata.Cast<object>().Concat(SpecLinks).ToList();
         var previousIndex = SelectedUrlVerificationFireplace?.Index ?? 1;
+        var previousGroupId = SelectedUrlVerificationFireplace?.GroupId;
 
         UrlVerificationFireplaces.Clear();
         SelectedUrlVerificationRows.Clear();
@@ -1522,6 +1596,7 @@ public sealed class MainViewModel : ObservableObject
         {
             SelectedUrlVerificationFireplace = null;
             OnPropertyChanged(nameof(SelectedUrlVerificationSummary));
+            NotifySpecEditState();
             return;
         }
 
@@ -1530,9 +1605,11 @@ public sealed class MainViewModel : ObservableObject
         for (var i = 0; i < groups.Count; i++)
         {
             var groupRows = groups[i];
+            var linkRows = groupRows.Where(row => row is not SpecLinkDraft link ||
+                                                  !_specLinkGroupMetadata.Contains(link)).ToList();
             var modelCode = ResolveUrlVerificationModelCode(groupRows, i + 1);
             var styleKey = ResolveUrlVerificationStyleKey(modelCode, groupRows);
-            var isValid = groupRows.All(IsUrlVerificationRowValid);
+            var isValid = linkRows.All(IsUrlVerificationRowValid);
             var fireplaceLocation = ResolveUrlVerificationFireplaceLocation(groupRows);
             var urlHeading = BuildUrlVerificationHeading(modelCode, styleKey, groupRows);
 
@@ -1556,13 +1633,15 @@ public sealed class MainViewModel : ObservableObject
                                 ? "pack://application:,,,/Assets/UrlStyleCards/PASS.png"
                                 : $"pack://application:,,,/Assets/UrlStyleCards/{styleKey}.png",
                 IsValid = isValid,
-                StatusText = isValid ? "Approved" : "Needs Attention",
-                StatusGlyph = isValid ? "✓" : "✕",
-                Rows = groupRows.ToList()
+                StatusText = linkRows.Count == 0 ? "No URLs" : isValid ? "Approved" : "Needs Attention",
+                StatusGlyph = linkRows.Count == 0 ? "—" : isValid ? "✓" : "✕",
+                Rows = linkRows
             });
         }
 
         SelectedUrlVerificationFireplace =
+            UrlVerificationFireplaces.FirstOrDefault(card =>
+                string.Equals(card.GroupId, previousGroupId, StringComparison.OrdinalIgnoreCase)) ??
             UrlVerificationFireplaces.FirstOrDefault(card => card.Index == previousIndex) ??
             UrlVerificationFireplaces.FirstOrDefault();
 
@@ -1575,6 +1654,7 @@ public sealed class MainViewModel : ObservableObject
         if (SelectedUrlVerificationFireplace is null)
         {
             OnPropertyChanged(nameof(SelectedUrlVerificationSummary));
+            NotifySpecEditState();
             return;
         }
 
@@ -1589,6 +1669,7 @@ public sealed class MainViewModel : ObservableObject
             SelectedUrlVerificationRows.Add(
                 new UrlVerificationRowVm
                 {
+                    SourceLink = row as SpecLinkDraft,
                     Item = item,
                     Url = url,
                     StatusText = valid ? "Approved" : "Needs Attention",
@@ -1598,6 +1679,7 @@ public sealed class MainViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(SelectedUrlVerificationSummary));
+        NotifySpecEditState();
     }
 
     private static string? GetObjectStringValue(object source, params string[] propertyNames)
@@ -2945,7 +3027,7 @@ public sealed class MainViewModel : ObservableObject
         IsFeatureDropdownOpen = IsClassicMediaDropdownOpen = IsAdditionalClassicMediaDropdownOpen =
             IsPremiumMediaDropdownOpen = IsLeadTimeDropdownOpen = false;
         QuotePreviewRows.Clear();
-        SpecLinks.Clear();
+        ResetSpecLinkReview();
         WorkflowStage = QuoteWorkflowStage.Review;
         NotifyFireplaceContextChanged();
         if (canceledEdit)
@@ -3047,6 +3129,10 @@ public sealed class MainViewModel : ObservableObject
 
     private void InvalidatePricedSnapshot()
     {
+        if (_restoringUnfinishedQuote)
+            return;
+
+        ResetSpecLinkReview();
         if (_lastRequest is not null || _lastPricedQuote is not null || !string.IsNullOrWhiteSpace(GeneratedPdfPath))
         {
             _lastRequest = null;
@@ -3055,103 +3141,7 @@ public sealed class MainViewModel : ObservableObject
             WorkflowStage = QuoteWorkflowStage.Review;
         }
 
-        // The estimate is independent from the generated-PDF snapshot. Reprice the current
-        // quote whenever its pricing inputs change so "Est. total" remains useful before preview.
-        ScheduleEstimatedTotalRefresh();
-    }
 
-    private void CancelEstimatedTotalRefresh()
-    {
-        try
-        {
-            _estimatedTotalRefreshCts?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            // Best-effort cancellation only.
-        }
-    }
-
-    private void SetEstimatedTotalDisplay(string value)
-    {
-        var finalValue = string.IsNullOrWhiteSpace(value) ? "—" : value;
-        if (string.Equals(_estimatedTotalDisplay, finalValue, StringComparison.Ordinal))
-            return;
-
-        _estimatedTotalDisplay = finalValue;
-        OnPropertyChanged(nameof(EstimatedTotalDisplay));
-    }
-
-    private QuoteRequest BuildEstimatedQuoteRequest()
-    {
-        var request = BuildQuoteRequest();
-
-        // BuildQuoteRequest intentionally excludes a pending second fireplace until it is added.
-        // For the estimate, include that in-progress fireplace so the number reflects what the
-        // user is currently building. Editing an existing fireplace keeps the saved quote total
-        // until Save Changes is chosen.
-        if (Fireplaces.Count > 0 && !IsEditingFireplace && HasCurrentFireplaceDetails())
-            request.Fireplaces.Add(BuildCurrentFireplaceQuote());
-
-        return request;
-    }
-
-    private void ScheduleEstimatedTotalRefresh()
-    {
-        CancelEstimatedTotalRefresh();
-
-        var request = BuildEstimatedQuoteRequest();
-        if (request.Fireplaces.Count == 0 && string.IsNullOrWhiteSpace(request.Model))
-        {
-            SetEstimatedTotalDisplay("—");
-            return;
-        }
-
-        var refreshCts = new CancellationTokenSource();
-        _estimatedTotalRefreshCts = refreshCts;
-        _ = RefreshEstimatedTotalAsync(request, refreshCts);
-    }
-
-    private async Task RefreshEstimatedTotalAsync(QuoteRequest request, CancellationTokenSource refreshCts)
-    {
-        try
-        {
-            // Debounce rapid model/size/media changes so the workbook is not repriced on every keystroke.
-            await Task.Delay(180, refreshCts.Token);
-
-            var priced = await _priceBookService.BuildPricedQuoteAsync(
-                request,
-                PricingPath(),
-                refreshCts.Token);
-
-            if (refreshCts.IsCancellationRequested || !ReferenceEquals(_estimatedTotalRefreshCts, refreshCts))
-                return;
-
-            var hasAnyPricedLine = priced.Fireplaces.Any(
-                fireplace => fireplace.BaseLine.Price.HasValue ||
-                             fireplace.OptionalFeatures.Any(feature => feature.Price.HasValue));
-
-            SetEstimatedTotalDisplay(priced.Success && hasAnyPricedLine ? priced.TotalMsrp.ToString("C0") : "—");
-        }
-        catch (OperationCanceledException)
-        {
-            // A newer quote state superseded this estimate.
-        }
-        catch (Exception ex)
-        {
-            if (ReferenceEquals(_estimatedTotalRefreshCts, refreshCts))
-            {
-                SetEstimatedTotalDisplay("—");
-                _logger.Warning("Estimated total refresh failed: " + SafeForUser(ex.Message));
-            }
-        }
-        finally
-        {
-            if (ReferenceEquals(_estimatedTotalRefreshCts, refreshCts))
-                _estimatedTotalRefreshCts = null;
-
-            refreshCts.Dispose();
-        }
     }
 
     // Readiness / summary values surfaced to the redesigned build workspace.
@@ -3178,7 +3168,6 @@ public sealed class MainViewModel : ObservableObject
         : TotalSavedFireplaceQuantity > 1 ? $"{TotalSavedFireplaceQuantity} fireplaces on quote"
                                : "Add at least one fireplace";
     public string FireplaceCountText => TotalSavedFireplaceQuantity.ToString();
-    public string EstimatedTotalDisplay => _estimatedTotalDisplay;
     private int TotalSavedFireplaceQuantity => Fireplaces.Sum(fireplace => Math.Max(1, fireplace.Quantity));
     private void UpdateStatusForManualSelection()
     {
@@ -3923,7 +3912,9 @@ public sealed class MainViewModel : ObservableObject
             GeneratedPdfPath = string.Empty
         };
 
+        EnrichRecallSnapshot(snapshot);
         AddSnapshotToRecallHistory(snapshot);
+        _useCompletedQuoteForMessages = true;
     }
     private void DeleteGeneratedPdfAfterSuccessfulDraft()
     {
@@ -3970,7 +3961,7 @@ public sealed class MainViewModel : ObservableObject
         IsFeatureDropdownOpen = IsClassicMediaDropdownOpen = IsAdditionalClassicMediaDropdownOpen =
             IsPremiumMediaDropdownOpen = IsLeadTimeDropdownOpen = false;
         QuotePreviewRows.Clear();
-        SpecLinks.Clear();
+        ResetSpecLinkReview();
         WorkflowStage = QuoteWorkflowStage.Review;
         GeneratedPdfPath = string.Empty;
         _lastRequest = null;
@@ -3978,6 +3969,11 @@ public sealed class MainViewModel : ObservableObject
         NotifyFireplaceContextChanged();
         OnPropertyChanged(nameof(FireplaceQuoteSummary));
         UpdateStatusCards();
+        FireplacePhotoPaths.Clear();
+        ManualPhotoAttachmentPath = string.Empty;
+        ManualUrlToolName = ManualUrlValue = string.Empty;
+        SpecLinkValidationMessage = string.Empty;
+        ClearUnfinishedQuote();
     }
     private void RecallLastQuote()
     {
@@ -4033,7 +4029,7 @@ public sealed class MainViewModel : ObservableObject
             Fireplaces.Add(CloneFireplaceDraftForRecall(fireplace));
 
         QuotePreviewRows.Clear();
-        SpecLinks.Clear();
+        ResetSpecLinkReview();
         WorkflowStage = QuoteWorkflowStage.Review;
         GeneratedPdfPath = File.Exists(snapshot.GeneratedPdfPath) ? snapshot.GeneratedPdfPath : string.Empty;
         _lastRequest = null;
@@ -4046,6 +4042,7 @@ public sealed class MainViewModel : ObservableObject
         _lastCompletedQuoteSnapshot = snapshot;
         StatusMessage =
             $"Recalled quote for {snapshot.DisplayName}. Review it before previewing or creating another draft.";
+        RestoreRecallWorkflow(snapshot);
     }
 
     private static FireplaceQuoteDraft CloneFireplaceDraftForRecall(FireplaceQuoteDraft fireplace)
@@ -4073,6 +4070,7 @@ public sealed class MainViewModel : ObservableObject
 
     public sealed class LastQuoteSnapshot
     {
+        public UnfinishedQuoteState? WorkflowState { get; set; }
         public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.Now;
         public string DisplayName => !string.IsNullOrWhiteSpace(ClientName) ? ClientName
                                      : !string.IsNullOrWhiteSpace(ProjectName)
@@ -4192,8 +4190,17 @@ public sealed class UrlVerificationFireplaceCard : ObservableObject
     }
 }
 
-public sealed class UrlVerificationRowVm
+public sealed class UrlVerificationRowVm : ObservableObject
 {
+    private bool _isEditing;
+    private string _editingLabel = string.Empty;
+    private string _editingUrl = string.Empty;
+    private string _validationMessage = string.Empty;
+    public bool IsEditing { get => _isEditing; set => SetProperty(ref _isEditing, value); }
+    public string EditingLabel { get => _editingLabel; set => SetProperty(ref _editingLabel, value); }
+    public string EditingUrl { get => _editingUrl; set => SetProperty(ref _editingUrl, value); }
+    public string ValidationMessage { get => _validationMessage; set => SetProperty(ref _validationMessage, value); }
+    public SpecLinkDraft? SourceLink { get; init; }
     public string Item { get; init; } = string.Empty;
     public string Url { get; init; } = string.Empty;
     public string StatusText { get; init; } = string.Empty;
@@ -4272,10 +4279,11 @@ public sealed class QuotePreviewRow : ObservableObject
 public sealed class SpecLinkDraft : ObservableObject
 {
     private string _url = string.Empty;
+    private string _label = string.Empty;
     public string FireplaceGroupId { get; set; } = string.Empty;
     public string FireplaceCode { get; set; } = string.Empty;
     public string FireplaceLocation { get; set; } = string.Empty;
-    public string Label { get; set; } = string.Empty;
+    public string Label { get => _label; set => SetProperty(ref _label, value); }
     public string Url
     {
         get => _url;

@@ -71,6 +71,16 @@ try {
         $requiredFiles = @(
             "main-window-dark.png",
             "main-window-minimum.png",
+            "main-window-light.png",
+            "spec-links-dark.png",
+            "spec-links-minimum.png",
+            "spec-links-editing-minimum.png",
+            "spec-links-photos-minimum.png",
+            "text-message-composer.png",
+            "text-message-composer-minimum.png",
+            "text-message-editor.png",
+            "text-message-editor-minimum.png",
+            "text-message-light.png",
             "settings-window-dark.png",
             "settings-window-minimum.png",
             "layout-metrics.json"
@@ -99,6 +109,33 @@ try {
             [int]$metrics.mainWindow.passiveHeatFlexChipCount -lt 2 -or
             [int]$metrics.mainWindow.savedQuantityLabelCount -lt 1) {
             throw "UI snapshots did not prove the quantity and Passive Heat Flex visual contract."
+        }
+
+        foreach ($specMetrics in @($metrics.specLinks, $metrics.minimumSpecLinks)) {
+            if ([int]$specMetrics.fireplaceCardCount -ne 2 -or
+                [int]$specMetrics.selectedRowCount -ne 3 -or
+                [int]$specMetrics.manualRowCount -ne 1 -or
+                [int]$specMetrics.deleteButtonCount -ne 3 -or
+                [int]$specMetrics.resourceUrlFieldCount -ne 3 -or
+                [int]$specMetrics.rowBindingErrorCount -ne 0) {
+                throw "UI snapshots did not prove the automatic and manual URL deletion visual contract."
+            }
+        }
+
+        foreach ($messageMetrics in @($metrics.textMessage, $metrics.minimumTextMessage,
+                                       $metrics.textMessageEditor, $metrics.minimumTextMessageEditor,
+                                       $metrics.lightTextMessage)) {
+            if ([int]$messageMetrics.templateCount -ne 3 -or
+                [int]$messageMetrics.templateTextBindingCount -ne 6 -or
+                $messageMetrics.personalizedPreviewVerified -ne $true -or
+                [int]$messageMetrics.bindingErrorCount -ne 0) {
+                throw "UI snapshots did not prove personalized message composition and template editing."
+            }
+        }
+        if ($metrics.specLinkEditor.editingRowVisible -ne $true -or
+            [int]$metrics.photoAttachments.photoCount -ne 2 -or
+            $metrics.photoAttachments.photosInsideViewports -ne $true) {
+            throw "UI snapshots did not prove inline URL editing and individual photo attachment controls."
         }
 
         Write-Host "UI snapshot gate passed. Artifacts: $resolvedOutputPath"

@@ -42,6 +42,7 @@ namespace FlareQuotes.App.Views
             _gmailDraftService = gmailDraftService;
             _systemHealthService = systemHealthService;
             InitializeComponent();
+            WindowAppearance.Attach(this, 54);
             Loaded += async (_, _) => await LoadSettingsIntoFormAsync();
         }
 
@@ -72,7 +73,7 @@ namespace FlareQuotes.App.Views
                                                                                 ? _settings.LeadTimePresets
                                                                                 : new AppSettings().LeadTimePresets));
 
-                SettingsStatusText.Text = $"Settings file: {SettingsPath}";
+                SettingsStatusText.Text = "Settings loaded.";
             }
             catch (Exception ex)
             {
