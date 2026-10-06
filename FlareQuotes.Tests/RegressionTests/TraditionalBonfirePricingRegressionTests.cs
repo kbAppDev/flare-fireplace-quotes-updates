@@ -211,7 +211,9 @@ public sealed class TraditionalBonfirePricingRegressionTests
                 ("BON-KIT-42", "Traditional 42\" Fireplace Bonfire Burner Retrofit Kit", "BONKIT42", 1250),
                 ("COVER-TRA-42", "Cover for Traditional 42\" Fireplace", "COVERTRA42", 150),
                 ("ACC-TRA-42", "Traditional 42\" Fireplace Accessory", "ACCTRA42", 99),
-                ("BON-ACC-42", "Traditional 42\" Bonfire Fireplace Accessory", "BONACC42", 199)
+                ("BON-ACC-42", "Traditional 42\" Bonfire Fireplace Accessory", "BONACC42", 199),
+                ("GRATE-42", "Traditional 42\" Fireplace Grate", "GRATE42", 199),
+                ("BON-GRATE-42", "Traditional Bonfire 42\" Fireplace Grate", "BONGRATE42", 199)
             };
             for (var index = 0; index < accessories.Length; index++)
             {
@@ -241,6 +243,13 @@ public sealed class TraditionalBonfirePricingRegressionTests
     [InlineData(true, "BONTR42", "")]
     [InlineData(true, "TRBON42", "")]
     [InlineData(true, "BONTRA42", "")]
+    [InlineData(false, "Traditional 42", "")]
+    [InlineData(true, "Traditional Bonfire 42", "")]
+    [InlineData(false, "Flare Traditional 42\"", "")]
+    [InlineData(true, "Flare Traditional Bonfire 42\"", "")]
+    [InlineData(false, "Flare Traditional 42\" Fireplace", "")]
+    [InlineData(true, "Flare Traditional 42\" Fireplace with Flat Bonfire Burner", "")]
+    [InlineData(true, "Traditional 42", "Flat Bonfire Burner")]
     [InlineData(false, "Custom Fireplace", "Flare Traditional 42\" Fireplace")]
     [InlineData(true, "Custom Fireplace", "Flare Traditional 42\" Fireplace with Flat Bonfire Burner")]
     public async Task CustomTraditionalBaseRowsRemainSupportedWithoutSku(
@@ -267,6 +276,43 @@ public sealed class TraditionalBonfirePricingRegressionTests
         var fireplace = Assert.Single(result.Fireplaces);
         Assert.Equal(11313m, fireplace.BaseLine.Price);
         Assert.Equal(isBonfire ? "TRA-BON-42" : "TR-42", fireplace.ModelNumber);
+    }
+
+    [Theory]
+    [InlineData(true, "Traditional 42", "")]
+    [InlineData(false, "Traditional Bonfire 42", "")]
+    [InlineData(false, "Traditional 42 Log Set", "")]
+    [InlineData(false, "Traditional 42 Cover", "")]
+    [InlineData(false, "Traditional 42 Accessory", "")]
+    [InlineData(true, "Traditional Bonfire 42 Kit", "")]
+    [InlineData(true, "Traditional Bonfire 42 Retrofit", "")]
+    [InlineData(true, "Traditional Bonfire 42 Cover", "")]
+    [InlineData(false, "Traditional 42", "Flat Bonfire Burner")]
+    [InlineData(false, "Traditional 42 Fireplace Grate", "")]
+    [InlineData(true, "Traditional Bonfire 42 Fireplace Grate", "")]
+    public async Task DescriptivePartNameFallbackRejectsOtherBurnerVariantsAndAccessoriesWithoutSku(
+        bool requestBonfire, string partName, string description)
+    {
+        using var fixture = new TemporaryWorkbook();
+        using (var workbook = new XLWorkbook())
+        {
+            var sheet = workbook.AddWorksheet("Indoor Price Book");
+            sheet.Cell(1, 1).Value = "Part Name";
+            sheet.Cell(1, 2).Value = "Description";
+            sheet.Cell(1, 3).Value = "SKU";
+            sheet.Cell(1, 4).Value = "MSRP";
+            sheet.Cell(2, 1).Value = partName;
+            sheet.Cell(2, 2).Value = description;
+            sheet.Cell(2, 4).Value = 99;
+            workbook.SaveAs(fixture.Path);
+        }
+
+        var result = await new ClosedXmlPriceBookService().BuildPricedQuoteAsync(
+            Request(requestBonfire ? "Traditional Bonfire" : "Traditional", "42"), fixture.Path);
+
+        Assert.False(result.Success);
+        Assert.Null(Assert.Single(result.Fireplaces).BaseLine.Price);
+        Assert.Contains("base fireplace", result.Message);
     }
 
     [Fact]
@@ -338,8 +384,8 @@ public sealed class TraditionalBonfirePricingRegressionTests
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            var path = System.IO.Path.Combine(directory.FullName, "LocalData", "pricing.xlsx");
-            if (Directory.Exists(System.IO.Path.Combine(directory.FullName, "FlareQuotes.App")) && File.Exists(path))
+            var path = System.IO.Path.Join(directory.FullName, "LocalData", "pricing.xlsx");
+            if (Directory.Exists(System.IO.Path.Join(directory.FullName, "FlareQuotes.App")) && File.Exists(path))
                 return path;
             directory = directory.Parent;
         }
@@ -349,8 +395,8 @@ public sealed class TraditionalBonfirePricingRegressionTests
 
     private sealed class TemporaryWorkbook : IDisposable
     {
-        private readonly string _directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "FlareBonfireTests", Guid.NewGuid().ToString("N"));
-        public string Path => System.IO.Path.Combine(_directory, "pricing.xlsx");
+        private readonly string _directory = System.IO.Path.Join(System.IO.Path.GetTempPath(), "FlareBonfireTests", Guid.NewGuid().ToString("N"));
+        public string Path => System.IO.Path.Join(_directory, "pricing.xlsx");
 
         public TemporaryWorkbook() => Directory.CreateDirectory(_directory);
         public void Dispose() => Directory.Delete(_directory, recursive: true);

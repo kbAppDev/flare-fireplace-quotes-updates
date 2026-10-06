@@ -16,9 +16,9 @@ public sealed class TraditionalBonfireIdentityTests
     public void AutoFillKeepsBonfireIdentityAndInfersSize(string code, string size)
     {
         var parser = new DefaultQuoteRequestParser();
-        foreach (var text in new[] { code, $"Model: {code}", $"Please quote {code} for the living room." })
+        var requests = new[] { code, $"Model: {code}", $"Please quote {code} for the living room." }.Select(parser.Parse);
+        foreach (var request in requests)
         {
-            var request = parser.Parse(text);
             Assert.Equal("Traditional Bonfire", request.Model);
             Assert.Equal(size, request.Size);
             Assert.Equal(FireplaceType.Traditional, FireplaceModelClassifier.DetectType(request.Model, request.Size));

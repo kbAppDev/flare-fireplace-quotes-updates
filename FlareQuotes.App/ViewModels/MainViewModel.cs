@@ -269,6 +269,7 @@ public sealed partial class MainViewModel : ObservableObject
             var finalModel = value ?? string.Empty;
             var decodedSize = string.Empty;
             var decodedGlassHeight = string.Empty;
+            var decodedTraditionalModel = false;
 
             if (LooksLikeCompleteFireplaceCode(finalModel))
             {
@@ -276,6 +277,8 @@ public sealed partial class MainViewModel : ObservableObject
                 finalModel = FirstNonBlank(decoded.Model, finalModel);
                 decodedSize = decoded.Size;
                 decodedGlassHeight = decoded.GlassHeight;
+                decodedTraditionalModel = !string.IsNullOrWhiteSpace(decoded.Model) &&
+                                          DetectType(decoded.Model, decoded.Size) == FireplaceType.Traditional;
             }
 
             var modelChanged = SetProperty(ref _model, finalModel);
@@ -283,7 +286,7 @@ public sealed partial class MainViewModel : ObservableObject
             // The Size/GlassHeight setters refresh the dependent quote and selection state.
             if (!string.IsNullOrWhiteSpace(decodedSize))
                 Size = decodedSize;
-            if (!string.IsNullOrWhiteSpace(decodedGlassHeight))
+            if (decodedTraditionalModel || !string.IsNullOrWhiteSpace(decodedGlassHeight))
                 GlassHeight = decodedGlassHeight;
 
             if (modelChanged)
@@ -2387,11 +2390,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (isBonfireTraditional)
         {
             return options
-                .Where(x => !IsTraditionalBirchLogMedia(x.Key) &&
-                            (!IsLargeOakPremiumMedia(x.Key) ||
-                             (isSize42 && x.Key.Equals("loak42", StringComparison.OrdinalIgnoreCase)) ||
-                             (isSize46 && x.Key.Equals("loak46", StringComparison.OrdinalIgnoreCase)) ||
-                             (!isSize42 && !isSize46)))
+                .Where(x => IsBonfirePremiumMediaAvailable(x.Key, isSize42, isSize46))
                 .OrderBy(x => x.Label)
                 .ToList();
         }
@@ -2469,10 +2468,17 @@ public sealed partial class MainViewModel : ObservableObject
         key.Equals("tr42bch", StringComparison.OrdinalIgnoreCase) ||
         key.Equals("tr46bch", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsLargeOakPremiumMedia(string key)
+    private static bool IsBonfirePremiumMediaAvailable(string key, bool isSize42, bool isSize46)
     {
-        return key.Equals("loak42", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("loak46", StringComparison.OrdinalIgnoreCase);
+        if (IsTraditionalBirchLogMedia(key))
+            return false;
+        if (!isSize42 && !isSize46)
+            return true;
+        if (key.Equals("loak42", StringComparison.OrdinalIgnoreCase))
+            return isSize42;
+        if (key.Equals("loak46", StringComparison.OrdinalIgnoreCase))
+            return isSize46;
+        return true;
     }
 
     private static string NormalizeModelForRules(string value) => System.Text.RegularExpressions.Regex

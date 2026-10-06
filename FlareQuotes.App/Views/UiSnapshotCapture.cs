@@ -165,11 +165,11 @@ internal static class UiSnapshotCapture
             PopulateRepresentativeBonfire(viewModel);
             ArrangeAtSize(mainFrame, 1480, 920);
             ScrollBonfireSelectionsIntoView(renderWindow, mainFrame);
-            SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "bonfire-selection-dark.png"));
+            SaveVisual(mainFrame, Path.Join(snapshotDirectory, "bonfire-selection-dark.png"));
             var bonfireMetrics = ValidateBonfireSelection(renderWindow, mainFrame, viewModel);
             ArrangeAtSize(mainFrame, 1180, 760);
             ScrollBonfireSelectionsIntoView(renderWindow, mainFrame);
-            SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "bonfire-selection-minimum.png"));
+            SaveVisual(mainFrame, Path.Join(snapshotDirectory, "bonfire-selection-minimum.png"));
             var minimumBonfireMetrics = ValidateBonfireSelection(renderWindow, mainFrame, viewModel);
 
             var metrics = new {

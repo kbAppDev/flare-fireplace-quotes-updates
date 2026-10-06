@@ -1341,13 +1341,14 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     {
         var text = Normalize($"{row.Sku} {row.PartName} {row.Description}");
         if (Regex.IsMatch(text,
-                @"\b(?:logs?|kits?|covers?|accessor(?:y|ies)|replacement|retrofit|retro fit|media|bricks?|reflective|double glass|louvers?|fans?|switch|remote|power vent)\b",
+                @"\b(?:logs?|kits?|covers?|grates?|accessor(?:y|ies)|replacement|retrofit|retro fit|media|bricks?|reflective|double glass|louvers?|fans?|switch|remote|power vent)\b",
                 RegexOptions.CultureInvariant))
             return false;
 
         var rowIsBonfire = TraditionalFireplaceModel.IsBonfire(row.Sku) ||
                            TraditionalFireplaceModel.IsBonfire(row.PartName) ||
-                           TraditionalFireplaceModel.IsBonfire(row.Description);
+                           TraditionalFireplaceModel.IsBonfire(row.Description) ||
+                           TraditionalFireplaceModel.IsBonfire($"{row.PartName} {row.Description}");
         if (rowIsBonfire != isBonfire || !ContainsSize(row, size))
             return false;
 
@@ -1355,11 +1356,14 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         var baseIdentifier = $@"^(?:FLARE)?{prefixes}{Regex.Escape(size)}$";
         var hasBaseIdentifier = Regex.IsMatch(Compact(row.Sku), baseIdentifier, RegexOptions.CultureInvariant) ||
                                 Regex.IsMatch(Compact(row.PartName), baseIdentifier, RegexOptions.CultureInvariant);
-        var description = Normalize(row.Description);
+        var partName = Normalize(row.PartName);
+        var descriptiveBaseName = $@"^(?:flare )?traditional(?: bonfire| bon)? {Regex.Escape(size)}(?: fireplace)?$";
+        var hasDescriptiveBaseName = Regex.IsMatch(partName, descriptiveBaseName, RegexOptions.CultureInvariant);
+        var description = Normalize($"{row.PartName} {row.Description}");
         var describesFireplace = Regex.IsMatch(description, @"\btraditional\b.*\bfireplace\b|\bfireplace\b.*\btraditional\b",
                                                RegexOptions.CultureInvariant) &&
                                  !Regex.IsMatch(description, @"\bfor\b.*\bfireplace\b", RegexOptions.CultureInvariant);
-        return hasBaseIdentifier || describesFireplace;
+        return hasBaseIdentifier || hasDescriptiveBaseName || describesFireplace;
     }
 
     private static PriceRow? FindFeatureRow(PriceBookWorkbook wb, FireplaceType type, string model, string size,

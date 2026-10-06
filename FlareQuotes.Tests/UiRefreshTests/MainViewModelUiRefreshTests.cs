@@ -417,6 +417,33 @@ public sealed class MainViewModelUiRefreshTests
     [Theory]
     [InlineData("TRA-BON-42", "42")]
     [InlineData("TRABON46", "46")]
+    [InlineData("Flare-TRA-BON-46", "46")]
+    [InlineData("DVTRA42", "42")]
+    [InlineData("TR-46", "46")]
+    public void SwitchingToAFullTraditionalCodeClearsThePreviousGlassHeight(string traditionalCode, string size)
+    {
+        var viewModel = CreateViewModel(new DefaultQuoteRequestParser());
+        viewModel.Model = "DVFF60H";
+        Assert.Equal("24", viewModel.GlassHeight);
+
+        viewModel.Model = traditionalCode;
+
+        Assert.Equal(size, viewModel.Size);
+        Assert.Empty(viewModel.GlassHeight);
+        Assert.DoesNotContain("glass", viewModel.CurrentFireplaceLabel, StringComparison.OrdinalIgnoreCase);
+        viewModel.AddFireplaceCommand.Execute(null);
+        var fireplace = Assert.Single(viewModel.Fireplaces);
+        Assert.Empty(fireplace.GlassHeight);
+
+        viewModel.EditFireplaceCommand.Execute(fireplace);
+
+        Assert.Equal(size, viewModel.Size);
+        Assert.Empty(viewModel.GlassHeight);
+    }
+
+    [Theory]
+    [InlineData("TRA-BON-42", "42")]
+    [InlineData("TRABON46", "46")]
     [InlineData("BONTR42", "42")]
     public void BonfireSpecCardsKeepModelAndHeading(string modelCode, string size)
     {
