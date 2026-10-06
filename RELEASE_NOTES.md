@@ -1,3 +1,24 @@
+# 1.70.1 (expanded 1.70 update)
+
+- Adds an integrated Text message workflow with personalized editable previews, reusable template add/edit/delete, Undo delete, and encrypted template storage. Supports customer, project, model, consultation, and sender-name tokens; copies the message and recipient number and opens Phone Link for review and sending.
+- Automatically saves unfinished quotes with Windows encryption, restores them into Review on restart, and flushes on close. Preserves unfinished fireplace and URL edits, link deletions, quantities, media selections, and available photo references. Clear and successful Gmail draft creation remove the unfinished autosave.
+- Removes live totals and the background pricing work that maintained them. Pricing occurs when a preview or draft is requested.
+- Adds deep-copy fireplace duplication directly into the editing flow and individual photo removal with filenames and attachment sizes.
+- Adds inline URL name/address editing, duplicate-label validation within each fireplace, and guards against losing unsaved link edits.
+- Replaces permanent instruction paragraphs with contextual rounded help bubbles, including keyboard-focus help. Adds native Windows 11 rounded frames and a restrained Acrylic background with opaque cards, fields, and fallback.
+- Reduces product card image assets from 27.5 MB to 3.4 MB while preserving product appearance and transparency.
+- Retains the requested indoor email copy and URL deletion behavior from 1.70.0. Adds no paid publisher signing.
+
+# 1.70.0 (1.70)
+
+- Adds a Delete button to every spec URL row, including manually added URLs; removes only the selected row from its own fireplace.
+- Preserves manual additions and deletions when moving between preview and link review. Deleting all URLs no longer triggers automatic restoration during Gmail draft creation.
+- Keeps fireplace cards available when their link lists are empty, so replacement URLs can be added to the correct fireplace.
+- Blocks URL additions and deletions while a Gmail draft is being prepared, keeping the visible link list consistent with the email snapshot.
+- Uses the exact requested opening and project consultation link for Indoor, Indoor See Through, Traditional, and Large quotes. Outdoor, hybrid, and mixed quotes retain their existing copy and consultation settings.
+- Adds URL deletion, navigation, empty-card, draft, email-copy, and rendered link-review coverage.
+- Based on the verified GitHub v1.6.9 tag, commit 781c59739840cb6f0a6b09cc76f7cf169de11929. Packaged numerically as 1.70.0 to remain compatible with the existing updater version format.
+- Adds no paid publisher signing, Phone Link feature, or other unapproved optional enhancement.
 # 1.6.9
 
 - Made pricing fail closed when a selected fireplace, required outdoor kit, optional feature, or chargeable media item cannot be matched exactly; unsuccessful pricing can no longer reach PDF or Gmail output.

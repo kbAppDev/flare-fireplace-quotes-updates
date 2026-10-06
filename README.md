@@ -1,10 +1,16 @@
-# Flare Fireplace Quotes v1.6.9
+# Flare Fireplace Quotes v1.70.1
 
 Windows WPF application for turning fireplace quote requests into priced PDFs, reviewed specification links, and Gmail drafts.
 
 ## Release highlights
 
-v1.6.9 is a focused correctness, resilience, and update-security release. Pricing now fails closed when a selected item cannot be matched, workbooks and generated PDFs are processed with strict resource and content limits, sensitive data handling is tighter, and releases use a mandatory signed update manifest.
+v1.70.1 expands the requested 1.70 update with an integrated text-message template manager, encrypted unfinished-quote autosave, fireplace duplication, individual photo removal, and editable specification URLs with duplicate-name validation. Live totals and their background pricing work have been removed. Smaller product-image assets, contextual help bubbles, native rounded Windows frames, and restrained Acrylic backgrounds streamline the interface. Indoor email drafts use the requested opening and exact HubSpot project consultation link. This update starts from the verified GitHub v1.6.9 tag and retains its pricing, privacy, and update safeguards.
+
+The Text message button uses the current quote's customer details. Immediately after creating a Gmail draft it uses that completed quote for follow-up. Templates support `{FirstName}`, `{Project}`, `{Model}`, `{Consultation}`, and `{SalesName}`. Preview edits affect only the current message; New, Edit, Delete, and Undo manage reusable templates. Copy the message and number, open Phone Link, and paste, review, and send there. Phone Link does not provide a documented recipient-and-body prefill API, so this workflow uses Microsoft's documented launch URI and requires the final Send action in Phone Link.
+
+Unfinished quotes restore into Review after restart. Customer fields, saved fireplaces, unfinished fireplace edits, photo references, and URL-review changes are recovered; PDFs and pricing are regenerated from current data. Clear and successful Gmail draft creation discard the unfinished autosave. Photo removal detaches a file from the quote without deleting the original. Specification URL changes affect the email link list; regenerate the PDF to refresh its separately generated contents.
+
+Windows 11 supplies rounded native window corners and a subtle Acrylic backdrop. Cards and fields remain opaque for legibility; older Windows versions and high-contrast mode use an opaque fallback. Product card PNGs retain their transparent backgrounds and now total approximately 3.4 MB instead of 27.5 MB.
 
 The updater is pinned to the Flare-managed GitHub release lane. Every update manifest must carry a valid RS256 signature from the public key embedded in the application. Every installer download must also match the release version, exact asset path, declared byte size, and SHA-256 hash before launch.
 
@@ -32,7 +38,7 @@ checked-in 45% aggregate line-coverage floor across production assemblies.
 Run these commands from the repository root after the validation commands pass:
 
 ```powershell
-$releaseVersion = "1.6.9"
+$releaseVersion = "1.70.1"
 $publishDir = Join-Path (Get-Location) "FlareQuotes.App\bin\Release\net10.0-windows\win-x64\publish"
 $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 
@@ -46,7 +52,7 @@ If Inno Setup is installed elsewhere, replace `$iscc` with the full path to `ISC
 
 ## Publishing
 
-Publish only from a clean, passing commit tagged `v1.6.9`, matching `Directory.Build.props`. The tag-driven GitHub
+Publish only from a clean, passing commit tagged `v1.70.1`, matching `Directory.Build.props`. The tag-driven GitHub
 workflow performs formatting, tests, rendered Windows UI checks, packaging, manifest signing, and installer hash
 verification before publishing. CodeQL continues independently on source changes. The updater metadata points to
 that exact versioned installer and records its exact size and SHA-256.
@@ -65,4 +71,4 @@ verified installer, signs the v2 feed, and validates all draft assets before pub
 
 ## Runtime data
 
-User data is kept outside the installation under `%LOCALAPPDATA%\Flare Fireplace Quotes`. Quote history and Gmail OAuth tokens use Windows DPAPI with CurrentUser scope. Credentials, tokens, user settings, logs, generated PDFs, and build output must never be committed or placed in source-only archives.
+User data is kept outside the installation under `%LOCALAPPDATA%\Flare Fireplace Quotes`. Quote history, unfinished quote autosaves, message templates, and Gmail OAuth tokens use Windows DPAPI with CurrentUser scope. Personalized text-message previews are temporary and are not saved to the template library. Credentials, tokens, user settings, logs, generated PDFs, and build output must never be committed or placed in source-only archives.

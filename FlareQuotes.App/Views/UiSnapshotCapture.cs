@@ -1,12 +1,16 @@
 #if FLARE_UI_SNAPSHOTS
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using FlareQuotes.App.ViewModels;
+using FlareQuotes.Core.Messaging;
+using FlareQuotes.Core.Models;
 
 namespace FlareQuotes.App.Views;
 
@@ -54,6 +58,7 @@ internal static class UiSnapshotCapture
             var mainFrame = renderWindow.WindowFrame;
             renderWindow.Content = null;
             mainFrame.DataContext = viewModel;
+            var nativeMainMetrics = WindowAppearance.VerifyNativeAttributes(renderWindow);
 
             ArrangeAtSize(mainFrame, 1480, 920);
             SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "main-window-dark.png"));
@@ -62,6 +67,66 @@ internal static class UiSnapshotCapture
             ArrangeAtSize(mainFrame, 1180, 760);
             SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "main-window-minimum.png"));
             var minimumMainMetrics = ValidateMinimumMainWindow(renderWindow, mainFrame);
+
+            // The spec-row actions use a Window ancestor for their command bindings. Reattach
+            // the populated surface after the original main captures without showing a window.
+            renderWindow.Content = mainFrame;
+            PopulateRepresentativeSpecLinks(viewModel);
+
+            ArrangeAtSize(mainFrame, 1480, 920);
+            SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "spec-links-dark.png"));
+            var specLinksMetrics = ValidateSpecLinks(mainFrame, viewModel);
+
+            ArrangeAtSize(mainFrame, 1180, 760);
+            SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "spec-links-minimum.png"));
+            var minimumSpecLinksMetrics = ValidateSpecLinks(mainFrame, viewModel);
+
+            var editingRow = viewModel.SelectedUrlVerificationRows[0];
+            viewModel.EditSpecLinkCommand.Execute(editingRow);
+            editingRow.EditingLabel = "Product information";
+            renderWindow.SpecLinksStageScroller.ScrollToHome();
+            ArrangeAtSize(mainFrame, 1180, 760);
+            SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "spec-links-editing-minimum.png"));
+            var specEditingMetrics = ValidateSpecLinkEditor(mainFrame, viewModel, editingRow);
+            viewModel.CancelSpecLinkEditCommand.Execute(editingRow);
+
+            PopulateRepresentativePhotos(viewModel, snapshotDirectory);
+            ArrangeAtSize(mainFrame, 1180, 760);
+            renderWindow.SpecLinksStageScroller.ScrollToEnd();
+            mainFrame.UpdateLayout();
+            SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "spec-links-photos-minimum.png"));
+            var photoMetrics = ValidatePhotoAttachments(renderWindow, mainFrame, viewModel);
+            viewModel.FireplacePhotoPaths.Clear();
+            renderWindow.SpecLinksStageScroller.ScrollToHome();
+
+            var textMessageWindow = new TextMessageWindow(new TextMessageContext
+            {
+                ClientName = "Amanda Jensen",
+                ProjectName = "Lakeview Renovation",
+                Model = "FF60R",
+                Phone = "(312) 555-0184",
+                SalesName = "Kyle",
+                ConsultationUrl = TextMessageTemplateRenderer.DefaultConsultationUrl
+            }, new TextMessageTemplateStore(Path.Combine(snapshotDirectory, "snapshot-text-templates.json.dpapi")));
+            var nativeTextMessageMetrics = WindowAppearance.VerifyNativeAttributes(textMessageWindow);
+            var textMessageFrame = textMessageWindow.TextMessageFrame;
+            textMessageWindow.Content = null;
+
+            ArrangeAtSize(textMessageFrame, 920, 720);
+            SaveVisual(textMessageFrame, Path.Combine(snapshotDirectory, "text-message-composer.png"));
+            var textMessageMetrics = ValidateTextMessage(textMessageWindow, textMessageFrame, editing: false);
+            ArrangeAtSize(textMessageFrame, 800, 650);
+            SaveVisual(textMessageFrame, Path.Combine(snapshotDirectory, "text-message-composer-minimum.png"));
+            var minimumTextMessageMetrics = ValidateTextMessage(textMessageWindow, textMessageFrame, editing: false);
+
+            textMessageWindow.EditTemplateButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            textMessageWindow.TemplateBodyBox.Text += "\n— {SalesName}";
+            ArrangeAtSize(textMessageFrame, 920, 720);
+            SaveVisual(textMessageFrame, Path.Combine(snapshotDirectory, "text-message-editor.png"));
+            var textMessageEditorMetrics = ValidateTextMessage(textMessageWindow, textMessageFrame, editing: true);
+            ArrangeAtSize(textMessageFrame, 800, 650);
+            SaveVisual(textMessageFrame, Path.Combine(snapshotDirectory, "text-message-editor-minimum.png"));
+            var minimumTextMessageEditorMetrics = ValidateTextMessage(textMessageWindow, textMessageFrame, editing: true);
 
             var settingsWindow = new SettingsWindow {
                 Width = 920,
@@ -81,10 +146,38 @@ internal static class UiSnapshotCapture
             SaveVisual(settingsFrame, Path.Combine(snapshotDirectory, "settings-window-minimum.png"));
             var minimumSettingsMetrics = ValidateSettingsWindow(settingsWindow, settingsFrame);
 
+            ApplySnapshotTheme(renderWindow, dark: false);
+            viewModel.WorkflowStage = QuoteWorkflowStage.Review;
+            ArrangeAtSize(mainFrame, 1480, 920);
+            SaveVisual(mainFrame, Path.Combine(snapshotDirectory, "main-window-light.png"));
+            var lightMainMetrics = ValidateMainWindow(renderWindow, mainFrame, viewModel, expectedDarkTheme: false);
+            var cancelTemplateButton = FindVisualElements<Button>(textMessageWindow.EditorPanel)
+                                           .Single(button => AutomationProperties.GetName(button) == "Cancel text message template editing");
+            cancelTemplateButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            textMessageWindow.Content = textMessageFrame;
+            WindowAppearance.UpdateTheme(textMessageWindow, dark: false);
+            ArrangeAtSize(textMessageFrame, 920, 720);
+            SaveVisual(textMessageFrame, Path.Combine(snapshotDirectory, "text-message-light.png"));
+            var lightTextMessageMetrics = ValidateTextMessage(textMessageWindow, textMessageFrame, editing: false);
+            ApplySnapshotTheme(renderWindow, dark: true);
+            WindowAppearance.UpdateTheme(textMessageWindow, dark: true);
+
             var metrics = new {
                 generatedUtc = DateTime.UtcNow,
                 mainWindow = mainMetrics,
                 minimumMainWindow = minimumMainMetrics,
+                specLinks = specLinksMetrics,
+                minimumSpecLinks = minimumSpecLinksMetrics,
+                specLinkEditor = specEditingMetrics,
+                photoAttachments = photoMetrics,
+                textMessage = textMessageMetrics,
+                minimumTextMessage = minimumTextMessageMetrics,
+                textMessageEditor = textMessageEditorMetrics,
+                minimumTextMessageEditor = minimumTextMessageEditorMetrics,
+                nativeMainWindow = nativeMainMetrics,
+                nativeTextMessageWindow = nativeTextMessageMetrics,
+                lightMainWindow = lightMainMetrics,
+                lightTextMessage = lightTextMessageMetrics,
                 settingsWindow = settingsMetrics,
                 minimumSettingsWindow = minimumSettingsMetrics,
                 systemHealthWindowsOpened = Application.Current.Windows.OfType<SystemHealthWindow>().Count()
@@ -208,6 +301,52 @@ internal static class UiSnapshotCapture
         window.SettingsStatusText.Text = "Settings are stored securely under your Windows profile.";
     }
 
+    private static void PopulateRepresentativeSpecLinks(MainViewModel viewModel)
+    {
+        viewModel.SpecLinks.Clear();
+        viewModel.SpecLinks.Add(new SpecLinkDraft
+        {
+            FireplaceGroupId = "snapshot:living-room",
+            FireplaceCode = "FF60R",
+            FireplaceLocation = "Living Room",
+            Label = "Product Sheet",
+            Url = "https://flarefireplaces.com/wp-content/uploads/product-sheets/Front-Facing-60.pdf",
+            Status = "matched"
+        });
+        viewModel.SpecLinks.Add(new SpecLinkDraft
+        {
+            FireplaceGroupId = "snapshot:living-room",
+            FireplaceCode = "FF60R",
+            FireplaceLocation = "Living Room",
+            Label = "Installation Manual",
+            Url = "https://flarefireplaces.com/wp-content/uploads/installation/Flare-Fireplaces-Installation-Manual.pdf",
+            Status = "matched"
+        });
+
+        viewModel.ManualUrlToolName = "Framing Supplement";
+        viewModel.ManualUrlValue =
+            "https://flarefireplaces.com/wp-content/uploads/installation/supplemental-framing-notes.pdf";
+        viewModel.AddManualUrlCommand.Execute(null);
+
+        viewModel.SpecLinks.Add(new SpecLinkDraft
+        {
+            FireplaceGroupId = "snapshot:patio",
+            FireplaceCode = "VST50H",
+            FireplaceLocation = "Covered Patio",
+            Label = "Product Sheet",
+            Url = "https://flarefireplaces.com/wp-content/uploads/product-sheets/Outdoor-See-Through-50.pdf",
+            Status = "matched"
+        });
+        viewModel.WorkflowStage = QuoteWorkflowStage.SpecLinks;
+        viewModel.StatusMessage = "Review the selected fireplace's automatic and manually added URLs.";
+
+        if (viewModel.UrlVerificationFireplaces.Count != 2 || viewModel.SelectedUrlVerificationRows.Count != 3 ||
+            viewModel.SelectedUrlVerificationRows.Count(row => row.SourceLink?.Status == "manual") != 1)
+        {
+            throw new InvalidOperationException("Representative automatic and manual spec URLs were not preserved.");
+        }
+    }
+
     private static void ArrangeAtSize(FrameworkElement root, double width, double height)
     {
         root.Width = width;
@@ -219,7 +358,8 @@ internal static class UiSnapshotCapture
         root.UpdateLayout();
     }
 
-    private static object ValidateMainWindow(MainWindow window, FrameworkElement root, MainViewModel viewModel)
+    private static object ValidateMainWindow(MainWindow window, FrameworkElement root, MainViewModel viewModel,
+                                             bool expectedDarkTheme = true)
     {
         AssertWithinRoot(window.RequestPane, root, nameof(window.RequestPane));
         AssertWithinRoot(window.QuoteWorkspacePane, root, nameof(window.QuoteWorkspacePane));
@@ -239,8 +379,8 @@ internal static class UiSnapshotCapture
         AssertRange(window.GeneratePreviewButton.ActualHeight, 34, 42, "Generate preview height");
         AssertRange(window.ThemeToggleButton.ActualWidth, 36, 40, "Theme button width");
 
-        if (window.ThemeToggleButton.IsChecked != true)
-            throw new InvalidOperationException("The deterministic snapshot did not use the dark theme.");
+        if (window.ThemeToggleButton.IsChecked != expectedDarkTheme)
+            throw new InvalidOperationException("The deterministic snapshot did not use the requested theme.");
 
         if (viewModel.FireplaceQuantity != 3 || window.FireplaceQuantityValue.Text != "3")
             throw new InvalidOperationException("The representative fireplace quantity did not render as 3.");
@@ -322,6 +462,268 @@ internal static class UiSnapshotCapture
             generateButtonWidth = window.GeneratePreviewButton.ActualWidth,
             generateButtonHeight = window.GeneratePreviewButton.ActualHeight
         };
+    }
+
+    private static object ValidateSpecLinks(FrameworkElement root, MainViewModel viewModel)
+    {
+        var buttons = FindVisualElements<Button>(root)
+                          .Where(button => ReferenceEquals(button.Command, viewModel.RemoveSpecLinkCommand))
+                          .ToArray();
+        var urlBoxes = FindVisualElements<TextBox>(root)
+                           .Where(textBox => AutomationProperties.GetName(textBox) == "Resource URL")
+                           .ToArray();
+        var rows = viewModel.SelectedUrlVerificationRows;
+
+        if (buttons.Length != rows.Count || urlBoxes.Length != rows.Count)
+            throw new InvalidOperationException("Every selected spec URL must render a URL field and Delete URL action.");
+
+        foreach (var row in rows)
+        {
+            var button = buttons.SingleOrDefault(candidate => ReferenceEquals(candidate.DataContext, row));
+            var urlBox = urlBoxes.SingleOrDefault(candidate => ReferenceEquals(candidate.DataContext, row));
+            if (button is null || urlBox is null ||
+                !ReferenceEquals(button.Command, viewModel.RemoveSpecLinkCommand) ||
+                !ReferenceEquals(button.CommandParameter, row) || button.Command?.CanExecute(row) != true)
+            {
+                throw new InvalidOperationException($"Delete URL is not bound to the selected '{row.Item}' row.");
+            }
+
+            AssertWithinRoot(button, root, $"{row.Item} Delete URL button");
+            AssertWithinRoot(urlBox, root, $"{row.Item} URL field");
+            AssertAutomationName(button, $"Delete {row.Item}");
+            AssertBindingHasNoError(button, Button.CommandProperty, $"{row.Item} delete command");
+            AssertBindingHasNoError(button, Button.CommandParameterProperty, $"{row.Item} delete parameter");
+            AssertBindingHasNoError(urlBox, TextBox.TextProperty, $"{row.Item} URL text");
+            if (!string.Equals(urlBox.Text, row.Url, StringComparison.Ordinal))
+                throw new InvalidOperationException($"The URL field did not render '{row.Item}' correctly.");
+        }
+
+        foreach (var element in FindVisualElements<FrameworkElement>(root))
+        {
+            var automationName = AutomationProperties.GetName(element);
+            if (automationName is "Custom resource name" or "Custom resource URL")
+                AssertWithinRoot(element, root, automationName);
+        }
+
+        return new
+        {
+            width = root.ActualWidth,
+            height = root.ActualHeight,
+            fireplaceCardCount = viewModel.UrlVerificationFireplaces.Count,
+            selectedRowCount = rows.Count,
+            manualRowCount = rows.Count(row => row.SourceLink?.Status == "manual"),
+            deleteButtonCount = buttons.Length,
+            resourceUrlFieldCount = urlBoxes.Length,
+            rowBindingErrorCount = 0
+        };
+    }
+
+    private static object ValidateTextMessage(TextMessageWindow window, FrameworkElement root, bool editing)
+    {
+        AssertWithinRoot(window.TemplateList, root, "Text template selector");
+        AssertWithinRoot(window.SalesNameBox, root, "Message sender name");
+        AssertWithinRoot(window.AddTemplateButton, root, "Add message template");
+        AssertWithinRoot(window.EditTemplateButton, root, "Edit message template");
+        AssertWithinRoot(window.DeleteTemplateButton, root, "Delete message template");
+        AssertAutomationName(window.TemplateList, "Text message templates");
+        AssertAutomationName(window.SalesNameBox, "Your name for message templates");
+        if (window.TemplateList.Items.Count != 3)
+            throw new InvalidOperationException("The message dialog did not render three seeded templates.");
+
+        var boundTemplateTexts = FindVisualElements<TextBlock>(window.TemplateList)
+                                     .Where(text => text.DataContext is TextMessageTemplate &&
+                                                    BindingOperations.GetBindingExpression(text, TextBlock.TextProperty) is not null)
+                                     .ToArray();
+        if (boundTemplateTexts.Length != 6)
+            throw new InvalidOperationException("The template selector did not render every name and message preview.");
+        foreach (var text in boundTemplateTexts)
+            AssertBindingHasNoError(text, TextBlock.TextProperty, "Template selector text");
+
+        if (editing)
+        {
+            AssertWithinRoot(window.TemplateNameBox, root, "Template name editor");
+            AssertWithinRoot(window.TemplateBodyBox, root, "Template message editor");
+            AssertWithinRoot(window.EditorPreviewText, root, "Live template preview");
+            AssertWithinRoot(window.EditorStatusText, root, "Template token feedback");
+            foreach (var button in FindVisualElements<Button>(window.EditorPanel))
+                AssertWithinRoot(button, root, $"Template editor {button.Content} button");
+            if (CountVisualText(root, "Template name") != 1 ||
+                !window.EditorPreviewText.Text.Contains("Hi Amanda,", StringComparison.Ordinal) ||
+                !window.EditorPreviewText.Text.Contains("Lakeview Renovation", StringComparison.Ordinal) ||
+                !window.EditorPreviewText.Text.EndsWith("— Kyle", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("The template editor label or personalized token preview did not render.");
+            }
+            if (window.TemplateList.IsEnabled)
+                throw new InvalidOperationException("Changing templates must not discard an active template edit.");
+        }
+        else
+        {
+            AssertWithinRoot(window.PhoneBox, root, "Message recipient number");
+            AssertWithinRoot(window.CopyNumberButton, root, "Copy recipient number");
+            AssertWithinRoot(window.MessageBox, root, "Personalized message preview");
+            AssertWithinRoot(window.CopyMessageButton, root, "Copy personalized message");
+            var phoneLinkButton = FindVisualElements<Button>(window.ComposerPanel)
+                                      .Single(button => AutomationProperties.GetName(button) == "Open Windows Phone Link");
+            AssertWithinRoot(phoneLinkButton, root, "Open Phone Link");
+            if (window.PhoneBox.Text != "(312) 555-0184" || !window.CopyNumberButton.IsEnabled ||
+                !window.CopyMessageButton.IsEnabled ||
+                !window.MessageBox.Text.Contains("Hi Amanda,", StringComparison.Ordinal) ||
+                !window.MessageBox.Text.Contains("FF60R", StringComparison.Ordinal) ||
+                !window.MessageBox.Text.Contains("Lakeview Renovation", StringComparison.Ordinal) ||
+                !string.IsNullOrEmpty(window.PreviewFeedbackText.Text))
+            {
+                throw new InvalidOperationException("The composer did not render the personalized quote and phone number.");
+            }
+        }
+
+        return new
+        {
+            width = root.ActualWidth,
+            height = root.ActualHeight,
+            templateCount = window.TemplateList.Items.Count,
+            templateTextBindingCount = boundTemplateTexts.Length,
+            editing,
+            personalizedPreviewVerified = true,
+            bindingErrorCount = 0
+        };
+    }
+
+    private static object ValidateSpecLinkEditor(FrameworkElement root, MainViewModel viewModel, UrlVerificationRowVm row)
+    {
+        foreach (var control in FindVisualElements<Control>(root)
+                     .Where(control => ReferenceEquals(control.DataContext, row) &&
+                                       AutomationProperties.GetName(control) is "Resource name" or "Edit resource URL" or
+                                                                                 "Save resource changes" or "Cancel resource changes"))
+        {
+            AssertWithinRoot(control, root, AutomationProperties.GetName(control));
+            if (control is TextBox)
+                AssertBindingHasNoError(control, TextBox.TextProperty, AutomationProperties.GetName(control));
+            else if (control is Button)
+            {
+                AssertBindingHasNoError(control, Button.CommandProperty, AutomationProperties.GetName(control));
+                AssertBindingHasNoError(control, Button.CommandParameterProperty, AutomationProperties.GetName(control));
+            }
+        }
+        if (!row.IsEditing || !viewModel.HasUnsavedSpecLinkEdits || viewModel.CanCreateGmailDraft)
+            throw new InvalidOperationException("An unsaved URL edit must remain visible and block draft creation.");
+        return new { width = root.ActualWidth, height = root.ActualHeight, editingRowVisible = true, bindingErrorCount = 0 };
+    }
+
+    private static void PopulateRepresentativePhotos(MainViewModel viewModel, string snapshotDirectory)
+    {
+        viewModel.FireplacePhotoPaths.Clear();
+        var bitmap = BitmapSource.Create(8, 8, 96, 96, PixelFormats.Bgr24, null, new byte[8 * 8 * 3], 8 * 3);
+        foreach (var name in new[] { "Living-room-fireplace-wide-view.jpg", "Covered-patio-framing-detail.jpg" })
+        {
+            var path = Path.Combine(snapshotDirectory, name);
+            var encoder = new JpegBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using (var stream = File.Create(path))
+                encoder.Save(stream);
+            viewModel.FireplacePhotoPaths.Add(path);
+        }
+    }
+
+    private static object ValidatePhotoAttachments(MainWindow window, FrameworkElement root, MainViewModel viewModel)
+    {
+        var buttons = FindVisualElements<Button>(root)
+                          .Where(button => ReferenceEquals(button.Command, viewModel.RemoveFireplacePhotoCommand))
+                          .ToArray();
+        if (buttons.Length != 2 || viewModel.FireplacePhotoItems.Any(photo => photo.IsMissing))
+            throw new InvalidOperationException("The two representative photo attachments did not render.");
+        var stageViewport = FindVisualElements<ScrollContentPresenter>(window.SpecLinksStageScroller).First();
+        var photoViewport = FindVisualElements<ScrollContentPresenter>(window.FireplacePhotosScroller).First();
+        var stageBounds = VisualBounds(stageViewport, root);
+        var footerBounds = VisualBounds(window.SpecLinksActionFooter, root);
+        if (stageBounds.Bottom > footerBounds.Top + 0.5)
+            throw new InvalidOperationException("The resource review viewport overlaps its fixed action footer.");
+        if (window.SpecLinksStageScroller.ExtentHeight > window.SpecLinksStageScroller.ViewportHeight + 0.5 &&
+            window.SpecLinksStageScroller.ScrollableHeight <= 0)
+            throw new InvalidOperationException("The photo list overflows without a usable stage scrollbar.");
+        foreach (var button in buttons)
+        {
+            AssertWithinRoot(button, root, "Remove individual photo");
+            AssertWithinViewport(button, stageViewport, root, "Remove photo within review viewport");
+            AssertWithinViewport(button, photoViewport, root, "Remove photo within attachment viewport");
+            var parent = VisualTreeHelper.GetParent(button);
+            while (parent is not null && parent is not Border)
+                parent = VisualTreeHelper.GetParent(parent);
+            if (parent is not FrameworkElement photoRow)
+                throw new InvalidOperationException("The photo row container could not be located.");
+            AssertWithinViewport(photoRow, stageViewport, root, "Photo row within review viewport");
+            AssertWithinViewport(photoRow, photoViewport, root, "Photo row within attachment viewport");
+            AssertBindingHasNoError(button, Button.CommandProperty, "Remove photo command");
+            AssertBindingHasNoError(button, Button.CommandParameterProperty, "Remove photo parameter");
+            if (button.CommandParameter is not PhotoAttachmentVm photo || button.Command?.CanExecute(photo) != true)
+                throw new InvalidOperationException("Each photo must have a usable individual removal action.");
+            AssertAutomationName(button, $"Remove photo {photo.FileName}");
+        }
+        return new
+        {
+            width = root.ActualWidth,
+            height = root.ActualHeight,
+            photoCount = buttons.Length,
+            photosInsideViewports = true,
+            stageScrollableHeight = window.SpecLinksStageScroller.ScrollableHeight,
+            stageViewportBottom = stageBounds.Bottom,
+            actionFooterTop = footerBounds.Top,
+            bindingErrorCount = 0
+        };
+    }
+
+    private static Rect VisualBounds(FrameworkElement element, FrameworkElement root) =>
+        element.TransformToAncestor(root).TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+
+    private static void AssertWithinViewport(FrameworkElement element, FrameworkElement viewport,
+                                             FrameworkElement root, string name)
+    {
+        var allowed = VisualBounds(viewport, root);
+        allowed.Inflate(0.5, 0.5);
+        var bounds = VisualBounds(element, root);
+        if (!allowed.Contains(bounds.TopLeft) || !allowed.Contains(bounds.BottomRight))
+            throw new InvalidOperationException($"{name} is clipped outside the visible viewport: {bounds}.");
+    }
+
+    private static IEnumerable<T> FindVisualElements<T>(DependencyObject root) where T : DependencyObject
+    {
+        if (root is T matchingElement)
+            yield return matchingElement;
+
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            foreach (var child in FindVisualElements<T>(VisualTreeHelper.GetChild(root, index)))
+                yield return child;
+        }
+    }
+
+    private static void ApplySnapshotTheme(MainWindow window, bool dark)
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var guard = typeof(MainWindow).GetField("_isApplyingTheme", flags)
+                        ?? throw new InvalidOperationException("The snapshot theme guard was not available.");
+        // Change the visual toggle under its existing guard; the normal event handler must not
+        // persist synthetic theme choices, even when this capture is launched outside the gate.
+        guard.SetValue(window, true);
+        try
+        {
+            window.ThemeToggleButton.IsChecked = dark;
+        }
+        finally
+        {
+            guard.SetValue(window, false);
+        }
+        var apply = typeof(MainWindow).GetMethod("ApplyTheme", flags)
+                        ?? throw new InvalidOperationException("The snapshot theme method was not available.");
+        apply.Invoke(window, [dark]);
+        typeof(MainWindow).GetMethod("UpdateHeaderLogo", flags)?.Invoke(window, [dark]);
+    }
+
+    private static void AssertBindingHasNoError(DependencyObject element, DependencyProperty property, string name)
+    {
+        var binding = BindingOperations.GetBindingExpression(element, property);
+        if (binding is null || binding.HasError)
+            throw new InvalidOperationException($"{name} did not resolve without a binding error.");
     }
 
     private static void AssertWithinRoot(FrameworkElement element, FrameworkElement root, string name)

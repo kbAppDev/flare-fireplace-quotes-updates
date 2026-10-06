@@ -52,6 +52,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        WindowAppearance.Attach(this, 56);
         AttachDropdownScrollResetHooks();
         SetAppVersionText();
 
@@ -60,6 +61,7 @@ public partial class MainWindow : Window
         DataContext = viewModel;
 
         Loaded += MainWindow_Loaded;
+        Closing += MainWindow_Closing;
         Closed += MainWindow_Closed;
 
         ApplySavedTheme();
@@ -89,6 +91,12 @@ public partial class MainWindow : Window
         {
             // Preview cleanup must never block shutdown.
         }
+    }
+
+    private async void MainWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (DataContext is MainViewModel viewModel)
+            await viewModel.FlushAutosaveAsync();
     }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -126,14 +134,7 @@ public partial class MainWindow : Window
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
     {
-        var anim = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(150));
-        anim.Completed += (s, ev) =>
-        {
-            this.WindowState = WindowState.Minimized;
-            this.BeginAnimation(Window.OpacityProperty, null);
-            this.Opacity = 1;
-        };
-        this.BeginAnimation(Window.OpacityProperty, anim);
+        WindowState = WindowState.Minimized;
     }
 
     private void MaximizeButton_Click(object sender, RoutedEventArgs e)
@@ -143,9 +144,7 @@ public partial class MainWindow : Window
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
-        var anim = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
-        anim.Completed += (s, ev) => this.Close();
-        this.BeginAnimation(Window.OpacityProperty, anim);
+        Close();
     }
 
     private void DropdownPopup_Opened(object sender, EventArgs e)
@@ -1426,6 +1425,8 @@ public partial class MainWindow : Window
                 SetBrush(resources, "FlareButtonBorderBrush", "#2A3947");
                 SetBrush(resources, "FlareChipBrush", "#182431");
                 SetBrush(resources, "FlareChipBorderBrush", "#314252");
+                SetBrush(resources, "FlareFeatureChipBrush", "#1B2A16");
+                SetBrush(resources, "FlareFeatureChipBorderBrush", "#496529");
                 SetBrush(resources, "GlassButtonHoverBrush", "#1B2734");
                 SetBrush(resources, "GlassPopupBrush", "#18232F");
             }
@@ -1469,11 +1470,14 @@ public partial class MainWindow : Window
                 SetBrush(resources, "FlareButtonBorderBrush", "#D3DCE4");
                 SetBrush(resources, "FlareChipBrush", "#EEF3F7");
                 SetBrush(resources, "FlareChipBorderBrush", "#CBD7E0");
+                SetBrush(resources, "FlareFeatureChipBrush", "#EDF5DB");
+                SetBrush(resources, "FlareFeatureChipBorderBrush", "#CADBB0");
                 SetBrush(resources, "GlassButtonHoverBrush", "#E8EEF3");
                 SetBrush(resources, "GlassPopupBrush", "#FFFFFF");
             }
 
             ApplyDropdownThemeResources(dark);
+            WindowAppearance.UpdateTheme(this, dark);
         }
         finally
         {
