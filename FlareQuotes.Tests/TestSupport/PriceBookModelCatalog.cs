@@ -30,7 +30,8 @@ internal static partial class PriceBookModelCatalog
         if (value.StartsWith("LDV", StringComparison.Ordinal))
             return FireplaceType.Large;
 
-        if (value.StartsWith("DVTRA", StringComparison.Ordinal))
+        if (value.StartsWith("DVTRA", StringComparison.Ordinal) ||
+            value.StartsWith("TRABON", StringComparison.Ordinal))
             return FireplaceType.Traditional;
 
         if (value.StartsWith("DVST", StringComparison.Ordinal) || value.Equals("DVPAST", StringComparison.Ordinal))
@@ -59,7 +60,7 @@ internal static partial class PriceBookModelCatalog
                              RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     }
 
-    [GeneratedRegex(@"^(?:DV(?:FF|ST|LC|RC|DC|RD)\d{2,3}(?:R|H|E)|DVTRA\d{2,3}|LDV(?:FF|ST|LC|RC|DC)\d{2,3}(?:" +
+    [GeneratedRegex(@"^(?:DV(?:FF|ST|LC|RC|DC|RD)\d{2,3}(?:R|H|E)|DVTRA\d{2,3}|TRABON(?:42|46)|LDV(?:FF|ST|LC|RC|DC)\d{2,3}(?:" +
                     @"R|H|E)?|VF(?:FF|ST|LC|RC|DC)\d{2,3}(?:H)?|DVPA(?:FF|ST))$",
                     RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex FireplaceSkuRegex();

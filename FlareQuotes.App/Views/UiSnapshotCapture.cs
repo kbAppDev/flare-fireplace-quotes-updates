@@ -162,6 +162,16 @@ internal static class UiSnapshotCapture
             ApplySnapshotTheme(renderWindow, dark: true);
             WindowAppearance.UpdateTheme(textMessageWindow, dark: true);
 
+            PopulateRepresentativeBonfire(viewModel);
+            ArrangeAtSize(mainFrame, 1480, 920);
+            ScrollBonfireSelectionsIntoView(renderWindow, mainFrame);
+            SaveVisual(mainFrame, Path.Join(snapshotDirectory, "bonfire-selection-dark.png"));
+            var bonfireMetrics = ValidateBonfireSelection(renderWindow, mainFrame, viewModel);
+            ArrangeAtSize(mainFrame, 1180, 760);
+            ScrollBonfireSelectionsIntoView(renderWindow, mainFrame);
+            SaveVisual(mainFrame, Path.Join(snapshotDirectory, "bonfire-selection-minimum.png"));
+            var minimumBonfireMetrics = ValidateBonfireSelection(renderWindow, mainFrame, viewModel);
+
             var metrics = new {
                 generatedUtc = DateTime.UtcNow,
                 mainWindow = mainMetrics,
@@ -178,6 +188,8 @@ internal static class UiSnapshotCapture
                 nativeTextMessageWindow = nativeTextMessageMetrics,
                 lightMainWindow = lightMainMetrics,
                 lightTextMessage = lightTextMessageMetrics,
+                bonfireSelection = bonfireMetrics,
+                minimumBonfireSelection = minimumBonfireMetrics,
                 settingsWindow = settingsMetrics,
                 minimumSettingsWindow = minimumSettingsMetrics,
                 systemHealthWindowsOpened = Application.Current.Windows.OfType<SystemHealthWindow>().Count()
@@ -299,6 +311,128 @@ internal static class UiSnapshotCapture
         window.ConsultationUrlBox.Text = "https://meetings.hubspot.com/flare/consultation";
         window.RecallQuoteHistoryLimitBox.Text = "5";
         window.SettingsStatusText.Text = "Settings are stored securely under your Windows profile.";
+    }
+
+    private static void PopulateRepresentativeBonfire(MainViewModel viewModel)
+    {
+        viewModel.ClearCommand.Execute(null);
+        viewModel.ProjectName = "Lakeview Renovation";
+        viewModel.ClientName = "Amanda Jensen";
+        viewModel.Email = "amanda@example.com";
+        viewModel.RawRequest = "Model: TRA-BON-42\nLocation: Great Room\n" +
+                               "Reflective Black Interior, Gold Glass, Driftwood, Large Oak Logs";
+        viewModel.Model = "TRA-BON-42";
+        viewModel.FireplaceLocation = "Great Room";
+        viewModel.AllFeatureOptions.Single(option => option.Key == "reflective_black_interior").IsSelected = true;
+        foreach (var key in new[] { "gold_glass", "driftwood", "loak42" })
+            viewModel.AllPremiumMediaOptions.Single(option => option.Key == key).IsSelected = true;
+        viewModel.AddFireplaceCommand.Execute(null);
+        viewModel.EditFireplaceCommand.Execute(viewModel.Fireplaces.Single());
+        viewModel.WorkflowStage = QuoteWorkflowStage.Review;
+        viewModel.StatusMessage = "Traditional Bonfire selections ready to review.";
+    }
+
+    private static object ValidateBonfireSelection(MainWindow window, FrameworkElement root, MainViewModel viewModel)
+    {
+        var builderScroller = BonfireBuilderScroller(window);
+        var builderViewport = FindVisualElements<ScrollContentPresenter>(builderScroller).First();
+        var saved = viewModel.Fireplaces.Single();
+        if (viewModel.Model != "Traditional Bonfire" || viewModel.Size != "42" || saved.Model != "TRA-BON-42" ||
+            viewModel.SelectedFeatures.Single().Key != "reflective_black_interior" ||
+            viewModel.SelectedPremiumMedia.Count != 3 || saved.PremiumMedia.Count != 3)
+            throw new InvalidOperationException("The Bonfire model and selected features/media did not survive editing.");
+
+        var premiumKeys = viewModel.AllPremiumMediaOptions.Select(option => option.Key).ToArray();
+        foreach (var key in new[] { "gold_glass", "aqua_glass", "black_stones", "driftwood", "birchwood", "loak42" })
+        {
+            if (!premiumKeys.Contains(key))
+                throw new InvalidOperationException($"Bonfire premium media '{key}' was not available.");
+        }
+        if (premiumKeys.Any(key => key is "tr42bch" or "tr46bch" or "loak46"))
+            throw new InvalidOperationException("Bonfire offered media reserved for another Traditional model.");
+        foreach (var key in new[] { "double_glass", "summer_kit", "power_vent", "herringbone_black_brick_traditional" })
+        {
+            if (!viewModel.AllFeatureOptions.Any(option => option.Key == key))
+                throw new InvalidOperationException($"Traditional feature '{key}' was not available for Bonfire.");
+        }
+
+        var modelBox = FindVisualElements<TextBox>(root)
+                           .Single(box => AutomationProperties.GetName(box) == "Fireplace model");
+        AssertWithinRoot(modelBox, root, "Traditional Bonfire model input");
+        AssertWithinViewport(modelBox, builderViewport, root, "Traditional Bonfire model input within builder");
+        AssertBindingHasNoError(modelBox, TextBox.TextProperty, "Traditional Bonfire model binding");
+        if (modelBox.Text != "Traditional Bonfire")
+            throw new InvalidOperationException("The model field did not display Traditional Bonfire.");
+        AssertWithinRoot(window.FeatureDropdownButton, root, "Bonfire feature selector");
+        AssertWithinRoot(window.PremiumMediaDropdownButton, root, "Bonfire premium media selector");
+        AssertWithinViewport(window.FeatureDropdownButton, builderViewport, root, "Bonfire feature selector within builder");
+        AssertWithinViewport(window.PremiumMediaDropdownButton, builderViewport, root, "Bonfire premium selector within builder");
+        var headings = FindVisualElements<TextBlock>(window.QuoteWorkspacePane)
+                           .Where(text => BindingOperations.GetBindingExpression(text, TextBlock.TextProperty)
+                                              ?.ParentBinding.Path?.Path == "CurrentFireplaceHeading").ToArray();
+        if (headings.Length == 0 || headings.Any(heading => heading.Text != "Traditional Bonfire"))
+            throw new InvalidOperationException("The current fireplace heading did not visibly identify Traditional Bonfire.");
+        foreach (var heading in headings)
+        {
+            AssertWithinViewport(heading, builderViewport, root, "Traditional Bonfire heading within builder");
+            AssertBindingHasNoError(heading, TextBlock.TextProperty, "Traditional Bonfire current heading binding");
+        }
+        foreach (var selection in viewModel.SelectedFeatures)
+        {
+            var chip = FindVisualElements<TextBlock>(window.QuoteWorkspacePane)
+                           .Single(text => ReferenceEquals(text.DataContext, selection) && text.Text == selection.DisplayName);
+            AssertWithinViewport(SelectionChipBorder(chip), builderViewport, root, $"Bonfire {selection.DisplayName} feature chip within builder");
+            AssertBindingHasNoError(chip, TextBlock.TextProperty, $"Bonfire {selection.DisplayName} feature chip binding");
+        }
+        foreach (var selection in viewModel.SelectedPremiumMedia)
+        {
+            var chip = FindVisualElements<TextBlock>(window.QuoteWorkspacePane)
+                           .Single(text => ReferenceEquals(text.DataContext, selection) && text.Text == selection.DisplayName);
+            AssertWithinRoot(chip, root, $"Bonfire {selection.DisplayName} chip");
+            AssertWithinViewport(SelectionChipBorder(chip), builderViewport, root, $"Bonfire {selection.DisplayName} chip within builder");
+            AssertBindingHasNoError(chip, TextBlock.TextProperty, $"Bonfire {selection.DisplayName} chip binding");
+        }
+        return new
+        {
+            width = root.ActualWidth,
+            height = root.ActualHeight,
+            model = saved.Model,
+            traditionalFeaturesVerified = true,
+            premiumOptionsVerified = true,
+            selectedPremiumMediaCount = viewModel.SelectedPremiumMedia.Count,
+            selectionsInsideViewport = true,
+            bonfireHeadingVisible = true,
+            builderVerticalOffset = builderScroller.VerticalOffset,
+            bindingErrorCount = 0
+        };
+    }
+
+    private static void ScrollBonfireSelectionsIntoView(MainWindow window, FrameworkElement root)
+    {
+        BonfireBuilderScroller(window).ScrollToEnd();
+        root.UpdateLayout();
+    }
+
+    private static ScrollViewer BonfireBuilderScroller(MainWindow window)
+    {
+        for (var parent = VisualTreeHelper.GetParent(window.PremiumMediaDropdownButton); parent is not null;
+             parent = VisualTreeHelper.GetParent(parent))
+        {
+            if (parent is ScrollViewer scroller)
+                return scroller;
+        }
+        throw new InvalidOperationException("The Bonfire selection builder scrollbar could not be located.");
+    }
+
+    private static Border SelectionChipBorder(FrameworkElement chipText)
+    {
+        for (var parent = VisualTreeHelper.GetParent(chipText); parent is not null;
+             parent = VisualTreeHelper.GetParent(parent))
+        {
+            if (parent is Border border)
+                return border;
+        }
+        throw new InvalidOperationException("The selection chip container could not be located.");
     }
 
     private static void PopulateRepresentativeSpecLinks(MainViewModel viewModel)

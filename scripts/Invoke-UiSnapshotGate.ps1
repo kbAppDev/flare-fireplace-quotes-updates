@@ -72,6 +72,8 @@ try {
             "main-window-dark.png",
             "main-window-minimum.png",
             "main-window-light.png",
+            "bonfire-selection-dark.png",
+            "bonfire-selection-minimum.png",
             "spec-links-dark.png",
             "spec-links-minimum.png",
             "spec-links-editing-minimum.png",
@@ -136,6 +138,18 @@ try {
             [int]$metrics.photoAttachments.photoCount -ne 2 -or
             $metrics.photoAttachments.photosInsideViewports -ne $true) {
             throw "UI snapshots did not prove inline URL editing and individual photo attachment controls."
+        }
+
+        foreach ($bonfireMetrics in @($metrics.bonfireSelection, $metrics.minimumBonfireSelection)) {
+            if ($bonfireMetrics.model -ne "TRA-BON-42" -or
+                $bonfireMetrics.traditionalFeaturesVerified -ne $true -or
+                $bonfireMetrics.premiumOptionsVerified -ne $true -or
+                [int]$bonfireMetrics.selectedPremiumMediaCount -ne 3 -or
+                $bonfireMetrics.selectionsInsideViewport -ne $true -or
+                $bonfireMetrics.bonfireHeadingVisible -ne $true -or
+                [int]$bonfireMetrics.bindingErrorCount -ne 0) {
+                throw "UI snapshots did not prove Bonfire identity and Traditional feature/premium media selections."
+            }
         }
 
         Write-Host "UI snapshot gate passed. Artifacts: $resolvedOutputPath"

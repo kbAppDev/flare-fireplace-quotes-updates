@@ -269,6 +269,7 @@ public sealed partial class MainViewModel : ObservableObject
             var finalModel = value ?? string.Empty;
             var decodedSize = string.Empty;
             var decodedGlassHeight = string.Empty;
+            var decodedTraditionalModel = false;
 
             if (LooksLikeCompleteFireplaceCode(finalModel))
             {
@@ -276,15 +277,20 @@ public sealed partial class MainViewModel : ObservableObject
                 finalModel = FirstNonBlank(decoded.Model, finalModel);
                 decodedSize = decoded.Size;
                 decodedGlassHeight = decoded.GlassHeight;
+                decodedTraditionalModel = !string.IsNullOrWhiteSpace(decoded.Model) &&
+                                          DetectType(decoded.Model, decoded.Size) == FireplaceType.Traditional;
             }
 
-            if (SetProperty(ref _model, finalModel))
-            {
-                if (!string.IsNullOrWhiteSpace(decodedSize))
-                    Size = decodedSize;
-                if (!string.IsNullOrWhiteSpace(decodedGlassHeight))
-                    GlassHeight = decodedGlassHeight;
+            var modelChanged = SetProperty(ref _model, finalModel);
+            // Full codes can change dimensions while decoding to the same display model.
+            // The Size/GlassHeight setters refresh the dependent quote and selection state.
+            if (!string.IsNullOrWhiteSpace(decodedSize))
+                Size = decodedSize;
+            if (decodedTraditionalModel || !string.IsNullOrWhiteSpace(decodedGlassHeight))
+                GlassHeight = decodedGlassHeight;
 
+            if (modelChanged)
+            {
                 ApplyPassageDefaultsForModel(finalModel);
                 ApplyModelGlassHeightHint(finalModel);
                 RefreshSelectionOptions(preserveSelected: true);
@@ -677,6 +683,11 @@ public sealed partial class MainViewModel : ObservableObject
                                                         ? "Select Premium Media"
                                                         : $"{SelectedPremiumMedia.Count} premium media selected";
     public string CurrentFireplaceLeadTimePreview => $"Lead time for this fireplace: {LeadTime}";
+    public string CurrentFireplaceHeading => DetectType(Model, Size) == FireplaceType.Traditional
+                                                ? TraditionalFireplaceModel.IsBonfire(Model)
+                                                      ? "Traditional Bonfire"
+                                                      : "Traditional Summit"
+                                                : "Current fireplace";
     public string LeadTimeDropdownButtonText => string.IsNullOrWhiteSpace(LeadTime) ? "Select Lead Time" : LeadTime;
     public string FireplaceQuoteSummary =>
         Fireplaces.Count == 0 ? "No fireplaces added yet."
@@ -1805,8 +1816,15 @@ public sealed partial class MainViewModel : ObservableObject
             return "FFPASS";
         }
 
+        if (TraditionalFireplaceModel.IsBonfire(value))
+        {
+            var bonfireSize = Regex.Match(value, @"(?<!\d)(42|46)(?!\d)").Value;
+            if (!string.IsNullOrWhiteSpace(bonfireSize))
+                return $"TRA-BON-{bonfireSize}";
+        }
+
         var patterns =
-            new[] { @"(LDVFF|LDVST|LDVLC|LDVRC|LDVDC|VFST|VFF|VST|VLC|VRC|VDC|FF|ST|LC|RC|DC|RD|TRA)(\d{2,3})(EH|H|R)?",
+            new[] { @"(LDVFF|LDVST|LDVLC|LDVRC|LDVDC|VFST|VFF|VST|VLC|VRC|VDC|FF|ST|LC|RC|DC|RD|TRA|TR)(\d{2,3})(EH|H|R)?",
                     @"(FF|ST|LC|RC|DC|RD)(\d{2,3})(EH|H|R)?" };
 
         foreach (var pattern in patterns)
@@ -1844,7 +1862,8 @@ public sealed partial class MainViewModel : ObservableObject
         var compact = Regex.Replace(text, @"[^A-Za-z0-9]+", string.Empty).ToUpperInvariant();
         var normalized = Regex.Replace(text, @"[^A-Za-z0-9]+", " ").Trim().ToLowerInvariant();
 
-        return Regex.IsMatch(compact, @"^(TR|TRA)\d{0,3}(R|H|EH)?$") ||
+        return TraditionalFireplaceModel.IsBonfire(modelCode) ||
+               Regex.IsMatch(compact, @"^(TR|TRA)\d{0,3}(R|H|EH)?$") ||
                compact.Contains("TRADITIONAL", StringComparison.OrdinalIgnoreCase) ||
                text.Contains("/TR/", StringComparison.OrdinalIgnoreCase) ||
                text.Contains("\\TR\\", StringComparison.OrdinalIgnoreCase) ||
@@ -1902,7 +1921,8 @@ public sealed partial class MainViewModel : ObservableObject
     private static string TraditionalUrlVerificationHeading(string? modelCode)
     {
         var size = Regex.Match(modelCode ?? string.Empty, @"(?<!\d)(\d{2,3})(?!\d)").Groups[1].Value;
-        return string.IsNullOrWhiteSpace(size) ? "Traditional URLs" : $"Traditional {size} URLs";
+        var style = TraditionalFireplaceModel.IsBonfire(modelCode) ? "Traditional Bonfire" : "Traditional";
+        return string.IsNullOrWhiteSpace(size) ? $"{style} URLs" : $"{style} {size} URLs";
     }
 
     private static string ResolveUrlVerificationStyleKey(string modelCode, IEnumerable<object> rows)
@@ -2079,7 +2099,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (string.Equals(styleKey, "TR", StringComparison.OrdinalIgnoreCase) ||
             IsTraditionalUrlVerificationCard(modelCode, rows))
-            return "Traditional";
+            return TraditionalFireplaceModel.IsBonfire(modelCode) ? "Traditional Bonfire" : "Traditional";
 
         if (string.Equals(styleKey, "PASS", StringComparison.OrdinalIgnoreCase))
         {
@@ -2365,14 +2385,12 @@ public sealed partial class MainViewModel : ObservableObject
         var modelSays46 = normalizedModel.Contains("46");
         var isSize42 = size == 42 || modelSays42;
         var isSize46 = size == 46 || modelSays46;
-        var isBonfireTraditional = IsBonfireTraditionalModel(normalizedModel);
+        var isBonfireTraditional = TraditionalFireplaceModel.IsBonfire(Model);
 
         if (isBonfireTraditional)
         {
             return options
-                .Where(x => (isSize42 && x.Key.Equals("loak42", StringComparison.OrdinalIgnoreCase)) ||
-                            (isSize46 && x.Key.Equals("loak46", StringComparison.OrdinalIgnoreCase)) ||
-                            (!isSize42 && !isSize46 && IsLargeOakPremiumMedia(x.Key)))
+                .Where(x => IsBonfirePremiumMediaAvailable(x.Key, isSize42, isSize46))
                 .OrderBy(x => x.Label)
                 .ToList();
         }
@@ -2446,20 +2464,21 @@ public sealed partial class MainViewModel : ObservableObject
                key.Equals("pmdbirch", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsLargeOakPremiumMedia(string key)
-    {
-        return key.Equals("loak42", StringComparison.OrdinalIgnoreCase) ||
-               key.Equals("loak46", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsTraditionalBirchLogMedia(string key) =>
+        key.Equals("tr42bch", StringComparison.OrdinalIgnoreCase) ||
+        key.Equals("tr46bch", StringComparison.OrdinalIgnoreCase);
 
-    private static bool IsBonfireTraditionalModel(string normalizedModel)
+    private static bool IsBonfirePremiumMediaAvailable(string key, bool isSize42, bool isSize46)
     {
-        if (string.IsNullOrWhiteSpace(normalizedModel))
+        if (IsTraditionalBirchLogMedia(key))
             return false;
-
-        return normalizedModel.Contains("bon") || normalizedModel.Contains("bontr") ||
-               normalizedModel.Contains("bontra") || normalizedModel.Contains("trabon") ||
-               normalizedModel.Contains("front traditional bon");
+        if (!isSize42 && !isSize46)
+            return true;
+        if (key.Equals("loak42", StringComparison.OrdinalIgnoreCase))
+            return isSize42;
+        if (key.Equals("loak46", StringComparison.OrdinalIgnoreCase))
+            return isSize46;
+        return true;
     }
 
     private static string NormalizeModelForRules(string value) => System.Text.RegularExpressions.Regex
@@ -3218,6 +3237,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         InvalidatePricedSnapshot();
         OnPropertyChanged(nameof(CurrentFireplaceLabel));
+        OnPropertyChanged(nameof(CurrentFireplaceHeading));
         OnPropertyChanged(nameof(CurrentFireplaceLeadTimePreview));
         OnPropertyChanged(nameof(HasFireplacesOnQuote));
         OnPropertyChanged(nameof(HasPendingNewFireplace));
@@ -3349,7 +3369,8 @@ public sealed partial class MainViewModel : ObservableObject
         return Regex.IsMatch(compact, @"^DV(?:FF|ST|LC|RC|DC|RD)\d{2,3}(?:EH|E|H|R)$") ||
                Regex.IsMatch(compact, @"^(?:VFFF|VFST|VFLC|VFRC|VFDC|VFF|VST|VLC|VRC|VDC)\d{2,3}(?:EH|H|R)?$") ||
                Regex.IsMatch(compact, @"^LDV(?:FF|LC|RC|DC)\d{3}H?$") ||
-               Regex.IsMatch(compact, @"^DVTRA\d{2,3}$") ||
+               Regex.IsMatch(compact, @"^(?:DVTRA|TRA|TR)\d{2,3}$") ||
+               Regex.IsMatch(compact, @"^(?:FLARE)?(?:TRABON|TRBON|BONTR|BONTRA)(?:42|46)$") ||
                compact is "DVPAFF" or "DVPAST";
     }
 
@@ -3651,6 +3672,10 @@ public sealed partial class MainViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(sizeDigits) && !string.IsNullOrWhiteSpace(modelSize))
             sizeDigits = modelSize;
+
+        if (type == FireplaceType.Traditional && TraditionalFireplaceModel.IsBonfire(raw) &&
+            sizeDigits is "42" or "46")
+            return $"TRA-BON-{sizeDigits}";
 
         var suffix = GlassSuffixForCanonicalModel(glassHeight);
 

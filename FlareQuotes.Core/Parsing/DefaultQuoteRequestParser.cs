@@ -88,7 +88,9 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
                      @"(?i)\bDV[-\s]*(?:FF|ST|LC|RC|DC|RD)[-\s]*\d{2,3}[-\s]*(?:EH|E|H|R)\b",
                      @"(?i)\b(?:VFFF|VFST|VFLC|VFRC|VFDC|VFF|VST|VLC|VRC|VDC)[-\s]*\d{2,3}(?:[-\s]*(?:EH|H|R))?\b",
                      @"(?i)\bLDV[-\s]*(?:FF|LC|RC|DC)[-\s]*\d{3}(?:[-\s]*H)?\b",
+                     @"(?i)\b(?:FLARE[-\s]*)?(?:TRA[-\s]*BON|TR[-\s]*BON|BON[-\s]*TRA?)[-\s]*(?:42|46)\b",
                      @"(?i)\bDVTRA[-\s]*\d{2,3}\b",
+                     @"(?i)\b(?:TRA|TR)[-\s]*(?:42|46)\b",
                      @"(?i)\bDVPA(?:FF|ST)\b"
                  })
         {
@@ -110,7 +112,11 @@ public sealed class DefaultQuoteRequestParser : IQuoteRequestParser
         if (compact == "DVPAST")
             return new DecodedFireplaceCode("STPASS", "30", "60");
 
-        var traditional = Regex.Match(compact, @"^DVTRA(?<size>\d{2,3})$");
+        var bonfire = Regex.Match(compact, @"^(?:FLARE)?(?:TRABON|TRBON|BONTR|BONTRA)(?<size>42|46)$");
+        if (bonfire.Success)
+            return new DecodedFireplaceCode("Traditional Bonfire", bonfire.Groups["size"].Value, string.Empty);
+
+        var traditional = Regex.Match(compact, @"^(?:DVTRA(?<size>\d{2,3})|(?:TRA|TR)(?<size>42|46))$");
         if (traditional.Success)
             return new DecodedFireplaceCode("Traditional", traditional.Groups["size"].Value, string.Empty);
 

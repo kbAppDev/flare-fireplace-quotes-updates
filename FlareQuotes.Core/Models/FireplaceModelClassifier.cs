@@ -24,7 +24,8 @@ public static class FireplaceModelClassifier
                        : FireplaceType.Outdoor;
         }
 
-        if (IsTraditionalCode(compact) || normalized.Contains("traditional") || normalized.Contains("dvtra") ||
+        if (TraditionalFireplaceModel.IsBonfire(model) || IsTraditionalCode(compact) ||
+            normalized.Contains("traditional") || normalized.Contains("dvtra") ||
             normalized.Contains("trabon") || normalized.Contains("tra bon") ||
             Regex.IsMatch(normalized, @"\btr\b|\btra\b|\btrad\b"))
         {

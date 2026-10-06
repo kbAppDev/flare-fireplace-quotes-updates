@@ -295,6 +295,216 @@ public sealed class MainViewModelUiRefreshTests
                                                    StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData("TRA-BON-42", "42")]
+    [InlineData("TRABON42", "42")]
+    [InlineData("BONTR42", "42")]
+    [InlineData("TRA-BON-46", "46")]
+    [InlineData("TRABON46", "46")]
+    [InlineData("BONTRA46", "46")]
+    [InlineData("Flare-TRA-BON-46", "46")]
+    public void BonfireModelCodeKeepsItsIdentityThroughAddAndEdit(string modelCode, string size)
+    {
+        var viewModel = CreateViewModel(new DefaultQuoteRequestParser(),
+            new FeatureSelectionService(), mediaService: new MediaSelectionService());
+
+        viewModel.Model = modelCode;
+
+        Assert.Equal("Traditional Bonfire", viewModel.Model);
+        Assert.Equal(size, viewModel.Size);
+        Assert.Empty(viewModel.GlassHeight);
+        viewModel.AllPremiumMediaOptions.Single(option => option.Key == "gold_glass").IsSelected = true;
+        viewModel.AddFireplaceCommand.Execute(null);
+
+        var added = Assert.Single(viewModel.Fireplaces);
+        Assert.Equal($"TRA-BON-{size}", added.Model);
+        Assert.Equal("gold_glass", Assert.Single(added.PremiumMedia).Key);
+        Assert.Contains("Bonfire", added.FireplaceLabel, StringComparison.Ordinal);
+
+        viewModel.EditFireplaceCommand.Execute(added);
+
+        Assert.Equal("Traditional Bonfire", viewModel.Model);
+        Assert.Equal(size, viewModel.Size);
+        Assert.Equal("gold_glass", Assert.Single(viewModel.SelectedPremiumMedia).Key);
+        viewModel.AddFireplaceCommand.Execute(null);
+
+        Assert.Equal($"TRA-BON-{size}", Assert.Single(viewModel.Fireplaces).Model);
+    }
+
+    [Theory]
+    [InlineData("42")]
+    [InlineData("46")]
+    public void BonfireAndRegularTraditionalExposeTheSameOptionalFeatures(string size)
+    {
+        var traditional = CreateViewModel(new DefaultQuoteRequestParser(), new FeatureSelectionService());
+        traditional.Model = $"TR-{size}";
+        var bonfire = CreateViewModel(new DefaultQuoteRequestParser(), new FeatureSelectionService());
+        bonfire.Model = $"TRA-BON-{size}";
+
+        var expected = traditional.AllFeatureOptions.Select(option => option.Key).OrderBy(key => key).ToArray();
+        Assert.NotEmpty(expected);
+        Assert.Equal(expected, bonfire.AllFeatureOptions.Select(option => option.Key).OrderBy(key => key).ToArray());
+        Assert.Contains(expected, key => key == "offset_red_brick_traditional");
+        Assert.Contains(expected, key => key == "herringbone_black_brick_traditional");
+    }
+
+    [Theory]
+    [InlineData("42", "loak42", "loak46")]
+    [InlineData("46", "loak46", "loak42")]
+    public void BonfireOffersGeneralPremiumMediaAndOnlyItsMatchingOakLogs(string size, string oakKey, string otherOakKey)
+    {
+        var viewModel = CreateViewModel(new DefaultQuoteRequestParser(), mediaService: new MediaSelectionService());
+        viewModel.Model = $"TRA-BON-{size}";
+
+        var keys = viewModel.AllPremiumMediaOptions.Select(option => option.Key).ToArray();
+        foreach (var generalKey in new[] { "gold_glass", "aqua_glass", "chestnut_glass", "black_stones", "white_stones", "grey_balls_2",
+                                          "grey_balls_4", "grey_balls_mixed", "white_balls_2", "white_balls_4",
+                                          "white_balls_mixed", "black_balls_2", "black_balls_4", "black_balls_mixed",
+                                          "driftwood", "birchwood" })
+            Assert.Contains(generalKey, keys);
+        Assert.Contains(oakKey, keys);
+        Assert.DoesNotContain(otherOakKey, keys);
+        Assert.DoesNotContain("tr42bch", keys);
+        Assert.DoesNotContain("tr46bch", keys);
+    }
+
+    [Theory]
+    [InlineData("42", "tr42bch")]
+    [InlineData("46", "tr46bch")]
+    public void RegularTraditionalKeepsItsExistingPremiumChoices(string size, string birchLogsKey)
+    {
+        var viewModel = CreateViewModel(new DefaultQuoteRequestParser(), mediaService: new MediaSelectionService());
+        viewModel.Model = $"DVTRA{size}";
+
+        Assert.Equal(new[] { "birchwood", birchLogsKey },
+            viewModel.AllPremiumMediaOptions.Select(option => option.Key).OrderBy(key => key).ToArray());
+    }
+
+    [Fact]
+    public void ChangingBonfireSizeDropsOnlyTheIncompatibleOakSelection()
+    {
+        var viewModel = CreateViewModel(new DefaultQuoteRequestParser(), mediaService: new MediaSelectionService());
+        viewModel.Model = "TRA-BON-42";
+        viewModel.AllPremiumMediaOptions.Single(option => option.Key == "gold_glass").IsSelected = true;
+        viewModel.AllPremiumMediaOptions.Single(option => option.Key == "loak42").IsSelected = true;
+
+        viewModel.Model = "TRA-BON-46";
+
+        Assert.Equal("46", viewModel.Size);
+        Assert.Equal("gold_glass", Assert.Single(viewModel.SelectedPremiumMedia).Key);
+        Assert.Contains(viewModel.AllPremiumMediaOptions, option => option.Key == "loak46");
+        Assert.DoesNotContain(viewModel.AllPremiumMediaOptions, option => option.Key == "loak42");
+    }
+
+    [Theory]
+    [InlineData("DVFF60H", "DVFF80R", "80", "16")]
+    [InlineData("DVFF60H", "DVFF60EH", "60", "30")]
+    [InlineData("DVTRA42", "DVTRA46", "46", "")]
+    public void ChangingFullCodeUpdatesDimensionsWhenTheDisplayModelStaysTheSame(
+        string firstCode, string secondCode, string size, string glassHeight)
+    {
+        var viewModel = CreateViewModel(new DefaultQuoteRequestParser());
+        viewModel.Model = firstCode;
+        var displayModel = viewModel.Model;
+
+        viewModel.Model = secondCode;
+
+        Assert.Equal(displayModel, viewModel.Model);
+        Assert.Equal(size, viewModel.Size);
+        Assert.Equal(glassHeight, viewModel.GlassHeight);
+    }
+
+    [Theory]
+    [InlineData("TRA-BON-42", "42")]
+    [InlineData("TRABON46", "46")]
+    [InlineData("Flare-TRA-BON-46", "46")]
+    [InlineData("DVTRA42", "42")]
+    [InlineData("TR-46", "46")]
+    public void SwitchingToAFullTraditionalCodeClearsThePreviousGlassHeight(string traditionalCode, string size)
+    {
+        var viewModel = CreateViewModel(new DefaultQuoteRequestParser());
+        viewModel.Model = "DVFF60H";
+        Assert.Equal("24", viewModel.GlassHeight);
+
+        viewModel.Model = traditionalCode;
+
+        Assert.Equal(size, viewModel.Size);
+        Assert.Empty(viewModel.GlassHeight);
+        Assert.DoesNotContain("glass", viewModel.CurrentFireplaceLabel, StringComparison.OrdinalIgnoreCase);
+        viewModel.AddFireplaceCommand.Execute(null);
+        var fireplace = Assert.Single(viewModel.Fireplaces);
+        Assert.Empty(fireplace.GlassHeight);
+
+        viewModel.EditFireplaceCommand.Execute(fireplace);
+
+        Assert.Equal(size, viewModel.Size);
+        Assert.Empty(viewModel.GlassHeight);
+    }
+
+    [Theory]
+    [InlineData("TRA-BON-42", "42")]
+    [InlineData("TRABON46", "46")]
+    [InlineData("BONTR42", "42")]
+    public void BonfireSpecCardsKeepModelAndHeading(string modelCode, string size)
+    {
+        var viewModel = CreateViewModel();
+        viewModel.SpecLinks.Add(new SpecLinkDraft
+        {
+            FireplaceCode = modelCode,
+            FireplaceLocation = "Great Room",
+            Label = "Product Sheet",
+            Url = "https://flarefireplaces.com/traditional-product.pdf"
+        });
+
+        var card = Assert.Single(viewModel.UrlVerificationFireplaces);
+        Assert.Equal($"TRA-BON-{size}", card.ModelCode);
+        Assert.Equal("TR", card.StyleKey);
+        Assert.Equal("Traditional Bonfire", card.StyleLabel);
+        Assert.Equal($"Great Room — Traditional Bonfire {size} URLs", card.UrlHeading);
+        Assert.EndsWith("/TR.png", card.ImagePath, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("TR42", "42")]
+    [InlineData("TRA46", "46")]
+    public void RegularTraditionalSpecHeadingsRemainDistinct(string modelCode, string size)
+    {
+        var viewModel = CreateViewModel();
+        viewModel.SpecLinks.Add(new SpecLinkDraft
+        {
+            FireplaceCode = modelCode,
+            Label = "Product Sheet",
+            Url = "https://flarefireplaces.com/traditional-product.pdf"
+        });
+
+        var card = Assert.Single(viewModel.UrlVerificationFireplaces);
+        Assert.Equal(modelCode, card.ModelCode);
+        Assert.Equal("Traditional", card.StyleLabel);
+        Assert.Equal($"Traditional {size} URLs", card.UrlHeading);
+    }
+
+    [Theory]
+    [InlineData("42")]
+    [InlineData("46")]
+    public async Task BonfirePreviewUsesCanonicalQuoteIdentity(string size)
+    {
+        var pdf = new TrackingPdfService();
+        var viewModel = CreateViewModel(new DefaultQuoteRequestParser(), new FeatureSelectionService(),
+            new FixedEstimatePriceBookService(4200m), new MediaSelectionService(), pdf);
+        viewModel.Model = $"TRA-BON-{size}";
+        viewModel.AllPremiumMediaOptions.Single(option => option.Key == "gold_glass").IsSelected = true;
+
+        await viewModel.NextToPreviewCommand.ExecuteAsync(null);
+
+        Assert.NotNull(pdf.LastRequest);
+        var fireplace = Assert.Single(pdf.LastRequest.Fireplaces);
+        Assert.Equal(FireplaceType.Traditional, fireplace.Type);
+        Assert.Equal($"TRA-BON-{size}", fireplace.Model);
+        Assert.Equal(size, fireplace.Size);
+        Assert.Equal("gold_glass", Assert.Single(fireplace.PremiumMedia).Key);
+        Assert.Equal($"TRA-BON-{size}", Assert.Single(viewModel.QuotePreviewRows).FireplaceLabel);
+    }
+
     [Fact]
     public void FireplaceCardsCanBeReorderedWithoutChangingTheirContents()
     {
