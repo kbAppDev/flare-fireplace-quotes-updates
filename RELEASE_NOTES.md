@@ -1,3 +1,9 @@
+# 1.70.3
+
+- Corrects the MSRP disclaimer on outdoor vent-free quote PDF pages to read: "The listed prices are the Manufacturer's Suggested Retail Price (MSRP), valid for 30 days, and do not include installation costs."
+- Applies the disclaimer separately to each fireplace page. Outdoor and outdoor see-through pages omit venting; indoor, indoor-outdoor, Traditional, and Large pages retain their existing disclaimer.
+- Preserves the existing email copy and all v1.70.2 functionality.
+
 # 1.70.2
 
 - Completes Traditional Bonfire support for TRA-BON-42 and TRA-BON-46. Auto-fill recognizes the full part name and ordering SKU, infers the correct fireplace size, and preserves the Bonfire identity through pricing, PDFs, email drafts, and specification review.

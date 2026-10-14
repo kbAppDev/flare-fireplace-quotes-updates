@@ -112,6 +112,10 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                                             ResourceLinkSet? resourceLinkSet, string logo, string quoteDate,
                                             string quoteNumber)
     {
+        var excludedCosts = fireplace?.Type is FireplaceType.Outdoor or FireplaceType.OutdoorSeeThrough
+                                ? "installation costs."
+                                : "venting or installation costs.";
+
         page.Size(PageSizes.Letter);
         page.MarginTop(58);
         page.MarginBottom(52);
@@ -156,7 +160,7 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                 col.Item()
                     .PaddingTop(8)
                     .Text("The listed prices are the Manufacturer's Suggested Retail Price (MSRP), valid for 30 " +
-                          "days, and do not include venting or installation costs.")
+                          "days, and do not include " + excludedCosts)
                     .Bold()
                     .FontSize(8.0f)
                     .LineHeight(1.1f)

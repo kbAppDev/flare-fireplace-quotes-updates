@@ -1,8 +1,10 @@
-# Flare Fireplace Quotes v1.70.2
+# Flare Fireplace Quotes v1.70.3
 
 Windows WPF application for turning fireplace quote requests into priced PDFs, reviewed specification links, and Gmail drafts.
 
 ## Release highlights
+
+v1.70.3 corrects the quote PDF disclaimer for outdoor vent-free fireplaces: MSRP remains valid for 30 days and excludes installation costs. Outdoor and outdoor see-through pages no longer mention venting. Each page uses its own fireplace type, including quotes containing both indoor and outdoor models. Email copy is unchanged.
 
 v1.70.2 completes Traditional Bonfire quoting for TRA-BON-42 and TRA-BON-46. Enter either part name or ordering SKU (TRABON42/TRABON46) in Model or use Auto-fill; the app infers the size and preserves the Bonfire burner identity. Both models retain their corresponding Traditional feature choices and offer premium media sized to a 45-inch fireplace, plus the matching complete oak log set. Premium choices include Gold, Aqua, and Chestnut glass, stones, stone balls, Driftwood, and Birchwood. The model-specific Bonfire product sheet accompanies the shared Traditional engineering documents.
 
@@ -25,7 +27,7 @@ dotnet restore .\FlareQuotes.sln
 dotnet format .\FlareQuotes.sln --verify-no-changes --no-restore --verbosity minimal
 dotnet build .\FlareQuotes.App\FlareQuotes.App.csproj -c Release -p:TreatWarningsAsErrors=true
 dotnet build .\FlareQuotes.Tests\FlareQuotes.Tests.csproj -c Release -p:TreatWarningsAsErrors=true
-dotnet test .\FlareQuotes.Tests\FlareQuotes.Tests.csproj -c Release
+dotnet test --project .\FlareQuotes.Tests\FlareQuotes.Tests.csproj -c Release --minimum-expected-tests 400
 .\scripts\Test-Coverage.ps1
 dotnet list .\FlareQuotes.App\FlareQuotes.App.csproj package --vulnerable --include-transitive --format json --no-restore
 dotnet list .\FlareQuotes.Tests\FlareQuotes.Tests.csproj package --vulnerable --include-transitive --format json --no-restore
@@ -40,7 +42,7 @@ checked-in 45% aggregate line-coverage floor across production assemblies.
 Run these commands from the repository root after the validation commands pass:
 
 ```powershell
-$releaseVersion = "1.70.2"
+$releaseVersion = "1.70.3"
 $publishDir = Join-Path (Get-Location) "FlareQuotes.App\bin\Release\net10.0-windows\win-x64\publish"
 $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 
@@ -54,7 +56,9 @@ If Inno Setup is installed elsewhere, replace `$iscc` with the full path to `ISC
 
 ## Publishing
 
-Publish only from a clean, passing commit tagged `v1.70.2`, matching `Directory.Build.props`. The tag-driven GitHub
+Deliver updates through the app's startup update prompt. Publish the versioned GitHub release and signed update feed, then verify that the previous installed version detects the update. Do not provide standalone installer downloads as the normal update handoff.
+
+Publish only from a clean, passing commit tagged `v1.70.3`, matching `Directory.Build.props`. The tag-driven GitHub
 workflow performs formatting, tests, rendered Windows UI checks, packaging, manifest signing, and installer hash
 verification before publishing. CodeQL continues independently on source changes. The updater metadata points to
 that exact versioned installer and records its exact size and SHA-256.
