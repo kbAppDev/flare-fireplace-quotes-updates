@@ -26,7 +26,7 @@ try {
         throw 'The Debug build failed; coverage was not collected.'
     }
 
-    $targetArguments = "test `"$testProject`" -c Debug --no-build --no-restore --verbosity minimal"
+    $targetArguments = "test --project `"$testProject`" -c Debug --no-build --no-restore --filter-not-class FlareQuotes.Tests.IntegrationTests.GmailEveryModelIntegrationTests --minimum-expected-tests 400 --verbosity minimal"
     & dotnet tool run coverlet $testAssembly `
         --target dotnet `
         --targetargs $targetArguments `

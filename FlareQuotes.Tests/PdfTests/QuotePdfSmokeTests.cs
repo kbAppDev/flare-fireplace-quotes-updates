@@ -1,6 +1,8 @@
+using System.Text.RegularExpressions;
 using FlareQuotes.Core.Models;
 using FlareQuotes.Infrastructure.Pdf;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 using Xunit;
 
 namespace FlareQuotes.Tests.PdfTests;
@@ -12,6 +14,76 @@ public sealed class QuotePdfSmokeTests
     private const string BrandingEmail = "release169@example.com";
     private const string BrandingPhone = "(555) 016-9000";
     private const string BrandingWebsite = "quote-qa.flarefireplaces.com/v169";
+    private const string VentedDisclaimer =
+        "The listed prices are the Manufacturer's Suggested Retail Price (MSRP), valid for 30 days, and do not include venting or installation costs.";
+    private const string OutdoorDisclaimer =
+        "The listed prices are the Manufacturer's Suggested Retail Price (MSRP), valid for 30 days, and do not include installation costs.";
+
+    [Theory]
+    [InlineData(FireplaceType.Outdoor, true)]
+    [InlineData(FireplaceType.OutdoorSeeThrough, true)]
+    [InlineData(FireplaceType.Indoor, false)]
+    [InlineData(FireplaceType.IndoorSeeThrough, false)]
+    [InlineData(FireplaceType.IndoorOutdoorSeeThrough, false)]
+    [InlineData(FireplaceType.Traditional, false)]
+    [InlineData(FireplaceType.Large, false)]
+    [InlineData(FireplaceType.Unknown, false)]
+    [InlineData(null, false)]
+    public async Task PdfDisclaimerMatchesFireplaceVentingRequirements(FireplaceType? fireplaceType,
+                                                                       bool excludesVenting)
+    {
+        var outputPath = TemporaryPdfPath();
+
+        try
+        {
+            var request = BuildRequest();
+            if (fireplaceType is { } type)
+            {
+                var fireplace = BuildFireplace("Test Location", "TEST-MODEL", 1, 8_000m, 200m);
+                fireplace.Type = type;
+                request = BuildRequest(fireplace);
+            }
+
+            await new QuestPdfQuotePdfService().BuildQuotePdfAsync(
+                request, outputPath, TestContext.Current.CancellationToken);
+
+            using var pdf = PdfDocument.Open(outputPath);
+            Assert.Equal(1, pdf.NumberOfPages);
+            AssertDisclaimer(pdf.GetPage(1), excludesVenting);
+        }
+        finally
+        {
+            TryDelete(outputPath);
+        }
+    }
+
+    [Fact]
+    public async Task MixedIndoorOutdoorPdfUsesEachFireplacesDisclaimerOnItsOwnPage()
+    {
+        var outputPath = TemporaryPdfPath();
+
+        try
+        {
+            var indoorOutdoor = BuildFireplace("Indoor Outdoor", "DV-ST-TEST", 1, 8_000m, 200m);
+            indoorOutdoor.Type = FireplaceType.IndoorOutdoorSeeThrough;
+            var outdoor = BuildFireplace("Patio", "OUT-TEST", 1, 6_000m, 100m);
+            outdoor.Type = FireplaceType.Outdoor;
+
+            await new QuestPdfQuotePdfService().BuildQuotePdfAsync(
+                BuildRequest(indoorOutdoor, outdoor), outputPath, TestContext.Current.CancellationToken);
+
+            using var pdf = PdfDocument.Open(outputPath);
+            Assert.Equal(2, pdf.NumberOfPages);
+            AssertPdfText(pdf.GetPage(1).Text, "DV-ST-TEST");
+            AssertPdfText(pdf.GetPage(2).Text, "OUT-TEST");
+            AssertDisclaimer(pdf.GetPage(1), excludesVenting: false);
+            AssertDisclaimer(pdf.GetPage(2), excludesVenting: true);
+        }
+        finally
+        {
+            TryDelete(outputPath);
+        }
+    }
 
     [Fact]
     public async Task SingleFireplacePdfIsReadableAndPreservesQuoteDataPricingAndSafeLinks()
@@ -199,6 +271,16 @@ public sealed class QuotePdfSmokeTests
     {
         foreach (var expected in expectedValues)
             Assert.Contains(expected, actual, StringComparison.Ordinal);
+    }
+
+    private static void AssertDisclaimer(UglyToad.PdfPig.Content.Page page, bool excludesVenting)
+    {
+        var text = Regex.Replace(ContentOrderTextExtractor.GetText(page), @"\s+", " ").Trim();
+        var expected = excludesVenting ? OutdoorDisclaimer : VentedDisclaimer;
+        var unexpected = excludesVenting ? VentedDisclaimer : OutdoorDisclaimer;
+
+        Assert.Contains(expected, text, StringComparison.Ordinal);
+        Assert.DoesNotContain(unexpected, text, StringComparison.Ordinal);
     }
 
     private static string TemporaryPdfPath() =>
