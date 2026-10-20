@@ -1,3 +1,8 @@
+# 1.70.5
+
+- Corrects RBLC60H and VFRBLC60H reflective-back MSRP from $799 to the confirmed $888 each.
+- Adds indoor and outdoor Left Corner 60H pricing regression checks.
+
 # 1.70.4
 
 - Aligns the duplicate 4DFA25 DuraFlex Parts price with the confirmed $335 Indoor price.
