@@ -1384,7 +1384,9 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (IsPassageModel(model))
         {
             var passageFeatureRow = FindPassageFeatureRow(rows, model, feature);
-            if (passageFeatureRow is not null)
+            // Model-specific Passage options must never fall back to a linear fireplace row.
+            if (passageFeatureRow is not null || f.Contains("double glass") || f.Contains("safety barrier") ||
+                f.Contains("reflective") || IsOutdoorKitFeature(f))
                 return passageFeatureRow;
         }
         if (f.Contains("power vent"))
@@ -1772,6 +1774,13 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         return "VFF";
     }
 
+    private static bool MatchesPartOrSku(PriceRow row, IEnumerable<string> candidates)
+    {
+        var part = Compact(row.PartName);
+        var sku = Compact(row.Sku);
+        return candidates.Any(candidate => Eq(part, Compact(candidate)) || Eq(sku, Compact(candidate)));
+    }
+
     private static PriceRow? FindOutdoorSafetyScreenRow(IReadOnlyList<PriceRow> rows, FireplaceType type, string model,
                                                         string sizeNum, string glassHeight)
     {
@@ -1788,19 +1797,14 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         var sku = $"VSC{style}{sizeNum}{suffix}";
         var compactPart = part.Replace("-", string.Empty);
 
-        var exact = Best(rows, r =>
-                               {
-                                   var text = Text(r);
-                                   var compactText = text.Replace("-", string.Empty).Replace(" ", string.Empty);
-
-                                   return Eq(r.SheetName, "Outdoor Price Book") &&
-                                          text.Contains("safety", StringComparison.OrdinalIgnoreCase) &&
-                                          text.Contains("screen", StringComparison.OrdinalIgnoreCase) &&
-                                          (text.Contains(part, StringComparison.OrdinalIgnoreCase) ||
-                                           text.Contains(sku, StringComparison.OrdinalIgnoreCase) ||
-                                           compactText.Contains(compactPart, StringComparison.OrdinalIgnoreCase) ||
-                                           compactText.Contains(sku, StringComparison.OrdinalIgnoreCase));
-                               });
+        var exactParts = new List<string> { part, sku };
+        if (suffix.Equals("R", StringComparison.OrdinalIgnoreCase))
+        {
+            exactParts.Add($"VF-SCREEN-{style}-{sizeNum}");
+            exactParts.Add($"VSC{style}{sizeNum}");
+        }
+        var exact = Best(rows, r => Eq(r.SheetName, "Outdoor Price Book") &&
+                                   MatchesPartOrSku(r, exactParts));
 
         if (exact is not null)
         {
@@ -1846,13 +1850,10 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         var exact = string.IsNullOrWhiteSpace(glassSuffix) ? $"{prefix}-{style}-{sizeNum}"
                                                            : $"{prefix}-{style}-{sizeNum}-{glassSuffix}";
 
-        var exactNoDash = exact.Replace("-", string.Empty);
-        var bySku = Best(
-            rows, r => Eq(r.SheetName, sheet) &&
-                       (Text(r).Contains(exact, StringComparison.OrdinalIgnoreCase) ||
-                        Text(r).Replace("-", string.Empty).Contains(exactNoDash, StringComparison.OrdinalIgnoreCase)) &&
-                       Text(r).Contains("reflective", StringComparison.OrdinalIgnoreCase) &&
-                       Text(r).Contains("back", StringComparison.OrdinalIgnoreCase));
+        var exactParts = new List<string> { exact };
+        if (glassSuffix.Equals("R", StringComparison.OrdinalIgnoreCase))
+            exactParts.Add($"{prefix}-{style}-{sizeNum}");
+        var bySku = Best(rows, r => Eq(r.SheetName, sheet) && MatchesPartOrSku(r, exactParts));
         if (bySku is not null)
             return bySku;
 
@@ -1885,14 +1886,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             (isOutdoor || styleForSku is "FF" or "ST"))
             exactCandidates.Insert(0, $"{prefix}-{styleForSku}");
 
-        var compactCandidates = exactCandidates.Select(candidate => candidate.Replace("-", string.Empty)).ToList();
-        var bySku = Best(
-            rows, r => Eq(r.SheetName, sheet) && Text(r).Contains("reflective", StringComparison.OrdinalIgnoreCase) &&
-                       Text(r).Contains("side", StringComparison.OrdinalIgnoreCase) &&
-                       (exactCandidates.Any(candidate => Text(r).Contains(candidate, StringComparison.OrdinalIgnoreCase)) ||
-                        compactCandidates.Any(candidate =>
-                                                  Text(r).Replace("-", string.Empty)
-                                                      .Contains(candidate, StringComparison.OrdinalIgnoreCase))));
+        var bySku = Best(rows, r => Eq(r.SheetName, sheet) && MatchesPartOrSku(r, exactCandidates));
         if (bySku is not null)
             return bySku;
 
@@ -1991,7 +1985,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         var norm = Normalize($"{key} {display}");
 
         PriceRow? BySku(params string[] skus) =>
-                       Best(rows, r => skus.Any(sku => Text(r).Contains(sku, StringComparison.OrdinalIgnoreCase)));
+                       Best(rows, r => MatchesPartOrSku(r, skus));
 
         if (norm.Contains("black fire glass"))
             return BySku("CMDFGBL", "MEDIA-FG-Black");
@@ -2064,33 +2058,15 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return Best(rows, r => Text(r).Contains("Small Drift", StringComparison.OrdinalIgnoreCase));
         if (norm.Contains("large drift"))
             return Best(rows, r => Text(r).Contains("Large Drift", StringComparison.OrdinalIgnoreCase));
-        if (norm.Contains("grey") && norm.Contains("2"))
-            return Best(rows, r => Text(r).Contains("Cape Grey", StringComparison.OrdinalIgnoreCase) &&
-                                   Text(r).Contains("2\"", StringComparison.OrdinalIgnoreCase));
-        if (norm.Contains("grey") && norm.Contains("4"))
-            return Best(rows, r => Text(r).Contains("Cape Grey", StringComparison.OrdinalIgnoreCase) &&
-                                   Text(r).Contains("4\"", StringComparison.OrdinalIgnoreCase));
-        if (norm.Contains("grey"))
-            return Best(rows, r => Text(r).Contains("Cape Grey", StringComparison.OrdinalIgnoreCase) &&
-                                   Text(r).Contains("Mixed", StringComparison.OrdinalIgnoreCase));
-        if (norm.Contains("black") && norm.Contains("2"))
-            return Best(rows, r => Text(r).Contains("Matte Black", StringComparison.OrdinalIgnoreCase) &&
-                                   Text(r).Contains("2\"", StringComparison.OrdinalIgnoreCase));
-        if (norm.Contains("black") && norm.Contains("4"))
-            return Best(rows, r => Text(r).Contains("Matte Black", StringComparison.OrdinalIgnoreCase) &&
-                                   Text(r).Contains("4\"", StringComparison.OrdinalIgnoreCase));
-        if (norm.Contains("black"))
-            return Best(rows, r => Text(r).Contains("Matte Black", StringComparison.OrdinalIgnoreCase) &&
-                                   Text(r).Contains("Mixed", StringComparison.OrdinalIgnoreCase));
-        if (norm.Contains("white") && norm.Contains("2"))
-            return Best(rows, r => Text(r).Contains("Cottage White", StringComparison.OrdinalIgnoreCase) &&
-                                   Text(r).Contains("2\"", StringComparison.OrdinalIgnoreCase));
-        if (norm.Contains("white") && norm.Contains("4"))
-            return Best(rows, r => Text(r).Contains("Cottage White", StringComparison.OrdinalIgnoreCase) &&
-                                   Text(r).Contains("4\"", StringComparison.OrdinalIgnoreCase));
-        if (norm.Contains("white"))
-            return Best(rows, r => Text(r).Contains("Cottage White", StringComparison.OrdinalIgnoreCase) &&
-                                   Text(r).Contains("Mixed", StringComparison.OrdinalIgnoreCase));
+        // Uniform and mixed sets share size words, so description substring matching is unsafe.
+        var stoneColor = norm.Contains("grey") ? "Grey" : norm.Contains("black") ? "Bla" :
+                         norm.Contains("white") ? "W" : string.Empty;
+        if (!string.IsNullOrWhiteSpace(stoneColor))
+        {
+            var stoneSet = norm.Contains("mixed") ? "M" : norm.Contains("2") ? "U2" :
+                           norm.Contains("4") ? "U4" : "M";
+            return BySku($"PSB-{stoneColor}-{stoneSet}");
+        }
         return Best(rows, r => Text(r).Contains(display, StringComparison.OrdinalIgnoreCase));
     }
     private static bool IsOutdoorVentFreeResourceModel(string? model)
@@ -3904,20 +3880,40 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     private static PriceRow? FindPassageFeatureRow(IEnumerable<PriceRow> rows, string model, string feature)
     {
         var normalizedFeature = Normalize(feature);
+        var wantsSeeThrough = IsSeeThroughPassageModel(model);
+        if (wantsSeeThrough && normalizedFeature.Contains("reflective") && normalizedFeature.Contains("back"))
+            return null;
 
-        return Best(rows, r =>
-                          {
-                              if (!Eq(r.SheetName, "Indoor Price Book"))
-                                  return false;
+        var candidates = rows.Where(r => Eq(r.SheetName, "Indoor Price Book") &&
+            IsPassageRowText(Text(r), Compact(Text(r)), model) &&
+            PassageFeatureMatches(Text(r), Compact(Text(r)), normalizedFeature)).ToList();
 
-                              var text = Text(r);
-                              var compact = Compact(text);
+        bool MatchesStyle(PriceRow row, bool seeThrough)
+        {
+            var text = Normalize($"{row.PartName} {row.Description} {row.Sku}");
+            var compact = Compact(text);
+            return seeThrough
+                ? text.Contains("see through", StringComparison.Ordinal) ||
+                  Regex.IsMatch(text, @"\bst\b") || compact.Contains("PAST", StringComparison.Ordinal) ||
+                  PassageCodeMatch(compact, "STPASS")
+                : text.Contains("front facing", StringComparison.Ordinal) ||
+                  Regex.IsMatch(text, @"\bff\b") || compact.Contains("PAFF", StringComparison.Ordinal) ||
+                  PassageCodeMatch(compact, "FFPASS");
+        }
 
-                              if (!IsPassageRowText(text, compact, model))
-                                  return false;
+        // Prefer an explicitly matching model even when a shared row appears first.
+        var specific = candidates.FirstOrDefault(r => MatchesStyle(r, wantsSeeThrough) &&
+                                                     !MatchesStyle(r, !wantsSeeThrough));
+        if (specific is not null)
+            return specific;
 
-                              return PassageFeatureMatches(text, compact, normalizedFeature);
-                          });
+        // Glass, panels, and outdoor kits require a positive model match.
+        if (normalizedFeature.Contains("double glass") || normalizedFeature.Contains("safety barrier") ||
+            normalizedFeature.Contains("reflective") || IsOutdoorKitFeature(normalizedFeature))
+            return null;
+
+        // Shared Passage lighting/burner accessories are valid for either model.
+        return candidates.FirstOrDefault(r => !MatchesStyle(r, true) && !MatchesStyle(r, false));
     }
     private static string BuildDescription(FireplaceType type, string model, string size, string glassHeight)
     {

@@ -1,3 +1,12 @@
+# 1.70.4
+
+- Aligns the duplicate 4DFA25 DuraFlex Parts price with the confirmed $335 Indoor price.
+
+- Corrects STPASS Double Glass to use the see-through Passage price and SKU. Passage side panels also retain the correct model SKU; missing model-specific rows cannot borrow another model's price.
+- Restores 16-inch outdoor corner reflective-back and screen lookups where the workbook omits the R suffix, and matches complete part numbers for panels and screens.
+- Corrects uniform white/black 2-inch stone-ball pricing and separates all uniform/mixed stone sets. Matches full media SKUs to prevent prefix collisions for white logs and tan embers.
+- Adds workbook-wide base, glass, accessory, media, missing-row, row-order, and end-to-end Passage quantity regression checks. See docs/PRICING_AUDIT_1.70.4.md for scope and results.
+
 # 1.70.3
 
 - Corrects the MSRP disclaimer on outdoor vent-free quote PDF pages to read: "The listed prices are the Manufacturer's Suggested Retail Price (MSRP), valid for 30 days, and do not include installation costs."
@@ -10,7 +19,7 @@
 - Manual model entry recognizes TRA-42/TRA-46 as Traditional Summit and TRA-BON-42/TRA-BON-46 as Traditional Bonfire. The fireplace header shows the burner style, model-field hover help explains the Bonfire codes, and changing a full model code updates its size even within the same style. Switching to Traditional clears any glass height left from a previous model.
 - Keeps the same available features as the corresponding TR-42 and TR-46. Resolves the exact TRABON42/TRABON46 base-price rows rather than falling back to the standard Traditional fireplace.
 - Offers general premium media for Bonfire, including Gold, Aqua, and Chestnut glass, premium stones and stone balls, Driftwood, and Birchwood, with 45-inch media quantities and price-book package sizes. Keeps the matching complete Traditional oak set available. Standard Traditional media rules remain unchanged.
-- Adds the manufacturer’s Bonfire product sheet while retaining the corresponding Traditional framing, CAD, SketchUp, Revit, and three-part specification links.
+- Adds the manufacturerâ€™s Bonfire product sheet while retaining the corresponding Traditional framing, CAD, SketchUp, Revit, and three-part specification links.
 - Delivered through the existing signed update feed and desktop app update workflow. Adds no paid publisher signing.
 
 # 1.70.1 (expanded 1.70 update)
@@ -67,7 +76,7 @@
 # 1.6.6
 
 - Reverted the unshipped Front Facing Outdoor Kit option; Front Facing fireplaces no longer expose an Outdoor Kit optional feature.
-- Fixed selected-feature/media chip remove buttons so clicking the `×` is not swallowed by the drag/reorder mouse handler.
+- Fixed selected-feature/media chip remove buttons so clicking the `Ã—` is not swallowed by the drag/reorder mouse handler.
 - Added Zircon Black Diamonds and Rain Drop Diamonds to the Classic Media lists for Outdoor and Outdoor See Through fireplaces.
 - Reworked the `Est. total` card to price the current quote before PDF preview and refresh automatically when pricing inputs change.
 - Added regression coverage for the Front Facing Outdoor Kit revert, feature removal, Outdoor diamond media availability, and pre-preview estimated totals.
