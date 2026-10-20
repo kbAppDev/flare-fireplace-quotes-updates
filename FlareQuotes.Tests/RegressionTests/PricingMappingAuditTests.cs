@@ -37,6 +37,68 @@ public sealed class PricingMappingAuditTests
     }
 
     [Theory]
+    [InlineData("50", "16", 404, 501)]
+    [InlineData("60", "16", 444, 444)]
+    [InlineData("70", "16", 467, 467)]
+    [InlineData("80", "16", 474, 474)]
+    [InlineData("100", "16", 626, 626)]
+    [InlineData("50", "24", 510, 640)]
+    [InlineData("60", "24", 564, 694)]
+    [InlineData("70", "24", 592, 722)]
+    [InlineData("80", "24", 600, 730)]
+    [InlineData("100", "24", 864, 994)]
+    public async Task OutdoorCornerScreensUse2026SkuAndModelPrice(
+        string size, string height, int cornerMsrp, int doubleCornerMsrp)
+    {
+        var service = new ClosedXmlPriceBookService();
+        var wb = await service.LoadAsync(PricingPath());
+        var suffix = height == "24" ? "H" : string.Empty;
+        foreach (var style in new[] { "LC", "RC", "DC" })
+        {
+            var expectedSku = $"VSC{(style == "DC" ? "DC" : "CNR")}{size}{suffix}";
+            var expectedPart = $"VF-SCREEN-{style}-{size}{(height == "24" ? "-H" : string.Empty)}";
+            var expectedMsrp = (decimal)(style == "DC" ? doubleCornerMsrp : cornerMsrp);
+            for (int order = 0; order < 2; order++)
+            {
+                var row = Feature(wb, FireplaceType.Outdoor, "V" + style, size, height, "Safety Screen");
+                Assert.NotNull(row);
+                Assert.Equal(expectedPart, row.PartName, ignoreCase: true);
+                Assert.Equal(expectedSku, row.Sku);
+                Assert.Equal(expectedMsrp, row.Price);
+                wb.Rows.Reverse();
+            }
+
+            var result = await service.BuildPricedQuoteAsync(new QuoteRequest
+            {
+                Fireplaces = [new FireplaceQuote {
+                    Type = FireplaceType.Outdoor, Model = "V" + style, Size = size, GlassHeight = height,
+                    Features = [new FeatureSelection { Key = "safety_screen", DisplayName = "Safety Screen" }]
+                }]
+            }, PricingPath());
+            Assert.True(result.Success, result.Message);
+            var screen = Assert.Single(Assert.Single(result.Fireplaces).OptionalFeatures);
+            Assert.Equal(expectedSku, screen.Sku);
+            Assert.Equal(expectedMsrp, screen.Price);
+        }
+    }
+
+    [Fact]
+    public async Task FrontFacing25ExtraHighUsesCorrected2026BaseSku()
+    {
+        var result = await new ClosedXmlPriceBookService().BuildPricedQuoteAsync(new QuoteRequest
+        {
+            Fireplaces = [new FireplaceQuote {
+                Type = FireplaceType.Indoor, Model = "FF25EH", Size = "25", GlassHeight = "30"
+            }]
+        }, PricingPath());
+        Assert.True(result.Success, result.Message);
+        var fireplace = Assert.Single(result.Fireplaces);
+        Assert.Equal("DVFF25E", fireplace.BaseLine.Sku);
+        Assert.Equal(6734m, fireplace.BaseLine.Price);
+        Assert.Equal(6734m, result.TotalMsrp);
+    }
+
+    [Theory]
     [InlineData("FFPASS", "Double Glass", "DGPAFF")]
     [InlineData("STPASS", "Double Glass", "DGPAST")]
     [InlineData("PASSST", "Double Glass", "DGPAST")]
@@ -246,7 +308,7 @@ public sealed class PricingMappingAuditTests
             ["white_balls_4"] = "PSBWU4",
             ["white_balls_mixed"] = "PSBWM",
             ["black_balls_2"] = "PSBBU2",
-            ["black_balls_4"] = "PSBBU",
+            ["black_balls_4"] = "PSBBU4",
             ["black_balls_mixed"] = "PSBBM",
             ["birchwood"] = "PMDBIRCH",
             ["tr42bch"] = "TR42BCH",
@@ -269,5 +331,28 @@ public sealed class PricingMappingAuditTests
             wb.Rows.Reverse();
         }
         Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
+    }
+
+    [Theory]
+    [InlineData(1, 473)]
+    [InlineData(2, 946)]
+    public async Task BlackUniformFourInchStoneBallsKeepSizeSpecificQuotePricing(int quantity, int mediaMsrp)
+    {
+        var result = await new ClosedXmlPriceBookService().BuildPricedQuoteAsync(new QuoteRequest
+        {
+            Fireplaces = [new FireplaceQuote {
+                Type = FireplaceType.Indoor, Model = "FF", Size = "60", GlassHeight = "24", Quantity = quantity,
+                PremiumMedia = [new MediaSelection {
+                    Key = "black_balls_4", DisplayName = "Matte Black 4\" Stone Balls", IsPremium = true
+                }]
+            }]
+        }, PricingPath());
+        Assert.True(result.Success, result.Message);
+        var fireplace = Assert.Single(result.Fireplaces);
+        var media = Assert.Single(fireplace.OptionalFeatures);
+        Assert.Equal("PSBBU4-60", media.Sku);
+        Assert.Equal(quantity, media.Quantity);
+        Assert.Equal((decimal)mediaMsrp, media.Price);
+        Assert.Equal(fireplace.BaseLine.Price + mediaMsrp, result.TotalMsrp);
     }
 }
