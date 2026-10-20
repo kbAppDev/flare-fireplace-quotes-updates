@@ -1,6 +1,6 @@
 # Flare Fireplace Quotes Source of Truth
 
-Version: **1.70.3** (outdoor quote PDF disclaimer)
+Version: **1.70.6** (2026 pricing foundation audit)
 
 Repository: `kbAppDev/flare-fireplace-quotes-updates`
 
@@ -26,6 +26,8 @@ THIRD-PARTY-NOTICES.md
 The pinned `flare-quotes-v2-latest.json` file is mandatory-signed updater metadata. The automated workflow creates it
 from the final installer's exact version, release URL, byte size, and SHA-256, verifies the signature and assets in
 a draft release, and only then publishes. The v1 file remains solely to bootstrap existing v1.6.8 installations.
+
+v1.70.6 refreshes all four price tables from the supplied October 20, 2026 foundation while preserving the four media calculation sheets. It retains Kyle's confirmed $335 DuraFlex and $888 LC60H prices, and the distinct EH side-screen SKU where the supplied file contains conflicting data. The full comparison, source hash, and scope are recorded in docs/PRICING_AUDIT_1.70.6.md.
 
 v1.70.3 is based on the published v1.70.2 source and corrects only the outdoor quote PDF disclaimer. Outdoor and outdoor see-through pages exclude installation costs without mentioning venting; indoor and indoor-outdoor pages retain their existing wording. Mixed quotes choose the disclaimer independently for each fireplace page. Email copy is unchanged.
 

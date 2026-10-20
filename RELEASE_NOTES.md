@@ -1,3 +1,10 @@
+# 1.70.6
+
+- Updates the bundled catalog from the supplied October 20, 2026 pricing foundation: 36 MSRP changes, 22 SKU corrections, 26 new parts, and removal of two superseded Bonfire grates.
+- Applies revised outdoor right/double-corner screen and CVS venting prices, shared left/right corner screen SKUs, corrected FF25EH SKU, and corrected black 4-inch stone-ball catalog SKU.
+- Preserves the confirmed $335 DuraFlex and $888 LC60H reflective-back prices. Retains the distinct EH side-screen SKU to prevent conflicting H/EH prices in the source from colliding.
+- Preserves media quantity tables and adds full-catalog price consistency, new-parts, and end-to-end screen/base/media regression checks. See docs/PRICING_AUDIT_1.70.6.md for the source comparison and exceptions.
+
 # 1.70.5
 
 - Corrects RBLC60H and VFRBLC60H reflective-back MSRP from $799 to the confirmed $888 each.
