@@ -1,3 +1,10 @@
+# 1.70.4
+
+- Corrects STPASS Double Glass to use the see-through Passage price and SKU. Passage side panels also retain the correct model SKU; missing model-specific rows cannot borrow another model's price.
+- Restores 16-inch outdoor corner reflective-back and screen lookups where the workbook omits the R suffix, and matches complete part numbers for panels and screens.
+- Corrects uniform white/black 2-inch stone-ball pricing and separates all uniform/mixed stone sets. Matches full media SKUs to prevent prefix collisions for white logs and tan embers.
+- Adds workbook-wide base, glass, accessory, media, missing-row, row-order, and end-to-end Passage quantity regression checks. See docs/PRICING_AUDIT_1.70.4.md for scope and results.
+
 # 1.70.3
 
 - Corrects the MSRP disclaimer on outdoor vent-free quote PDF pages to read: "The listed prices are the Manufacturer's Suggested Retail Price (MSRP), valid for 30 days, and do not include installation costs."
