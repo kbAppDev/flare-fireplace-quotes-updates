@@ -21,3 +21,7 @@ Baseline: published v1.70.3, commit d1d65257e9103d2e0ea029d1c10f3b1818b44768. Au
 Read-only comparison of the live 2026 Pricing Google Sheet's Indoor, Outdoor and Large tables (583/197/134 data rows) with the bundled workbook found 27 raw differences, all explainable by whitespace or whole-dollar rounding (maximum 50 cents), with no SKU/part identity changes. No workbook prices were edited.
 
 The local full suite could not be certified: sandbox file move, encrypted storage, temporary-directory and symbolic-link restrictions caused unrelated failures. Repository CI and the existing release gates must pass before publication. This audit verifies the covered application's mappings against its price source, not the commercial correctness of every manufacturer's price or every possible future workbook layout. Parts-only items not exposed as quote features and every possible combined media/feature configuration are not exhaustively tested.
+
+## Source-data discrepancy requiring owner confirmation
+
+SKU 4DFA25 (25-foot, 4-inch DuraFlex) has conflicting prices: $335 in Indoor Price Book row 470 and $273 in Parts Price Book row 118. Both rows describe the same part. This audit did not choose or overwrite a price without an authoritative decision. No cached Excel formula errors were found in the bundled workbook.
