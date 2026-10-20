@@ -16,12 +16,12 @@ Baseline: published v1.70.3, commit d1d65257e9103d2e0ea029d1c10f3b1818b44768. Au
 - 34 media variants in original and reversed row order (68 checks). Driftwood's separate small/large quantity path is outside this variant matrix.
 - Passage aliases, shared rows, reversed order, missing rows, and end-to-end totals for one and two fireplaces.
 - Existing quantity regression verifies extended feature/media amounts scale with fireplace count.
-- Targeted run: 23 tests passed, 0 failed. Warnings-as-errors build passed.
+- Targeted run: 24 tests passed, 0 failed. Warnings-as-errors build passed.
 
-Read-only comparison of the live 2026 Pricing Google Sheet's Indoor, Outdoor and Large tables (583/197/134 data rows) with the bundled workbook found 27 raw differences, all explainable by whitespace or whole-dollar rounding (maximum 50 cents), with no SKU/part identity changes. No workbook prices were edited.
+Read-only comparison of the live 2026 Pricing Google Sheet's Indoor, Outdoor and Large tables (583/197/134 data rows) with the bundled workbook found 27 raw differences, all explainable by whitespace or whole-dollar rounding (maximum 50 cents), with no SKU/part identity changes. The Parts sheet correction below is the only workbook price edit.
 
 The local full suite could not be certified: sandbox file move, encrypted storage, temporary-directory and symbolic-link restrictions caused unrelated failures. Repository CI and the existing release gates must pass before publication. This audit verifies the covered application's mappings against its price source, not the commercial correctness of every manufacturer's price or every possible future workbook layout. Parts-only items not exposed as quote features and every possible combined media/feature configuration are not exhaustively tested.
 
-## Source-data discrepancy requiring owner confirmation
+## Confirmed source-data correction
 
-SKU 4DFA25 (25-foot, 4-inch DuraFlex) has conflicting prices: $335 in Indoor Price Book row 470 and $273 in Parts Price Book row 118. Both rows describe the same part. This audit did not choose or overwrite a price without an authoritative decision. No cached Excel formula errors were found in the bundled workbook.
+SKU 4DFA25 (25-foot, 4-inch DuraFlex) had conflicting prices: $335 in Indoor Price Book row 470 and $273 in Parts Price Book row 118. Kyle confirmed $335 on October 20, 2026. Parts D118 now uses $335, matching Indoor and the live price source. A regression checks both duplicate rows. The workbook ZIP comparison verifies only this cell value changed. No cached Excel formula errors were found.

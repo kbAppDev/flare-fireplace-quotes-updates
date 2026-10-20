@@ -14,6 +14,16 @@ public sealed class PricingMappingAuditTests
         (PriceRow?)typeof(ClosedXmlPriceBookService).GetMethod("FindFeatureRow", BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, [wb, type, model, size, height, feature]);
 
+    [Fact]
+    public void DuraFlexDuplicateSkuUsesConfirmedPriceInEverySheet()
+    {
+        using var workbook = new ClosedXML.Excel.XLWorkbook(PricingPath());
+        var matches = workbook.Worksheets.SelectMany(sheet => sheet.RowsUsed())
+            .Where(row => row.Cell(3).GetString().Trim() == "4DFA25").ToList();
+        Assert.Equal(2, matches.Count);
+        Assert.All(matches, row => Assert.Equal(335m, row.Cell(4).GetValue<decimal>()));
+    }
+
     [Theory]
     [InlineData("FFPASS", "Double Glass", "DGPAFF")]
     [InlineData("STPASS", "Double Glass", "DGPAST")]
