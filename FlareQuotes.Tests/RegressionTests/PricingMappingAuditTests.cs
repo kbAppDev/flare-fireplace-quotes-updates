@@ -25,6 +25,18 @@ public sealed class PricingMappingAuditTests
     }
 
     [Theory]
+    [InlineData(FireplaceType.Indoor, "LC", "RBLC60H")]
+    [InlineData(FireplaceType.Outdoor, "VLC", "VFRBLC60H")]
+    public async Task LeftCorner60HighReflectiveBackUsesConfirmedMsrp(FireplaceType type, string model, string sku)
+    {
+        var wb = await new ClosedXmlPriceBookService().LoadAsync(PricingPath());
+        var row = Feature(wb, type, model, "60", "24", "Reflective Black Back");
+        Assert.NotNull(row);
+        Assert.Equal(sku, row.Sku);
+        Assert.Equal(888m, row.Price);
+    }
+
+    [Theory]
     [InlineData("FFPASS", "Double Glass", "DGPAFF")]
     [InlineData("STPASS", "Double Glass", "DGPAST")]
     [InlineData("PASSST", "Double Glass", "DGPAST")]
