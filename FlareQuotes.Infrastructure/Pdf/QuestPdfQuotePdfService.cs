@@ -137,10 +137,19 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                 col.Item().PaddingTop(8).Text("Pricing Breakdown").FontSize(8.2f).Bold();
                 col.Item().Element(
                     c => PricingTable(c, fireplace is null ? Array.Empty<PricedFireplaceQuote>() : new[] { fireplace },
-                                      resourceLinkSet));
+                                      resourceLinkSet, fireplace?.HasDiscount == true));
 
                 if (fireplace is not null)
                 {
+                    if (fireplace.HasDiscount)
+                    {
+                        var percent = fireplace.DiscountPercent.ToString("0.############################",
+                                                                          CultureInfo.InvariantCulture);
+                        col.Item().Text($"Fireplace discount ({percent}%): -{DiscountMoney(fireplace.DiscountAmount)}" +
+                                        $" | New fireplace cost: {DiscountMoney(fireplace.DiscountedBasePrice)}")
+                            .Bold().FontSize(8.0f).FontColor(FlareRed).LineHeight(1.1f);
+                    }
+
                     col.Item().PaddingTop(8).Element(c => IncludedParagraph(c, new[] { fireplace }, request));
 
                     var optionalRows =
@@ -153,18 +162,43 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                     if (optionalRows.Count > 0)
                     {
                         col.Item().PaddingTop(8).Text("Optional Features").FontSize(8.2f).Bold();
-                        col.Item().Element(c => OptionalFeaturesTable(c, optionalRows));
+                        col.Item().Element(c => OptionalFeaturesTable(c, optionalRows, fireplace.HasDiscount));
+                    }
+
+                    if (fireplace.HasDiscount)
+                    {
+                        col.Item().PaddingTop(8)
+                            .Text("Configuration total after fireplace discount (including selected options): " +
+                                  DiscountMoney(fireplace.TotalAfterDiscount))
+                            .Bold().FontSize(8.0f).FontColor(FlareRed).LineHeight(1.1f);
                     }
                 }
 
+                var pricingNotice = fireplace?.HasDiscount == true
+                                        ? "The Manufacturer's Suggested Retail Prices (MSRP) shown above are valid " +
+                                          "for 30 days and do not include " + excludedCosts +
+                                          " The discount applies only to the fireplace; optional features, media, " +
+                                          "and any included outdoor kit remain at MSRP."
+                                        : "The listed prices are the Manufacturer's Suggested Retail Price (MSRP), " +
+                                          "valid for 30 days, and do not include " + excludedCosts;
                 col.Item()
                     .PaddingTop(8)
-                    .Text("The listed prices are the Manufacturer's Suggested Retail Price (MSRP), valid for 30 " +
-                          "days, and do not include " + excludedCosts)
+                    .Text(pricingNotice)
                     .Bold()
                     .FontSize(8.0f)
                     .LineHeight(1.1f)
                     .FontColor(TextDark);
+
+                if (fireplace?.HasDiscount == true && !string.IsNullOrWhiteSpace(request.DiscountTerms))
+                {
+                    col.Item().PaddingTop(8).EnsureSpace(30).Column(terms =>
+                    {
+                        terms.Spacing(3);
+                        terms.Item().Text("Discount Terms").Bold().FontSize(8.2f);
+                        terms.Item().Text(request.DiscountTerms.Trim().Replace("\r\n", "\n").Replace('\r', '\n'))
+                            .LineHeight(1.1f);
+                    });
+                }
             });
     }
 
@@ -245,7 +279,7 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
     }
 
     private static void PricingTable(IContainer container, IReadOnlyList<PricedFireplaceQuote> fireplaces,
-                                     ResourceLinkSet? resourceLinkSet)
+                                     ResourceLinkSet? resourceLinkSet, bool showCents)
     {
         container.Table(table =>
                         {
@@ -272,13 +306,13 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                                 BodyCellLink(table, FirstNonBlank(fp.Description, fp.BaseLine.Description),
                                              fireplaceUrl);
                                 BodyCell(table, Math.Max(1, fp.BaseLine.Quantity).ToString(CultureInfo.InvariantCulture));
-                                BodyCell(table, Money(fp.BaseLine.Price));
+                                BodyCell(table, Money(fp.BaseLine.Price, showCents));
                                 BodyCell(table, fp.LeadTime);
                             }
                         });
     }
 
-    private static void OptionalFeaturesTable(IContainer container, IReadOnlyList<OptionalPdfRow> rows)
+    private static void OptionalFeaturesTable(IContainer container, IReadOnlyList<OptionalPdfRow> rows, bool showCents)
     {
         container.Table(table =>
                         {
@@ -300,7 +334,7 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                                 BodyCellLink(table, row.Feature, row.Url, accent: true);
                                 BodyCell(table, row.Description);
                                 BodyCell(table, row.Quantity.ToString(CultureInfo.InvariantCulture));
-                                BodyCell(table, Money(row.Price));
+                                BodyCell(table, Money(row.Price, showCents));
                             }
                         });
     }
@@ -700,9 +734,19 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
         return Regex.Replace(text, @"\s+", " ");
     }
 
-    private static string Money(decimal? value) => value.HasValue
-                                                       ? value.Value.ToString("C0", CultureInfo.GetCultureInfo("en-US"))
-                                                       : string.Empty;
+    private static string Money(decimal? value, bool showCents = false)
+    {
+        if (!value.HasValue)
+            return string.Empty;
+
+        var displayValue = showCents
+                               ? decimal.Round(value.Value, 2, MidpointRounding.AwayFromZero)
+                               : value.Value;
+        return displayValue.ToString(showCents && displayValue != decimal.Truncate(displayValue) ? "C2" : "C0",
+                                     CultureInfo.GetCultureInfo("en-US"));
+    }
+
+    private static string DiscountMoney(decimal? value) => Money(value, showCents: true);
 
     private static string FirstNonBlank(params string?[] values) =>
         values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim() ?? string.Empty;

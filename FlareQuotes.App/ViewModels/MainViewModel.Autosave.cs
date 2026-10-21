@@ -23,6 +23,7 @@ public sealed partial class MainViewModel
         nameof(RawRequest), nameof(ProjectName), nameof(ClientName), nameof(Email), nameof(Phone),
         nameof(Postal), nameof(InstallDate), nameof(Model), nameof(Size), nameof(GlassHeight),
         nameof(FireplaceLocation), nameof(FireplaceQuantity), nameof(LeadTime), nameof(CustomLeadTime),
+        nameof(DiscountPercentText), nameof(DiscountTerms),
         nameof(ClassicMediaChoice), nameof(AdditionalClassicMediaChoice), nameof(IsEditingFireplace),
         nameof(ManualUrlToolName), nameof(ManualUrlValue), nameof(ManualPhotoAttachmentPath),
         nameof(SelectedUrlVerificationFireplace), nameof(WorkflowStage)
@@ -207,6 +208,7 @@ public sealed partial class MainViewModel
         {
             state.RawRequest, state.ProjectName, state.ClientName, state.Email, state.Phone, state.Postal,
             state.InstallDate, state.Model, state.Size, state.GlassHeight, state.FireplaceLocation,
+            state.DiscountPercentText, state.DiscountTerms,
             state.ManualUrlToolName, state.ManualUrlValue, state.ManualPhotoPath
         }.Any(value => !string.IsNullOrWhiteSpace(value));
 
@@ -224,6 +226,8 @@ public sealed partial class MainViewModel
         GlassHeight = GlassHeight,
         FireplaceLocation = FireplaceLocation,
         FireplaceQuantity = FireplaceQuantity,
+        DiscountPercentText = DiscountPercentText,
+        DiscountTerms = DiscountTerms,
         LeadTime = LeadTime,
         CustomLeadTime = CustomLeadTime,
         EditingFireplaceIndex = _editingFireplace is null ? -1 : Fireplaces.IndexOf(_editingFireplace),
@@ -279,6 +283,8 @@ public sealed partial class MainViewModel
             GlassHeight = state.GlassHeight;
             FireplaceLocation = state.FireplaceLocation;
             FireplaceQuantity = state.FireplaceQuantity;
+            DiscountPercentText = state.DiscountPercentText;
+            DiscountTerms = state.DiscountTerms;
             LeadTime = state.LeadTime;
             CustomLeadTime = state.CustomLeadTime;
 
@@ -410,6 +416,8 @@ public sealed partial class MainViewModel
         public string GlassHeight { get; init; } = string.Empty;
         public string FireplaceLocation { get; init; } = string.Empty;
         public int FireplaceQuantity { get; init; } = 1;
+        public string DiscountPercentText { get; init; } = string.Empty;
+        public string DiscountTerms { get; init; } = string.Empty;
         public string LeadTime { get; init; } = "3-5 Business Days";
         public string CustomLeadTime { get; init; } = string.Empty;
         public int EditingFireplaceIndex { get; init; } = -1;

@@ -54,8 +54,12 @@ public sealed class EmailTemplateService
                                     : "Below are links to the product information with a quote for the " +
                                           "fireplace and its optional features.";
 
-        var firstParagraph = firstSentence + (" The listed prices are the Manufacturer's Suggested Retail Price " +
-                                              "(MSRP), valid for 30 days, and do not include installation costs.");
+        var firstParagraph = firstSentence + (priced.HasDiscount
+            ? " MSRP is shown for reference. The fireplace discount and new fireplace cost are shown separately " +
+              "in the attached quote. Optional features, media, and any included outdoor kit remain at MSRP. " +
+              "The listed MSRP prices are valid for 30 days and do not include installation costs."
+            : " The listed prices are the Manufacturer's Suggested Retail Price " +
+              "(MSRP), valid for 30 days, and do not include installation costs.");
 
         var secondParagraph =
             $"If you have any questions or are ready to proceed, please use the information in my email signature to reach me directly and schedule a <a href=\"{consultation}\">project consultation</a>.";
@@ -63,9 +67,16 @@ public sealed class EmailTemplateService
         var helpLine =
             $"<strong>Need More Help?</strong><br>Schedule an <a href=\"{consultation}\">Online Consultation</a>";
 
-        var body =
-            string.Join(SectionSpacing, greeting + "<br>" + firstParagraph, secondParagraph, specLinks, helpLine,
-                        "Looking forward to helping you create a warm and inviting space with Flare Fireplaces! 🔥");
+        var sections = new List<string> { greeting + "<br>" + firstParagraph };
+        if (priced.HasDiscount && !string.IsNullOrWhiteSpace(request.DiscountTerms))
+        {
+            var terms = WebUtility.HtmlEncode(request.DiscountTerms.Trim())
+                .Replace("\r\n", "\n").Replace('\r', '\n').Replace("\n", "<br>");
+            sections.Add("<strong>Discount Terms:</strong><br>" + terms);
+        }
+        sections.AddRange([secondParagraph, specLinks, helpLine,
+                           "Looking forward to helping you create a warm and inviting space with Flare Fireplaces! 🔥"]);
+        var body = string.Join(SectionSpacing, sections);
 
         if (!string.IsNullOrWhiteSpace(signatureHtml))
             body += SectionSpacing + signatureHtml;

@@ -15,6 +15,7 @@ public sealed class QuoteRequest
     public string GlassHeight { get; set; } = string.Empty;
     public string QuoteDate { get; set; } = DateTime.Now.ToShortDateString();
     public string QuoteNumber { get; set; } = QuoteNumberGenerator.Create();
+    public string DiscountTerms { get; set; } = string.Empty;
     public QuoteBranding Branding { get; set; } = new();
     public string RawFeaturesText { get; set; } = string.Empty;
     public string RawRequestText { get; set; } = string.Empty;

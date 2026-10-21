@@ -1282,6 +1282,8 @@ public partial class MainWindow : Window
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
+        if (DataContext is MainViewModel { CanEditQuote: false })
+            return;
         try
         {
             var settingsWindow =

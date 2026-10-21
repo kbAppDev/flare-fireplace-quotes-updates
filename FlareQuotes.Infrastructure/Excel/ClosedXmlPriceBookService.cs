@@ -352,6 +352,16 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     public async Task<PricedQuoteResult> BuildPricedQuoteAsync(QuoteRequest request, string pricingPath,
                                                                CancellationToken cancellationToken = default)
     {
+        if (request.Fireplaces.Any(fireplace => fireplace.DiscountPercent is < 0m or > 100m))
+        {
+            return new PricedQuoteResult
+            {
+                Success = false,
+                Request = request,
+                Message = "Enter a fireplace discount between 0% and 100%."
+            };
+        }
+
         var workbook = await LoadAsync(pricingPath, cancellationToken).ConfigureAwait(false);
         if (workbook.Rows.Count == 0)
             return new PricedQuoteResult
@@ -410,6 +420,8 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 ModelNumber = modelNumber,
                 Description = baseRow?.Description ?? BuildDescription(type, inputModel, inputSize, inputGlassHeight),
                 Quantity = fireplaceQuantity,
+                DiscountPercent = input.DiscountPercent,
+                DiscountEligibleMsrp = (baseRow?.Price ?? 0m) * fireplaceQuantity,
                 LeadTime = string.IsNullOrWhiteSpace(input.LeadTime) ? "3-5 Business Days" : input.LeadTime,
                 ClassicMediaDisplay = !string.IsNullOrWhiteSpace(input.ClassicMediaDisplay)
                                           ? input.ClassicMediaDisplay
