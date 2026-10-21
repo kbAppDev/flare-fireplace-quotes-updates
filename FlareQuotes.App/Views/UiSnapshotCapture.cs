@@ -411,7 +411,17 @@ internal static class UiSnapshotCapture
 
     private static void ScrollBonfireSelectionsIntoView(MainWindow window, FrameworkElement root)
     {
-        BonfireBuilderScroller(window).ScrollToEnd();
+        var scroller = BonfireBuilderScroller(window);
+        var viewport = FindVisualElements<ScrollContentPresenter>(scroller).First();
+        root.UpdateLayout();
+        var lastSelectionBottom = FindVisualElements<Border>(window.QuoteWorkspacePane)
+            .Where(border => border.Tag is "SelectedFeatureChip" or "SelectedPremiumMediaChip")
+            .Max(border => VisualBounds(border, root).Bottom);
+        var viewportBottom = VisualBounds(viewport, root).Bottom;
+        // The quote-level terms now follow the fireplace builder. Scroll only far enough to
+        // reveal every selected chip so the model heading stays visible with its selections.
+        scroller.ScrollToVerticalOffset(Math.Max(0,
+            scroller.VerticalOffset + lastSelectionBottom - viewportBottom + 1));
         root.UpdateLayout();
     }
 

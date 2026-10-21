@@ -3227,7 +3227,8 @@ public sealed partial class MainViewModel : ObservableObject
     // Readiness / summary values surfaced to the redesigned build workspace.
     public bool HasFireplacesOnQuote => Fireplaces.Count > 0;
     public bool HasPendingNewFireplace => !IsEditingFireplace && Fireplaces.Count > 0 &&
-                                                !string.IsNullOrWhiteSpace(Model);
+                                         (!string.IsNullOrWhiteSpace(Model) ||
+                                          !string.IsNullOrWhiteSpace(DiscountPercentText));
     public bool HasDiscontinuedCommercialSelection =>
         IsDiscontinuedCommercialModel(Model) ||
         Fireplaces.Any(fireplace => IsDiscontinuedCommercialModel(fireplace.Model));

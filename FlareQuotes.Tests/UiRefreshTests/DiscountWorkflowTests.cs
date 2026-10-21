@@ -107,6 +107,87 @@ public sealed class DiscountWorkflowTests
         Assert.Equal(10m, Assert.Single(viewModel.Fireplaces).DiscountPercent);
     }
 
+    [Theory]
+    [InlineData("0", false)]
+    [InlineData("12.5", false)]
+    [InlineData("100", false)]
+    [InlineData("0", true)]
+    [InlineData("12.5", true)]
+    [InlineData("100", true)]
+    public async Task DiscountOnlyBuilderBlocksPreviewAndDraftUntilClearedOrAdded(string entered, bool addFireplace)
+    {
+        var fixture = new Fixture();
+        var viewModel = fixture.Create();
+        Configure(viewModel, "10");
+        viewModel.AddFireplaceCommand.Execute(null);
+        viewModel.Email = "customer@example.com";
+        Assert.Empty(viewModel.Model);
+        viewModel.DiscountPercentText = entered;
+
+        Assert.False(viewModel.HasInvalidDiscount);
+        Assert.True(viewModel.HasPendingNewFireplace);
+        Assert.False(viewModel.CanGeneratePreview);
+        Assert.False(viewModel.CanCreateGmailDraft);
+        Assert.False(viewModel.NextToPreviewCommand.CanExecute(null));
+        Assert.False(viewModel.CreateDraftCommand.CanExecute(null));
+        await viewModel.NextToPreviewCommand.ExecuteAsync(null);
+        await viewModel.CreateDraftCommand.ExecuteAsync(null);
+        Assert.Contains("Add or clear the current fireplace", viewModel.StatusMessage, StringComparison.Ordinal);
+        Assert.Equal(entered, viewModel.DiscountPercentText);
+        Assert.Equal(10m, Assert.Single(viewModel.Fireplaces).DiscountPercent);
+        Assert.Equal(0, fixture.Prices.BuildCount);
+        Assert.Equal(0, fixture.Pdf.BuildCount);
+        Assert.Equal(0, fixture.Gmail.BuildCount);
+
+        if (addFireplace)
+        {
+            Configure(viewModel, entered);
+            viewModel.AddFireplaceCommand.Execute(null);
+        }
+        else
+        {
+            viewModel.ClearCurrentFireplaceCommand.Execute(null);
+        }
+
+        Assert.Empty(viewModel.DiscountPercentText);
+        Assert.False(viewModel.HasPendingNewFireplace);
+        Assert.True(viewModel.CanGeneratePreview);
+        Assert.True(viewModel.CanCreateGmailDraft);
+        await viewModel.NextToPreviewCommand.ExecuteAsync(null);
+        Assert.Equal(1, fixture.Prices.BuildCount);
+        Assert.NotNull(fixture.Prices.LastRequest);
+        var expectedRates = addFireplace
+            ? new[] { 10m, decimal.Parse(entered, CultureInfo.InvariantCulture) }
+            : new[] { 10m };
+        Assert.Equal(expectedRates, fixture.Prices.LastRequest.Fireplaces.Select(item => item.DiscountPercent));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("\t \r\n")]
+    public async Task BlankDiscountInClearedBuilderAllowsSavedFireplacePreviewAndDraft(string entered)
+    {
+        var fixture = new Fixture();
+        var viewModel = fixture.Create();
+        Configure(viewModel, "10");
+        viewModel.AddFireplaceCommand.Execute(null);
+        viewModel.Email = "customer@example.com";
+        viewModel.DiscountPercentText = entered;
+
+        Assert.Empty(viewModel.Model);
+        Assert.False(viewModel.HasInvalidDiscount);
+        Assert.False(viewModel.HasPendingNewFireplace);
+        Assert.True(viewModel.CanGeneratePreview);
+        Assert.True(viewModel.CanCreateGmailDraft);
+        Assert.True(viewModel.NextToPreviewCommand.CanExecute(null));
+        Assert.True(viewModel.CreateDraftCommand.CanExecute(null));
+        await viewModel.NextToPreviewCommand.ExecuteAsync(null);
+        Assert.Equal(1, fixture.Prices.BuildCount);
+        Assert.NotNull(fixture.Prices.LastRequest);
+        Assert.Equal(10m, Assert.Single(fixture.Prices.LastRequest.Fireplaces).DiscountPercent);
+    }
+
     [Fact]
     public async Task DiscountChangesInvalidatePdfAndPreviewUsesDiscountedAmounts()
     {
