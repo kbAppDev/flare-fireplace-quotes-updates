@@ -1,8 +1,8 @@
 # 1.70.7
 
 - Adds an optional percentage discount for each fireplace, applied only to the fireplace MSRP. Accessories, media, and outdoor kits remain at full price.
-- Keeps MSRP visible on the quote and adds a red discount amount and new fireplace cost, with cents shown where needed.
-- Adds optional custom discount terms to the quote. Discount percentages and terms survive editing, duplication, recall, and unfinished-quote recovery.
+- Keeps MSRP visible on the quote and adds a red discount percentage and base MSRP after discount, without showing the dollar amount saved, with cents shown where needed.
+- Adds optional custom discount terms as the final quote section in red. Discount percentages and terms survive editing, duplication, recall, and unfinished-quote recovery.
 - Validates percentages from 0% through 100% and prevents invalid input from producing a quote. Pricing regressions cover quantities, different discounts within one quote, outdoor-kit exclusion, and rounding.
 
 # 1.70.6

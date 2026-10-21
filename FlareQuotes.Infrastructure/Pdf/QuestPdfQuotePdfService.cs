@@ -145,8 +145,8 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                     {
                         var percent = fireplace.DiscountPercent.ToString("0.############################",
                                                                           CultureInfo.InvariantCulture);
-                        col.Item().Text($"Fireplace discount ({percent}%): -{DiscountMoney(fireplace.DiscountAmount)}" +
-                                        $" | New fireplace cost: {DiscountMoney(fireplace.DiscountedBasePrice)}")
+                        col.Item().Text($"Fireplace discount: {percent}%" +
+                                        $" | Base MSRP after discount: {DiscountMoney(fireplace.DiscountedBasePrice)}")
                             .Bold().FontSize(8.0f).FontColor(FlareRed).LineHeight(1.1f);
                     }
 
@@ -163,14 +163,6 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                     {
                         col.Item().PaddingTop(8).Text("Optional Features").FontSize(8.2f).Bold();
                         col.Item().Element(c => OptionalFeaturesTable(c, optionalRows, fireplace.HasDiscount));
-                    }
-
-                    if (fireplace.HasDiscount)
-                    {
-                        col.Item().PaddingTop(8)
-                            .Text("Configuration total after fireplace discount (including selected options): " +
-                                  DiscountMoney(fireplace.TotalAfterDiscount))
-                            .Bold().FontSize(8.0f).FontColor(FlareRed).LineHeight(1.1f);
                     }
                 }
 
@@ -194,9 +186,9 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
                     col.Item().PaddingTop(8).EnsureSpace(30).Column(terms =>
                     {
                         terms.Spacing(3);
-                        terms.Item().Text("Discount Terms").Bold().FontSize(8.2f);
+                        terms.Item().Text("Discount Terms").Bold().FontSize(8.2f).FontColor(FlareRed);
                         terms.Item().Text(request.DiscountTerms.Trim().Replace("\r\n", "\n").Replace('\r', '\n'))
-                            .LineHeight(1.1f);
+                            .LineHeight(1.1f).FontColor(FlareRed);
                     });
                 }
             });

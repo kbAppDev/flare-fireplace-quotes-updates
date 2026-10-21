@@ -12,7 +12,7 @@ namespace FlareQuotes.Tests.PdfTests;
 public sealed class DiscountQuoteRenderingTests
 {
     [Fact]
-    public async Task PdfPreservesMsrpAndShowsDiscountAndNewCostInRedWithCents()
+    public async Task PdfPreservesMsrpAndShowsOnlyDiscountPercentNewBaseAndFinalTermsInRed()
     {
         var fireplace = Fireplace("DVFF60H", 20_502m, 20_002m, 12.5m);
         fireplace.Quantity = fireplace.BaseLine.Quantity = 2;
@@ -36,17 +36,28 @@ public sealed class DiscountQuoteRenderingTests
             Assert.Contains("$20,502", text);
             Assert.Contains("$333.34", text);
             Assert.Contains("$44.45", text);
-            Assert.Contains("Fireplace discount (12.5%): -$2,500.25 | New fireplace cost: $18,001.75", text);
-            Assert.Contains("Configuration total after fireplace discount (including selected options): $18,379.54", text);
+            Assert.Contains("Fireplace discount: 12.5% | Base MSRP after discount: $18,001.75", text);
+            Assert.DoesNotContain("$2,500.25", text);
+            Assert.DoesNotContain("Configuration total", text);
+            Assert.DoesNotContain("$18,379.54", text);
             Assert.Contains("Discount Terms", text);
             Assert.Contains("Payment received by October 31.", text);
             Assert.Contains("Subject to product availability.", text);
             Assert.Contains("any included outdoor kit remain at MSRP", text);
 
             var redText = Compact(string.Concat(page.Letters.Where(IsFlareRed).Select(letter => letter.Value)));
-            Assert.Contains(Compact("Fireplace discount (12.5%): -$2,500.25"), redText);
-            Assert.Contains(Compact("New fireplace cost: $18,001.75"), redText);
-            Assert.Contains(Compact("$18,379.54"), redText);
+            Assert.Contains(Compact("Fireplace discount: 12.5%"), redText);
+            Assert.Contains(Compact("Base MSRP after discount: $18,001.75"), redText);
+            Assert.Contains(Compact("Discount Terms"), redText);
+            Assert.Contains(Compact(request.DiscountTerms), redText);
+            Assert.EndsWith("Discount Terms Payment received by October 31. Subject to product availability.", text);
+            var lowestOtherSection = page.Letters
+                .Where(letter => !string.IsNullOrWhiteSpace(letter.Value) && !IsFlareRed(letter))
+                .Min(letter => letter.BoundingBox.Bottom);
+            var finalRedSection = Compact(string.Concat(page.Letters
+                .Where(letter => IsFlareRed(letter) && letter.BoundingBox.Top < lowestOtherSection)
+                .Select(letter => letter.Value)));
+            Assert.Contains(Compact("Discount Terms " + request.DiscountTerms), finalRedSection);
             Assert.DoesNotContain(Compact("$20,502"), redText);
             Assert.DoesNotContain(Compact("$333.34"), redText);
             Assert.Equal(20_502m, fireplace.BaseLine.Price);
@@ -75,9 +86,13 @@ public sealed class DiscountQuoteRenderingTests
             var first = PageText(pdf.GetPage(1));
             var second = PageText(pdf.GetPage(2));
             var third = PageText(pdf.GetPage(3));
-            Assert.Contains("Fireplace discount (10%): -$800 | New fireplace cost: $7,200", first);
+            Assert.Contains("Fireplace discount: 10% | Base MSRP after discount: $7,200", first);
+            Assert.DoesNotContain("$800", first);
+            Assert.DoesNotContain("Configuration total", first);
             Assert.DoesNotContain("SECOND-MODEL", first);
-            Assert.Contains("Fireplace discount (20%): -$2,000 | New fireplace cost: $8,000", second);
+            Assert.Contains("Fireplace discount: 20% | Base MSRP after discount: $8,000", second);
+            Assert.DoesNotContain("$2,000", second);
+            Assert.DoesNotContain("Configuration total", second);
             Assert.DoesNotContain("FIRST-MODEL", second);
             Assert.Contains(request.DiscountTerms, first);
             Assert.Contains(request.DiscountTerms, second);
@@ -109,7 +124,12 @@ public sealed class DiscountQuoteRenderingTests
             var text = string.Join(" ", pages.Select(PageText));
             for (var index = 1; index <= 90; index++)
                 Assert.Contains($"Term {index:D3}:", text);
-            Assert.Contains("FINAL DISCOUNT TERM.", PageText(pages[^1]));
+            Assert.EndsWith("FINAL DISCOUNT TERM.", PageText(pages[^1]));
+            var redText = Compact(string.Concat(pages.SelectMany(page => page.Letters)
+                .Where(IsFlareRed).Select(letter => letter.Value)));
+            for (var index = 1; index <= 90; index++)
+                Assert.Contains(Compact($"Term {index:D3}:"), redText);
+            Assert.Contains(Compact("FINAL DISCOUNT TERM."), redText);
             Assert.All(pages.SelectMany(page => page.Letters).Where(letter => !string.IsNullOrWhiteSpace(letter.Value)), letter =>
             {
                 Assert.InRange(letter.BoundingBox.Left, 72d, 540d);
@@ -145,7 +165,7 @@ public sealed class DiscountQuoteRenderingTests
             Assert.Contains("$333", text);
             Assert.DoesNotContain("$333.33", text);
             Assert.DoesNotContain("Fireplace discount", text);
-            Assert.DoesNotContain("New fireplace cost", text);
+            Assert.DoesNotContain("Base MSRP after discount", text);
             Assert.DoesNotContain("Configuration total", text);
             Assert.DoesNotContain("Discount Terms", text);
             Assert.DoesNotContain(request.DiscountTerms, text);

@@ -16,7 +16,7 @@ Discount Terms is an optional multiline field for the whole quote. The terms app
 - New fireplace cost = displayed extended base MSRP minus the discount; any included outdoor kit remains fully priced.
 - Optional features and chargeable media retain their full MSRP.
 - Configuration totals add the new fireplace cost and each option amount rounded to cents. This matches the displayed currency lines even when source prices contain fractions of a cent. Each fireplace calculates independently; quote-level totals sum those results.
-- The PDF preserves MSRP, displays the discount and new fireplace cost in red, and shows cents where needed. Quotes without a discount retain their existing presentation.
+- The PDF preserves MSRP and shows only the discount percentage and base MSRP after discount in red, with cents where needed. It does not show the dollar amount saved or a separate configuration-total line. Custom discount terms form the final section, with both the heading and text in red. Quotes without a discount retain their existing presentation.
 
 ## State and validation
 
