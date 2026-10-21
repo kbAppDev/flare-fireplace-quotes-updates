@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -88,22 +89,30 @@ public sealed partial class MainViewModel : ObservableObject
 
         CleanOldTemporaryQuotePdfs();
 
-        AutoFillCommand = new AsyncRelayCommand(AutoFillAsync);
-        ClearCommand = new RelayCommand(Clear);
-        RecallLastQuoteCommand = new RelayCommand(RecallLastQuote);
-        RecallQuoteCommand = new RelayCommand<object>(RecallQuote);
-        RemoveFeatureCommand = new RelayCommand<FeatureSelection>(RemoveFeature);
-        RemovePremiumMediaCommand = new RelayCommand<MediaSelection>(RemovePremiumMedia);
-        RemoveAdditionalClassicMediaCommand = new RelayCommand<MediaSelection>(RemoveAdditionalClassicMedia);
-        ToggleFeatureCommand = new RelayCommand<SelectableFeatureOption>(ToggleFeature);
-        TogglePremiumMediaCommand = new RelayCommand<SelectableMediaOption>(TogglePremiumMedia);
-        SelectClassicMediaCommand = new RelayCommand<SelectableMediaOption>(SelectClassicMedia);
-        SelectAdditionalClassicMediaCommand = new RelayCommand<SelectableMediaOption>(SelectAdditionalClassicMedia);
-        ClearClassicMediaCommand = new RelayCommand(ClearClassicMedia);
-        ClearAdditionalClassicMediaCommand = new RelayCommand(ClearAdditionalClassicMedia);
-        ClearFeaturesCommand = new RelayCommand(ClearFeaturesFromDropdown);
-        ClearPremiumMediaCommand = new RelayCommand(ClearPremiumMediaFromDropdown);
-        ClearLeadTimeCommand = new RelayCommand(ClearLeadTime);
+        AutoFillCommand = new AsyncRelayCommand(() => EditQuoteWhenIdleAsync(AutoFillAsync), () => CanEditQuote);
+        ClearCommand = new RelayCommand(() => EditQuoteWhenIdle(Clear), () => CanEditQuote);
+        RecallLastQuoteCommand = new RelayCommand(() => EditQuoteWhenIdle(RecallLastQuote), () => CanEditQuote);
+        RecallQuoteCommand = new RelayCommand<object>(
+            value => EditQuoteWhenIdle(() => RecallQuote(value)), _ => CanEditQuote);
+        RemoveFeatureCommand = new RelayCommand<FeatureSelection>(
+            value => EditQuoteWhenIdle(() => RemoveFeature(value)), _ => CanEditQuote);
+        RemovePremiumMediaCommand = new RelayCommand<MediaSelection>(
+            value => EditQuoteWhenIdle(() => RemovePremiumMedia(value)), _ => CanEditQuote);
+        RemoveAdditionalClassicMediaCommand = new RelayCommand<MediaSelection>(
+            value => EditQuoteWhenIdle(() => RemoveAdditionalClassicMedia(value)), _ => CanEditQuote);
+        ToggleFeatureCommand = new RelayCommand<SelectableFeatureOption>(
+            value => EditQuoteWhenIdle(() => ToggleFeature(value)), _ => CanEditQuote);
+        TogglePremiumMediaCommand = new RelayCommand<SelectableMediaOption>(
+            value => EditQuoteWhenIdle(() => TogglePremiumMedia(value)), _ => CanEditQuote);
+        SelectClassicMediaCommand = new RelayCommand<SelectableMediaOption>(
+            value => EditQuoteWhenIdle(() => SelectClassicMedia(value)), _ => CanEditQuote);
+        SelectAdditionalClassicMediaCommand = new RelayCommand<SelectableMediaOption>(
+            value => EditQuoteWhenIdle(() => SelectAdditionalClassicMedia(value)), _ => CanEditQuote);
+        ClearClassicMediaCommand = new RelayCommand(() => EditQuoteWhenIdle(ClearClassicMedia), () => CanEditQuote);
+        ClearAdditionalClassicMediaCommand = new RelayCommand(() => EditQuoteWhenIdle(ClearAdditionalClassicMedia), () => CanEditQuote);
+        ClearFeaturesCommand = new RelayCommand(() => EditQuoteWhenIdle(ClearFeaturesFromDropdown), () => CanEditQuote);
+        ClearPremiumMediaCommand = new RelayCommand(() => EditQuoteWhenIdle(ClearPremiumMediaFromDropdown), () => CanEditQuote);
+        ClearLeadTimeCommand = new RelayCommand(() => EditQuoteWhenIdle(ClearLeadTime), () => CanEditQuote);
         CloseFeatureDropdownCommand = new RelayCommand(() => IsFeatureDropdownOpen = false);
         CloseClassicMediaDropdownCommand = new RelayCommand(() => IsClassicMediaDropdownOpen = false);
         CloseAdditionalClassicMediaDropdownCommand =
@@ -123,17 +132,21 @@ public sealed partial class MainViewModel : ObservableObject
             RefreshUrlVerificationCards();
             RemoveSpecLinkCommand.NotifyCanExecuteChanged();
         };
-        SelectLeadTimeCommand = new RelayCommand<string>(SelectLeadTime);
-        AddFireplaceCommand = new RelayCommand(AddFireplaceToQuote);
-        ClearCurrentFireplaceCommand = new RelayCommand(ClearCurrentFireplaceInputs);
+        SelectLeadTimeCommand = new RelayCommand<string>(
+            value => EditQuoteWhenIdle(() => SelectLeadTime(value)), _ => CanEditQuote);
+        AddFireplaceCommand = new RelayCommand(() => EditQuoteWhenIdle(AddFireplaceToQuote),
+            () => CanEditQuote && !HasInvalidCurrentDiscount);
+        ClearCurrentFireplaceCommand = new RelayCommand(() => EditQuoteWhenIdle(ClearCurrentFireplaceInputs), () => CanEditQuote);
         DecreaseFireplaceQuantityCommand = new RelayCommand(
-            () => FireplaceQuantity--,
-            () => FireplaceQuantity > 1);
+            () => EditQuoteWhenIdle(() => FireplaceQuantity--),
+            () => CanEditQuote && FireplaceQuantity > 1);
         IncreaseFireplaceQuantityCommand = new RelayCommand(
-            () => FireplaceQuantity++,
-            () => FireplaceQuantity < 100);
-        RemoveFireplaceCommand = new RelayCommand<FireplaceQuoteDraft>(RemoveFireplace);
-        EditFireplaceCommand = new RelayCommand<FireplaceQuoteDraft>(EditFireplace);
+            () => EditQuoteWhenIdle(() => FireplaceQuantity++),
+            () => CanEditQuote && FireplaceQuantity < 100);
+        RemoveFireplaceCommand = new RelayCommand<FireplaceQuoteDraft>(
+            value => EditQuoteWhenIdle(() => RemoveFireplace(value)), _ => CanEditQuote);
+        EditFireplaceCommand = new RelayCommand<FireplaceQuoteDraft>(
+            value => EditQuoteWhenIdle(() => EditFireplace(value)), _ => CanEditQuote);
         MoveFireplaceUpCommand = new RelayCommand<FireplaceQuoteDraft>(
             fireplace => MoveFireplaceByOffset(fireplace, -1),
             fireplace => CanMoveFireplaceByOffset(fireplace, -1));
@@ -141,15 +154,22 @@ public sealed partial class MainViewModel : ObservableObject
             fireplace => MoveFireplaceByOffset(fireplace, 1),
             fireplace => CanMoveFireplaceByOffset(fireplace, 1));
         Fireplaces.CollectionChanged += (_, _) => NotifyFireplaceMoveCommandsChanged();
-        NextToPreviewCommand = new AsyncRelayCommand(NextToPreviewAsync);
-        BackToReviewCommand = new RelayCommand(() => WorkflowStage = QuoteWorkflowStage.Review);
-        NextToSpecLinksCommand = new AsyncRelayCommand(NextToSpecLinksAsync);
-        BackToPreviewCommand = new RelayCommand(() => WorkflowStage = QuoteWorkflowStage.PdfPreview);
+        NextToPreviewCommand = new AsyncRelayCommand(() => EditQuoteWhenIdleAsync(NextToPreviewAsync),
+            () => CanGeneratePreview);
+        BackToReviewCommand = new RelayCommand(() => NavigateBackWhenIdle(QuoteWorkflowStage.Review),
+            () => CanEditQuote);
+        NextToSpecLinksCommand = new AsyncRelayCommand(() => EditQuoteWhenIdleAsync(NextToSpecLinksAsync),
+            () => CanEditQuote);
+        BackToPreviewCommand = new RelayCommand(() => NavigateBackWhenIdle(QuoteWorkflowStage.PdfPreview),
+            () => CanEditQuote);
         CreateDraftCommand = new AsyncRelayCommand(CreateDraftAsync, () => CanCreateGmailDraft);
         CreateDraftCommand.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(CreateDraftCommand.IsRunning))
             {
+                NotifyQuoteEditingAvailability();
+                BackToReviewCommand.NotifyCanExecuteChanged();
+                BackToPreviewCommand.NotifyCanExecuteChanged();
                 AddManualUrlCommand.NotifyCanExecuteChanged();
                 RemoveSpecLinkCommand.NotifyCanExecuteChanged();
                 ChooseFireplacePhotoCommand?.NotifyCanExecuteChanged();
@@ -367,9 +387,13 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     public bool CanCreateGmailDraft =>
-        !HasUnsavedSpecLinkEdits && EmailAddressNormalizer.TryNormalizeSingle(Email, out _);
+        !HasUnsavedSpecLinkEdits && !HasInvalidDiscount && !IsEditingFireplace && !HasPendingNewFireplace &&
+        EmailAddressNormalizer.TryNormalizeSingle(Email, out _);
 
     public string GmailDraftRequirementText =>
+        HasInvalidDiscount ? DiscountValidationMessage :
+        IsEditingFireplace ? "Save or cancel the fireplace changes before creating the draft." :
+        HasPendingNewFireplace ? "Add or clear the current fireplace before creating the draft." :
         HasUnsavedSpecLinkEdits ? "Save or cancel the link being edited before creating the draft." :
         CanCreateGmailDraft
             ? $"Gmail draft recipient: {EmailAddressNormalizer.NormalizeSingleOrEmpty(Email)}"
@@ -902,6 +926,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var parsed = _parser.Parse(RawRequest);
         FireplaceQuantity = 1;
+        DiscountPercentText = string.Empty;
         ProjectName = parsed.ProjectName;
         ClientName = parsed.ClientName;
         Email = EmailAddressNormalizer.NormalizeSingleOrEmpty(parsed.Email);
@@ -1008,6 +1033,7 @@ public sealed partial class MainViewModel : ObservableObject
         RawRequest = ProjectName = ClientName = Email = Phone = Postal = InstallDate = Model = Size = GlassHeight =
             FireplaceLocation = string.Empty;
         FireplaceQuantity = 1;
+        DiscountPercentText = DiscountTerms = string.Empty;
         LeadTime = "3-5 Business Days";
         Fireplaces.Clear();
         ClearFeatureSelections();
@@ -1038,10 +1064,15 @@ public sealed partial class MainViewModel : ObservableObject
 
     private async Task NextToPreviewAsync()
     {
+        if (!CanContinueQuoteWorkflow())
+            return;
         try
         {
             StatusMessage = "Pricing quote and generating PDF...";
             ApplySettings(await _settingsService.LoadAsync());
+            if (!CanContinueQuoteWorkflow())
+                return;
+            var quoteRevision = _quoteRevision;
             var request = BuildQuoteRequest();
             if (request.Fireplaces.Count == 0 && string.IsNullOrWhiteSpace(request.Model))
             {
@@ -1056,6 +1087,8 @@ public sealed partial class MainViewModel : ObservableObject
             }
 
             var priced = await _priceBookService.BuildPricedQuoteAsync(request, PricingPath());
+            if (QuoteChangedDuringPreview(quoteRevision))
+                return;
             if (!priced.Success)
             {
                 _lastRequest = null;
@@ -1072,6 +1105,8 @@ public sealed partial class MainViewModel : ObservableObject
             request.Tag = priced;
             var pdfPath = CreateFreshQuotePdfPath(request, priced);
             await _quotePdfService.BuildQuotePdfAsync(request, pdfPath);
+            if (QuoteChangedDuringPreview(quoteRevision))
+                return;
             _lastRequest = request;
             _lastPricedQuote = priced;
             GeneratedPdfPath = string.Empty;
@@ -1147,6 +1182,8 @@ public sealed partial class MainViewModel : ObservableObject
     }
     private async Task CreateDraftAsync()
     {
+        if (!CanContinueQuoteWorkflow())
+            return;
         if (HasUnsavedSpecLinkEdits)
         {
             StatusMessage = "Save or cancel the link being edited before creating the draft.";
@@ -1219,6 +1256,7 @@ public sealed partial class MainViewModel : ObservableObject
             // This prevents stale or copied hidden characters from reaching the MIME To header.
             _lastRequest.Email = normalizedRecipient;
 
+            var quoteRevision = _quoteRevision;
             if (!_specLinksReviewed)
             {
                 StatusMessage = "Preparing approved spec links for the Gmail draft...";
@@ -1227,6 +1265,8 @@ public sealed partial class MainViewModel : ObservableObject
             }
 
             var currentSettings = await _settingsService.LoadAsync();
+            if (QuoteChangedDuringPreview(quoteRevision) || !CanContinueQuoteWorkflow())
+                return;
 
             IReadOnlyList<ResourceLinkSet> resourceSets =
                 _specLinksReviewed ? BuildResourceSetsFromEditableSpecLinks() : _lastPricedQuote.ResourceLinks;
@@ -2140,6 +2180,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     private QuoteRequest BuildQuoteRequest()
     {
+        if (HasInvalidDiscount)
+            throw new InvalidOperationException(DiscountValidationMessage);
         var request = new QuoteRequest
         {
             ProjectName = ProjectName,
@@ -2149,6 +2191,7 @@ public sealed partial class MainViewModel : ObservableObject
             Postal = Postal,
             ProjectAddress = Postal,
             InstallDate = InstallDate,
+            DiscountTerms = DiscountTerms,
             Model = ModelForQuotePreservingOdIo(
                                              Model, ForceOutdoorVentFreeType(Model, DetectType(Model, Size)), Size,
                                              EffectiveGlassHeight(GlassHeight, Model)),
@@ -2234,6 +2277,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             FireplaceLocation = FireplaceLocation,
             Quantity = FireplaceQuantity,
+            DiscountPercent = CurrentDiscountPercent(),
             Type = ResolveTypeForQuote(Model, Size, SelectedFeatures),
             Model = ModelForQuotePreservingOdIo(
                                         Model, ForceOutdoorVentFreeType(Model, DetectType(Model, Size)), Size,
@@ -2253,6 +2297,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             FireplaceLocation = fireplace.Location,
             Quantity = Math.Max(1, fireplace.Quantity),
+            DiscountPercent = fireplace.DiscountPercent,
             ProjectName = fireplace.ProjectName,
             ProjectAddress = fireplace.ProjectAddress,
             Type = ResolveTypeForQuote(fireplace.Model, fireplace.Size, fireplace.Features),
@@ -2291,8 +2336,9 @@ public sealed partial class MainViewModel : ObservableObject
                                                  x.Feature.Contains("Additional Classic"))
                         ? "Included in optional feature rows"
                         : ChargeableMediaSummary,
-                BasePrice = fp.BaseLine.PriceText,
-                TotalPrice = fp.TotalMsrp.ToString("C0")
+                BasePrice = fp.HasDiscount ? fp.DiscountedBasePrice?.ToString("C2") ?? string.Empty
+                                           : fp.BaseLine.PriceText,
+                TotalPrice = fp.TotalAfterDiscount.ToString(fp.HasDiscount ? "C2" : "C0")
             });
     }
 
@@ -2520,6 +2566,8 @@ public sealed partial class MainViewModel : ObservableObject
     }
     public bool MoveFireplace(FireplaceQuoteDraft? source, FireplaceQuoteDraft? target)
     {
+        if (!CanEditQuote)
+            return false;
         var moved = MoveSelectionItem(Fireplaces, source, target);
 
         if (!moved || source is null)
@@ -2534,7 +2582,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     private bool CanMoveFireplaceByOffset(FireplaceQuoteDraft? fireplace, int offset)
     {
-        if (fireplace is null)
+        if (!CanEditQuote || fireplace is null)
             return false;
 
         var currentIndex = Fireplaces.IndexOf(fireplace);
@@ -2563,6 +2611,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool MoveSelectedFeature(FeatureSelection? source, FeatureSelection? target)
     {
+        if (!CanEditQuote)
+            return false;
         var moved = MoveSelectionItem(SelectedFeatures, source, target);
 
         if (!moved)
@@ -2575,6 +2625,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool MoveSelectedPremiumMedia(MediaSelection? source, MediaSelection? target)
     {
+        if (!CanEditQuote)
+            return false;
         var moved = MoveSelectionItem(SelectedPremiumMedia, source, target);
 
         if (!moved)
@@ -2978,6 +3030,11 @@ public sealed partial class MainViewModel : ObservableObject
     }
     private void AddFireplaceToQuote()
     {
+        if (!TryGetCurrentDiscount(out var discountPercent))
+        {
+            StatusMessage = DiscountValidationMessage;
+            return;
+        }
         if (IsDiscontinuedCommercialModel(Model))
         {
             StatusMessage = "Commercial fireplace models are discontinued and cannot be added to a quote.";
@@ -2996,6 +3053,7 @@ public sealed partial class MainViewModel : ObservableObject
             GlassHeight = EffectiveGlassHeight(GlassHeight, Model),
             Location = FireplaceLocation,
             Quantity = FireplaceQuantity,
+            DiscountPercent = discountPercent,
             ProjectName = ProjectName,
             ProjectAddress = Postal,
             LeadTime = value,
@@ -3036,6 +3094,7 @@ public sealed partial class MainViewModel : ObservableObject
         EndFireplaceEdit();
         Model = Size = GlassHeight = FireplaceLocation = string.Empty;
         FireplaceQuantity = 1;
+        DiscountPercentText = string.Empty;
         LeadTime = "3-5 Business Days";
         CustomLeadTime = string.Empty;
         ClearFeatureSelections();
@@ -3093,6 +3152,7 @@ public sealed partial class MainViewModel : ObservableObject
         GlassHeight = fireplace.GlassHeight;
         FireplaceLocation = fireplace.Location;
         FireplaceQuantity = Math.Max(1, fireplace.Quantity);
+        DiscountPercentText = fireplace.DiscountPercent.ToString(CultureInfo.CurrentCulture);
         LeadTime = string.IsNullOrWhiteSpace(fireplace.LeadTime) ? "3-5 Business Days" : fireplace.LeadTime;
         if (!string.IsNullOrWhiteSpace(fireplace.ProjectName))
             ProjectName = fireplace.ProjectName;
@@ -3151,6 +3211,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (_restoringUnfinishedQuote)
             return;
 
+        _quoteRevision++;
         ResetSpecLinkReview();
         if (_lastRequest is not null || _lastPricedQuote is not null || !string.IsNullOrWhiteSpace(GeneratedPdfPath))
         {
@@ -3166,21 +3227,24 @@ public sealed partial class MainViewModel : ObservableObject
     // Readiness / summary values surfaced to the redesigned build workspace.
     public bool HasFireplacesOnQuote => Fireplaces.Count > 0;
     public bool HasPendingNewFireplace => !IsEditingFireplace && Fireplaces.Count > 0 &&
-                                                !string.IsNullOrWhiteSpace(Model);
+                                         (!string.IsNullOrWhiteSpace(Model) ||
+                                          !string.IsNullOrWhiteSpace(DiscountPercentText));
     public bool HasDiscontinuedCommercialSelection =>
         IsDiscontinuedCommercialModel(Model) ||
         Fireplaces.Any(fireplace => IsDiscontinuedCommercialModel(fireplace.Model));
-    public bool CanGeneratePreview => !IsEditingFireplace && !HasPendingNewFireplace &&
+    public bool CanGeneratePreview => CanEditQuote && !IsEditingFireplace && !HasPendingNewFireplace && !HasInvalidDiscount &&
                                       !HasDiscontinuedCommercialSelection &&
                                       (Fireplaces.Count > 0 || !string.IsNullOrWhiteSpace(Model));
-    public string ReadinessText => HasDiscontinuedCommercialSelection
+    public string ReadinessText => HasInvalidDiscount ? "Correct the fireplace discount to continue"
+                                       : HasDiscontinuedCommercialSelection
                                        ? "Commercial fireplace models are discontinued"
                                        : IsEditingFireplace ? "Save fireplace changes to continue"
                                        : HasPendingNewFireplace ? "Add the current fireplace to continue"
                                        : CanGeneratePreview ? "Draft ready to preview"
                                                             : "Add a fireplace to continue";
     public string ReadyToGenerateDetail =>
-        HasDiscontinuedCommercialSelection ? "Remove the discontinued Commercial fireplace"
+        HasInvalidDiscount ? DiscountValidationMessage
+        : HasDiscontinuedCommercialSelection ? "Remove the discontinued Commercial fireplace"
         : IsEditingFireplace ? "Save the fireplace currently being edited"
         : HasPendingNewFireplace ? "Add the current fireplace to the quote"
         : TotalSavedFireplaceQuantity == 1 ? "1 fireplace on quote"
@@ -3246,6 +3310,12 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ReadinessText));
         OnPropertyChanged(nameof(ReadyToGenerateDetail));
         OnPropertyChanged(nameof(FireplaceCountText));
+        OnPropertyChanged(nameof(HasInvalidDiscount));
+        OnPropertyChanged(nameof(DiscountValidationMessage));
+        OnPropertyChanged(nameof(CanCreateGmailDraft));
+        OnPropertyChanged(nameof(GmailDraftRequirementText));
+        NextToPreviewCommand?.NotifyCanExecuteChanged();
+        CreateDraftCommand?.NotifyCanExecuteChanged();
         UpdateStatusCards();
     }
     private static string CreateFreshQuotePdfPath(QuoteRequest request, PricedQuoteResult priced)
@@ -3921,6 +3991,8 @@ public sealed partial class MainViewModel : ObservableObject
             GlassHeight = GlassHeight,
             FireplaceLocation = FireplaceLocation,
             FireplaceQuantity = FireplaceQuantity,
+            DiscountPercentText = DiscountPercentText,
+            DiscountTerms = DiscountTerms,
             LeadTime = LeadTime,
             ClassicMediaKey = ClassicMediaChoice?.Key ?? string.Empty,
             AdditionalClassicMediaKey =
@@ -3975,6 +4047,7 @@ public sealed partial class MainViewModel : ObservableObject
         RawRequest = ProjectName = ClientName = Email = Phone = Postal = InstallDate = Model = Size = GlassHeight =
             FireplaceLocation = string.Empty;
         FireplaceQuantity = 1;
+        DiscountPercentText = DiscountTerms = string.Empty;
         LeadTime = "3-5 Business Days";
         Fireplaces.Clear();
         ClearFeatureSelections();
@@ -4029,6 +4102,8 @@ public sealed partial class MainViewModel : ObservableObject
         GlassHeight = snapshot.GlassHeight;
         FireplaceLocation = snapshot.FireplaceLocation;
         FireplaceQuantity = Math.Max(1, snapshot.FireplaceQuantity);
+        DiscountPercentText = snapshot.DiscountPercentText;
+        DiscountTerms = snapshot.DiscountTerms;
         LeadTime = string.IsNullOrWhiteSpace(snapshot.LeadTime) ? "3-5 Business Days" : snapshot.LeadTime;
 
         RefreshSelectionOptions(preserveSelected: false);
@@ -4080,6 +4155,7 @@ public sealed partial class MainViewModel : ObservableObject
             GlassHeight = fireplace.GlassHeight,
             Location = fireplace.Location,
             Quantity = Math.Max(1, fireplace.Quantity),
+            DiscountPercent = fireplace.DiscountPercent,
             ProjectName = fireplace.ProjectName,
             ProjectAddress = fireplace.ProjectAddress,
             LeadTime = fireplace.LeadTime,
@@ -4115,6 +4191,8 @@ public sealed partial class MainViewModel : ObservableObject
         public string GlassHeight { get; init; } = string.Empty;
         public string FireplaceLocation { get; init; } = string.Empty;
         public int FireplaceQuantity { get; init; } = 1;
+        public string DiscountPercentText { get; init; } = string.Empty;
+        public string DiscountTerms { get; init; } = string.Empty;
         public string LeadTime { get; init; } = string.Empty;
         public string ClassicMediaKey { get; init; } = string.Empty;
         public string AdditionalClassicMediaKey { get; init; } = string.Empty;
@@ -4246,6 +4324,7 @@ public sealed class FireplaceQuoteDraft : ObservableObject
     public string GlassHeight { get; set; } = string.Empty;
     public string Location { get; set; } = string.Empty;
     public int Quantity { get; set; } = 1;
+    public decimal DiscountPercent { get; set; }
     public string LeadTime { get; set; } = string.Empty;
     public string FeaturesSummary { get; set; } = string.Empty;
     public string ClassicMediaSummary { get; set; } = string.Empty;
@@ -4270,6 +4349,8 @@ public sealed class FireplaceQuoteDraft : ObservableObject
     public string ClassicMediaLine => $"Classic Media: {ClassicMediaSummary}";
     public string PremiumMediaLine => $"Premium Media: {PremiumMediaSummary}";
     public string QuantityDisplay => $"Qty {Math.Max(1, Quantity)}";
+    public bool HasDiscount => DiscountPercent > 0m;
+    public string DiscountDisplay => $"{DiscountPercent:G29}% off base fireplace";
     // Compact "Front Facing · 60 · 16 glass" style line for the summary cards.
     public string DetailLine
     {

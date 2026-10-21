@@ -275,6 +275,8 @@ internal static class UiSnapshotCapture
         viewModel.GlassHeight = "16";
         viewModel.FireplaceLocation = "Living Room";
         viewModel.FireplaceQuantity = 3;
+        viewModel.DiscountPercentText = "12.5";
+        viewModel.DiscountTerms = "Discount valid for this project through October 31, 2026.";
         viewModel.StatusMessage = "Customer and fireplace details detected.";
 
         var passiveHeatFlex = viewModel.FilteredFeatureOptions.FirstOrDefault(option =>
@@ -290,7 +292,7 @@ internal static class UiSnapshotCapture
 
         viewModel.AddFireplaceCommand.Execute(null);
         var savedFireplace = viewModel.Fireplaces.SingleOrDefault();
-        if (savedFireplace is null || savedFireplace.Quantity != 3 ||
+        if (savedFireplace is null || savedFireplace.Quantity != 3 || savedFireplace.DiscountPercent != 12.5m ||
             savedFireplace.Features.All(feature =>
                 !string.Equals(feature.Key, "passive_heat_flex", StringComparison.OrdinalIgnoreCase)))
         {
@@ -409,7 +411,17 @@ internal static class UiSnapshotCapture
 
     private static void ScrollBonfireSelectionsIntoView(MainWindow window, FrameworkElement root)
     {
-        BonfireBuilderScroller(window).ScrollToEnd();
+        var scroller = BonfireBuilderScroller(window);
+        var viewport = FindVisualElements<ScrollContentPresenter>(scroller).First();
+        root.UpdateLayout();
+        var lastSelectionBottom = FindVisualElements<Border>(window.QuoteWorkspacePane)
+            .Where(border => border.Tag is "SelectedFeatureChip" or "SelectedPremiumMediaChip")
+            .Max(border => VisualBounds(border, root).Bottom);
+        var viewportBottom = VisualBounds(viewport, root).Bottom;
+        // The quote-level terms now follow the fireplace builder. Scroll only far enough to
+        // reveal every selected chip so the model heading stays visible with its selections.
+        scroller.ScrollToVerticalOffset(Math.Max(0,
+            scroller.VerticalOffset + lastSelectionBottom - viewportBottom + 1));
         root.UpdateLayout();
     }
 
@@ -532,6 +544,10 @@ internal static class UiSnapshotCapture
         AssertAutomationName(window.DecreaseFireplaceQuantityButton, "Decrease fireplace quantity");
         AssertAutomationName(window.FireplaceQuantityValue, "Fireplace quantity");
         AssertAutomationName(window.IncreaseFireplaceQuantityButton, "Increase fireplace quantity");
+        AssertAutomationName(window.DiscountPercentBox, "Base fireplace discount percent");
+        AssertAutomationName(window.DiscountTermsBox, "Quote discount terms");
+        if (window.DiscountPercentBox.Text != "12.5" || CountVisualText(root, "12.5% off base fireplace") < 1)
+            throw new InvalidOperationException("The representative discount did not render in the editor and saved card.");
         AssertAutomationName(window.FeatureDropdownButton, "Select additional features");
         AssertAutomationName(window.GeneratePreviewButton, "Generate quote preview");
 

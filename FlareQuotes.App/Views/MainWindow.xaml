@@ -207,7 +207,7 @@
                                 </Path>
                             </Grid>
                         </ToggleButton>
-                        <Button Style="{StaticResource IconButton}"
+                        <Button Style="{StaticResource IconButton}" IsEnabled="{Binding CanEditQuote}"
                                 Click="SettingsButton_Click"
                                 ToolTip="Settings"
                                 AutomationProperties.Name="Open settings">
@@ -239,7 +239,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- STEP 1 : Customer request -->
-                <Border x:Name="RequestPane" Grid.Column="0" Margin="0">
+                <Border x:Name="RequestPane" Grid.Column="0" Margin="0" IsEnabled="{Binding CanEditQuote}">
                     <Border.Style>
                         <Style TargetType="Border" BasedOn="{StaticResource GlassCard}">
                             <Setter Property="Visibility" Value="Visible" />
@@ -322,7 +322,7 @@
                         </Style>
                     </Border.Style>
                     <Grid>
-                        <Grid>
+                        <Grid IsEnabled="{Binding CanEditQuote}">
                             <Grid.Style>
                                 <Style TargetType="Grid">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -497,6 +497,18 @@
                                                     </Grid>
 
                                                     <Grid Margin="0,12,0,0">
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="140" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <StackPanel>
+                                                            <TextBlock Text="Base discount (%)" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                                            <TextBox x:Name="DiscountPercentBox" Text="{Binding DiscountPercentText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Base fireplace discount percent" AutomationProperties.HelpText="Enter zero to one hundred. Decimals are allowed. Blank means no discount." ToolTip="Percentage off this fireplace's base price. Features, media, and included outdoor kits remain at full price." />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2" VerticalAlignment="Bottom">
+                                                            <TextBlock Text="Applies to the base fireplace only." Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" />
+                                                            <TextBlock Text="{Binding DiscountValidationMessage}" Foreground="{DynamicResource DangerBrush}" FontSize="11" TextWrapping="Wrap" />
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <Grid Margin="0,12,0,0">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="1.15*" /><ColumnDefinition Width="12" />
                                                             <ColumnDefinition Width="*" /><ColumnDefinition Width="12" />
@@ -572,6 +584,11 @@
                                             </Border>
                                         </StackPanel>
                                     </Border>
+                                    <StackPanel Margin="0,16,0,0">
+                                        <TextBlock Text="Discount terms (optional)" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                        <TextBox x:Name="DiscountTermsBox" Text="{Binding DiscountTerms, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" Height="60" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" AutomationProperties.Name="Quote discount terms" AutomationProperties.HelpText="Optional quote terms printed with each discounted fireplace in the PDF." ToolTip="Terms for the entire quote, printed with each discounted fireplace." />
+                                        <TextBlock Text="Printed with each discounted fireplace on the quote." Style="{StaticResource MutedText}" FontSize="10.5" Margin="0,4,0,0" />
+                                    </StackPanel>
                                 </StackPanel>
                             </ScrollViewer>
                         </Grid>
@@ -1034,7 +1051,7 @@
                 </Border>
 
                 <!-- Fireplaces on this quote (summary) -->
-                <Border x:Name="FireplaceSummaryPane" Grid.Column="4" Margin="0">
+                <Border x:Name="FireplaceSummaryPane" Grid.Column="4" Margin="0" IsEnabled="{Binding CanEditQuote}">
                     <Border.Style>
                         <Style TargetType="Border" BasedOn="{StaticResource GlassCard}">
                             <Setter Property="Padding" Value="0" />
@@ -1144,6 +1161,15 @@
                                                                     <Viewbox Width="10" Height="10" Margin="0,0,5,0"><Path Data="{StaticResource ClockIconGeometry}" Stroke="{DynamicResource FlareMutedTextBrush}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Viewbox>
                                                                     <TextBlock Text="{Binding LeadTime}" FontSize="10.5" Foreground="{DynamicResource FlareMutedTextBrush}" />
                                                                 </StackPanel>
+                                                            </Border>
+                                                            <Border Background="{DynamicResource FlareChipBrush}" BorderBrush="{DynamicResource FlareChipBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="9,3" Margin="0,0,5,5">
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                                        <Style.Triggers><DataTrigger Binding="{Binding HasDiscount}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                                <TextBlock Text="{Binding DiscountDisplay}" FontSize="10.5" Foreground="{DynamicResource FlareMutedTextBrush}" />
                                                             </Border>
                                                             <ItemsControl ItemsSource="{Binding Features}">
                                                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
