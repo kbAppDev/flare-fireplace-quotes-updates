@@ -1,3 +1,11 @@
+# 1.70.8
+
+- Completes the Traditional 42/46 Summit and Bonfire option list with Offset Light Stone, Free Flow Heat Release Louver, Air Intake Louver, Passive Heat Flex, Active Heat Flex, and the analog wall timer.
+- Prices all eight brick/stone finishes from the exact size-specific 2026 part/SKU, including Light Stone rows whose descriptions omit "Brick".
+- Corrects Free Flow louver sizing to the manufacturer's parts matrix, including Traditional and Passage LUV140 heat release / LUV70 intake. Passive Heat Flex retains its separate included-louver sizing.
+- Prevents imported Herringbone descriptions and part codes from also selecting an Offset finish, and recognizes sized Traditional interior SKUs.
+- Adds independent option, pricing, selection-persistence, PDF, and missing-row regression checks. See docs/TRADITIONAL_OPTIONS_AUDIT_1.70.8.md for the full matrix and source references.
+
 # 1.70.7
 
 - Adds an optional percentage discount for each fireplace, applied only to the fireplace MSRP. Accessories, media, and outdoor kits remain at full price.

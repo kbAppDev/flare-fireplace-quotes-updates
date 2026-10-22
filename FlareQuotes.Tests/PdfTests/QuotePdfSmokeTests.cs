@@ -20,6 +20,42 @@ public sealed class QuotePdfSmokeTests
         "The listed prices are the Manufacturer's Suggested Retail Price (MSRP), valid for 30 days, and do not include installation costs.";
 
     [Theory]
+    [InlineData("Heat Release Louver", "Free Flow Heat Release Louver")]
+    [InlineData("Free Flow Louver", "Free Flow Heat Release Louver")]
+    [InlineData("Free Flow Heat Release Louver", "Free Flow Heat Release Louver")]
+    [InlineData("Free Flow Air Intake Louver", "Air Intake Louver")]
+    public async Task TraditionalQuoteShowsFreeFlowOptionNamesAndIncludedLighting(string feature, string expected)
+    {
+        var outputPath = TemporaryPdfPath();
+        try
+        {
+            var fireplace = BuildFireplace("Living Room", "TRA-BON-46", 1, 13_574m, 483m);
+            fireplace.Type = FireplaceType.Traditional;
+            fireplace.Model = "Traditional Bonfire";
+            fireplace.OptionalFeatures =
+            [
+                new PriceLine { Feature = "Offset Light Stone Brick Traditional", Sku = "LSTRA46",
+                    Description = "Light Stone Traditional 46", Price = 483m },
+                new PriceLine { Feature = feature, Sku = "LUV140", Description = "Louver", Price = 466.67m },
+                new PriceLine { Feature = "Analog Wall Timer", Sku = "AWALLTIMER",
+                    Description = "Indoor analog wall timer", Price = 89m }
+            ];
+            await new QuestPdfQuotePdfService().BuildQuotePdfAsync(BuildRequest(fireplace), outputPath,
+                                                                    TestContext.Current.CancellationToken);
+            using var pdf = PdfDocument.Open(outputPath);
+            Assert.Equal(1, pdf.NumberOfPages);
+            var text = Regex.Replace(ContentOrderTextExtractor.GetText(pdf.GetPage(1)), @"\s+", " ").Trim();
+            AssertPdfText(text, expected, "Offset Light Stone Brick Traditional", "Analog Wall Timer", "RGB LEDs");
+            if (expected == "Air Intake Louver")
+                Assert.DoesNotContain("Free Flow Heat Release Louver", text);
+        }
+        finally
+        {
+            TryDelete(outputPath);
+        }
+    }
+
+    [Theory]
     [InlineData(FireplaceType.Outdoor, true)]
     [InlineData(FireplaceType.OutdoorSeeThrough, true)]
     [InlineData(FireplaceType.Indoor, false)]

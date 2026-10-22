@@ -228,7 +228,7 @@ public sealed class PricingMappingAuditTests
                 feature = part.StartsWith("LED") ? "RGB LEDs" : "Summit Burner";
                 size = m.Groups[1].Value;
             }
-            m = Regex.Match(part, @"^(CLG|RB|RD|NT|BL|HB-RD|HB-NT|HB-BL|HB-LS)-TRA-(42|46)$");
+            m = Regex.Match(part, @"^(CLG|RB|RD|NT|BL|LS|HB-RD|HB-NT|HB-BL|HB-LS)-TRA-(42|46)$");
             if (m.Success)
             {
                 model = "TRA"; size = m.Groups[2].Value; type = FireplaceType.Traditional;
@@ -239,6 +239,7 @@ public sealed class PricingMappingAuditTests
                     "RD" => "Offset Red Brick Traditional",
                     "NT" => "Offset Natural Brick Traditional",
                     "BL" => "Offset Black Brick Traditional",
+                    "LS" => "Offset Light Stone Brick Traditional",
                     "HB-RD" => "Herringbone Red Brick Traditional",
                     "HB-NT" => "Herringbone Natural Brick Traditional",
                     "HB-BL" => "Herringbone Black Brick Traditional",
