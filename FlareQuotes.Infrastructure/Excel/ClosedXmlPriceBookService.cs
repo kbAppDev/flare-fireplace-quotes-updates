@@ -1401,6 +1401,10 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
                 f.Contains("reflective") || IsOutdoorKitFeature(f))
                 return passageFeatureRow;
         }
+        if (f.Contains("analog wall timer"))
+            return Best(rows, row => Eq(row.SheetName, "Parts Price Book") &&
+                                     MatchesPartOrSku(row, ["AWALLTIMER"]));
+
         if (f.Contains("power vent"))
             return Best(rows, r => Eq(r.SheetName, "Indoor Price Book") &&
                                    Text(r).Contains("power vent fan", StringComparison.OrdinalIgnoreCase) &&
@@ -1466,7 +1470,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return FindReflectiveBackRow(rows, type, model, sizeNum, glassHeight);
         }
 
-        if (f.Contains("brick"))
+        if (f.Contains("brick") || f.Contains("light stone"))
             return FindTraditionalBrickRow(rows, feature, sizeNum);
 
         if (f.Contains("safety screen"))
@@ -1478,7 +1482,7 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
         if (f.Contains("active heat flex"))
             return FindActiveHeatFlexRow(rows, type, model, sizeNum);
 
-        if (f.Contains("heat release louver"))
+        if (f.Contains("heat release louver") || (f.Contains("free flow") && !f.Contains("air intake")))
             return FindLouverRowBySize(wb, RecommendedHeatReleaseLouverSize(type, sizeNum, model));
 
         if (f.Contains("air intake louver"))
@@ -1657,32 +1661,40 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     private static PriceRow? FindTraditionalBrickRow(IReadOnlyList<PriceRow> rows, string feature, string sizeNum)
     {
         var f = Normalize(feature);
-        return Best(rows, r =>
-                          {
-                              if (!Eq(r.SheetName, "Indoor Price Book"))
-                                  return false;
-                              var text = Text(r);
-                              if (!text.Contains("Brick", StringComparison.OrdinalIgnoreCase))
-                                  return false;
-                              if (!ContainsSize(r, sizeNum))
-                                  return false;
+        var finish = f.Contains("light stone") ? "LS" : f.Contains("natural") ? "NT" :
+                     f.Contains("black") ? "BL" : f.Contains("red") ? "RD" : string.Empty;
+        if (string.IsNullOrWhiteSpace(finish))
+            return null;
 
-                              var isHerringbone = f.Contains("herringbone");
-                              if (isHerringbone && !text.Contains("Herringbone", StringComparison.OrdinalIgnoreCase))
-                                  return false;
-                              if (!isHerringbone && text.Contains("Herringbone", StringComparison.OrdinalIgnoreCase))
-                                  return false;
+        var isHerringbone = f.Contains("herringbone");
+        var prefix = isHerringbone ? "HB-" : string.Empty;
+        var part = $"{prefix}{finish}-TRA-{sizeNum}";
+        var exact = Best(rows, row => Eq(row.SheetName, "Indoor Price Book") &&
+                                     MatchesPartOrSku(row, [part]));
+        if (exact is not null)
+            return exact;
 
-                              if (f.Contains("light stone"))
-                                  return text.Contains("Light Stone", StringComparison.OrdinalIgnoreCase);
-                              if (f.Contains("natural"))
-                                  return text.Contains("Natural", StringComparison.OrdinalIgnoreCase);
-                              if (f.Contains("black"))
-                                  return text.Contains("Black", StringComparison.OrdinalIgnoreCase);
-                              if (f.Contains("red"))
-                                  return text.Contains("Red", StringComparison.OrdinalIgnoreCase);
-                              return false;
-                          });
+        // Custom price books may omit SKUs. Offset Light Stone's foundation description
+        // also omits "Brick", so match its finish explicitly without crossing patterns.
+        return Best(rows, row =>
+        {
+            if (!Eq(row.SheetName, "Indoor Price Book") || !ContainsSize(row, sizeNum))
+                return false;
+            // A description cannot override an identified Traditional finish or size.
+            if (new[] { row.PartName, row.Sku }.Select(Compact).Any(identifier =>
+                Regex.IsMatch(identifier, @"^(?:HB)?(?:RD|NT|BL|LS|RB|CLG)TRA\d+$") &&
+                !Eq(identifier, Compact(part))))
+                return false;
+            var text = Text(row);
+            if (!text.Contains("Brick", StringComparison.OrdinalIgnoreCase) &&
+                !(finish == "LS" && text.Contains("Light Stone", StringComparison.OrdinalIgnoreCase)))
+                return false;
+            if (text.Contains("Herringbone", StringComparison.OrdinalIgnoreCase) != isHerringbone)
+                return false;
+
+            var color = finish switch { "LS" => "Light Stone", "NT" => "Natural", "BL" => "Black", _ => "Red" };
+            return text.Contains(color, StringComparison.OrdinalIgnoreCase);
+        });
     }
 
     private static PriceRow? FindPassiveHeatFlexRow(IReadOnlyList<PriceRow> rows, FireplaceType type, string model,
@@ -1919,20 +1931,20 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
 
     private static string RecommendedHeatReleaseLouverSize(FireplaceType type, string sizeNum, string model)
     {
+        // Free Flow register sizing comes from FRFL-Parts.pdf, not Passive Heat Flex kit sizing.
         var normalizedModel = Normalize(model);
-        if (type == FireplaceType.Traditional || normalizedModel.Contains("traditional"))
-            return "100";
+        if (type == FireplaceType.Traditional || normalizedModel.Contains("traditional") ||
+            normalizedModel.Contains("passage") || IsPassageModel(model))
+            return "140";
         if (!int.TryParse(sizeNum, out var sizeInt))
             sizeInt = 0;
-        if (normalizedModel.Contains("passage") || sizeInt <= 30)
-            return "70";
+        if (sizeInt <= 30)
+            return "100";
         if (sizeInt is 42 or 45 or 46 or 50)
             return "100";
         if (sizeInt is 60 or 70)
-            return "120";
-        if (sizeInt == 80)
-            return "180";
-        if (sizeInt >= 100)
+            return "140";
+        if (sizeInt == 80 || sizeInt >= 100)
             return "200";
         return "100";
     }
@@ -1940,11 +1952,12 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
     private static string RecommendedAirIntakeLouverSize(FireplaceType type, string sizeNum, string model)
     {
         var normalizedModel = Normalize(model);
-        if (type == FireplaceType.Traditional || normalizedModel.Contains("traditional"))
+        if (type == FireplaceType.Traditional || normalizedModel.Contains("traditional") ||
+            normalizedModel.Contains("passage") || IsPassageModel(model))
             return "70";
         if (!int.TryParse(sizeNum, out var sizeInt))
             sizeInt = 0;
-        if (normalizedModel.Contains("passage") || sizeInt <= 30)
+        if (sizeInt <= 30)
             return "50";
         if (sizeInt is 42 or 45 or 46 or 50)
             return "50";
@@ -2854,10 +2867,12 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return "Active Heat Flex";
         if (f.Contains("passive heat flex"))
             return "Passive Heat Flex";
-        if (f.Contains("heat release louver"))
-            return "Heat Release Louver";
+        if (f.Contains("heat release louver") || (f.Contains("free flow") && !f.Contains("air intake")))
+            return "Free Flow Heat Release Louver";
         if (f.Contains("air intake louver"))
             return "Air Intake Louver";
+        if (f.Contains("analog wall timer"))
+            return "Analog Wall Timer";
         if (f.Contains("power vent"))
             return "Power Vent";
         if (f.Contains("reflective black interior"))
@@ -2888,10 +2903,12 @@ public sealed class ClosedXmlPriceBookService : IPriceBookService
             return "Always Remove Heat to Remove The Heat Release";
         if (f.Contains("passive heat flex"))
             return "Keep it Simple Ducted Heat Release Register and Plenum";
-        if (f.Contains("heat release louver"))
-            return "Standardized Heat Release Register";
+        if (f.Contains("heat release louver") || (f.Contains("free flow") && !f.Contains("air intake")))
+            return "Standardized Free Flow heat release mount and louver";
         if (f.Contains("air intake louver"))
             return "Standardized Air Intake Register";
+        if (f.Contains("analog wall timer"))
+            return "Indoor Analog Wall Timer";
         if (f.Contains("power vent"))
             return "Run Up to 8 90-Degree Elbows and 100' of Venting";
         if (f.Contains("reflective black interior"))

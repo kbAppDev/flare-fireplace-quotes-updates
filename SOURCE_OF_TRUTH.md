@@ -1,6 +1,6 @@
 # Flare Fireplace Quotes Source of Truth
 
-Version: **1.70.7** (fireplace discounts and custom terms)
+Version: **1.70.8** (Traditional options and Free Flow corrections)
 
 Repository: `kbAppDev/flare-fireplace-quotes-updates`
 
@@ -26,6 +26,8 @@ THIRD-PARTY-NOTICES.md
 The pinned `flare-quotes-v2-latest.json` file is mandatory-signed updater metadata. The automated workflow creates it
 from the final installer's exact version, release URL, byte size, and SHA-256, verifies the signature and assets in
 a draft release, and only then publishes. The v1 file remains solely to bootstrap existing v1.6.8 installations.
+
+v1.70.8 completes Traditional 42/46 Summit and Bonfire feature availability, exact Light Stone pricing, Free Flow louver sizing, and imported interior detection. Pricing remains based on the supplied 2026 foundation. See docs/TRADITIONAL_OPTIONS_AUDIT_1.70.8.md for the verified option matrix and remaining unpriced digital timer.
 
 v1.70.7 adds per-fireplace percentage discounts and quote-level custom terms. MSRP remains intact; discounts apply only to the underlying fireplace price, excluding included outdoor kits, optional features, and chargeable media. Amounts round once to cents on each extended fireplace line. The PDF keeps MSRP visible, shows the discount percentage and base MSRP after discount in red without a dollar-savings amount, and ends with custom terms in red. See docs/FIREPLACE_DISCOUNTS.md for calculation and persistence rules.
 

@@ -548,12 +548,15 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
             return "Active Heat Flex";
         if (normalized.Contains("passive heat flex"))
             return "Passive Heat Flex";
-        if (normalized.Contains("heat release louver"))
-            return "Heat Release Louver";
+        if (normalized.Contains("heat release louver") ||
+            (normalized.Contains("free flow") && !normalized.Contains("air intake")))
+            return "Free Flow Heat Release Louver";
         if (normalized.Contains("air intake louver"))
             return "Air Intake Louver";
         if (normalized.Contains("power vent"))
             return "Power Vent";
+        if (normalized.Contains("analog wall timer"))
+            return "Analog Wall Timer";
         if (normalized.Contains("reflective black interior"))
             return "Reflective Black Interior";
 
@@ -701,6 +704,8 @@ public sealed class QuestPdfQuotePdfService : IQuotePdfService
             return "https://flarefireplaces.com/free-flow-heat-release/";
         if (text.Contains("reflective"))
             return "https://flarefireplaces.com/reflective-back/";
+        if (text.Contains("analog wall timer"))
+            return "https://flarefireplaces.com/traditional-fireplace/";
         if (text.Contains("brick traditional") || text.Contains("herringbone") || text.Contains("offset"))
             return "https://flarefireplaces.com/traditional-fireplace/";
         if (text.Contains("media") || text.Contains("driftwood") || text.Contains("stone") || text.Contains("balls"))
